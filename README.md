@@ -17,6 +17,8 @@ Any host that runs Node works. Two easy ones:
 
 Environment variables: PORT (default 3000), DATA_DIR (default ./data, where db.json is saved). Back up DATA_DIR.
 
+**Free hosting without losing accounts:** create a free Redis database at upstash.com and set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN on the server. Everything (accounts, items, games) is then saved there instead of on the server's disk, so it survives restarts and sleeping.
+
 ## How it works
 - server.js: accounts (scrypt password hashes, cookie sessions), a document database saved to db.json, WebSocket live rooms for game servers and chat. Messages, trades and friend requests are only sent to the people involved. The server checks who may write each kind of document.
 - public/: the app (app.html), login page, and manifest. three.js loads from cdnjs.

@@ -8,18 +8,51 @@ fs.mkdirSync(DATA_DIR, {recursive:true});
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 /* ---------------- persistence ---------------- */
-let S = {accounts:{}, sessions:{}, docs:{}}; // accounts: id -> {id,name,lower,salt,hash,created}
-try{ S = Object.assign(S, JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))); }catch(e){}
-const byLower = {}; Object.values(S.accounts).forEach(a => byLower[a.lower] = a.id);
+// Two modes. If UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set, everything is saved to that
+// free hosted Redis database (survives restarts and free-tier sleeping). Otherwise it is saved to DATA_DIR/db.json.
+const REDIS_URL = (process.env.UPSTASH_REDIS_REST_URL || '').replace(/\/$/, ''), REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const USE_REDIS = !!(REDIS_URL && REDIS_TOKEN);
+let S = {accounts:{}, sessions:{}, docs:{}};
+const byLower = {};
 let dirty = false, saving = false;
+const saved = new Map(); // "hash\0field" -> json string last written
+const HASHES = {accounts:'bp3:accounts', sessions:'bp3:sessions', docs:'bp3:docs'};
+async function redis(cmds){
+  const r = await fetch(REDIS_URL + (cmds.length === 1 && !Array.isArray(cmds[0][0]) ? '' : '/pipeline'), {method:'POST', headers:{Authorization:'Bearer ' + REDIS_TOKEN, 'Content-Type':'application/json'}, body:JSON.stringify(cmds.length === 1 ? cmds[0] : cmds)});
+  if(!r.ok) throw new Error('redis ' + r.status); return r.json();
+}
+async function loadAll(){
+  if(USE_REDIS){
+    for(const k of Object.keys(HASHES)){
+      const j = await redis([['HGETALL', HASHES[k]]]), arr = (j && j.result) || [];
+      for(let i = 0; i < arr.length; i += 2){ try{ S[k][arr[i]] = JSON.parse(arr[i + 1]); saved.set(k + '\0' + arr[i], arr[i + 1]); }catch(e){} }
+    }
+    console.log('Loaded from Redis:', Object.keys(S.accounts).length, 'accounts,', Object.keys(S.docs).length, 'documents');
+  } else { try{ S = Object.assign(S, JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))); }catch(e){} }
+  Object.keys(S.sessions).forEach(t => { if(S.sessions[t].exp < Date.now()) delete S.sessions[t]; });
+  Object.values(S.accounts).forEach(a => byLower[a.lower] = a.id);
+}
 function markDirty(){ dirty = true; }
-function flush(sync){
-  if(!dirty || saving && !sync) return; dirty = false; saving = true;
-  const tmp = DB_FILE + '.tmp', json = JSON.stringify(S);
-  try{ if(sync){ fs.writeFileSync(tmp, json); fs.renameSync(tmp, DB_FILE); saving = false; } else fs.writeFile(tmp, json, err => { if(!err) fs.rename(tmp, DB_FILE, () => { saving = false; }); else saving = false; }); }catch(e){ saving = false; }
+async function flush(sync){
+  if(!dirty || (saving && !sync)) return; dirty = false; saving = true;
+  try{
+    if(USE_REDIS){
+      const cmds = [], seen = new Set();
+      for(const k of Object.keys(HASHES)) for(const f in S[k]){ const key = k + '\0' + f, v = JSON.stringify(S[k][f]); seen.add(key); if(saved.get(key) !== v) cmds.push(['HSET', HASHES[k], f, v, key, v]); }
+      for(const key of [...saved.keys()]) if(!seen.has(key)){ const [k, f] = key.split('\0'); cmds.push(['HDEL', HASHES[k], f, key]); }
+      for(let i = 0; i < cmds.length; i += 100){
+        const chunk = cmds.slice(i, i + 100); await redis(chunk.map(c => c.slice(0, c[0] === 'HSET' ? 4 : 3)));
+        chunk.forEach(c => { if(c[0] === 'HSET') saved.set(c[4], c[5]); else saved.delete(c[3]); });
+      }
+    } else {
+      const tmp = DB_FILE + '.tmp', json = JSON.stringify(S);
+      if(sync){ fs.writeFileSync(tmp, json); fs.renameSync(tmp, DB_FILE); } else await new Promise(res => fs.writeFile(tmp, json, err => err ? res() : fs.rename(tmp, DB_FILE, () => res())));
+    }
+  }catch(e){ dirty = true; console.error('save failed', e.message); }
+  saving = false;
 }
 setInterval(() => flush(false), 1500);
-for(const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { flush(true); process.exit(0); });
+for(const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { try{ await flush(true); }catch(e){} process.exit(0); });
 
 /* ---------------- auth ---------------- */
 const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -28,9 +61,9 @@ const newToken = () => crypto.randomBytes(24).toString('hex');
 function cookieOf(req, k){ const m = (req.headers.cookie || '').split(/;\s*/).find(c => c.startsWith(k + '=')); return m ? decodeURIComponent(m.slice(k.length + 1)) : null; }
 function userOf(req){ const t = cookieOf(req, 'bp3'); const s = t && S.sessions[t]; if(!s || s.exp < Date.now()) return null; return S.accounts[s.uid] || null; }
 function startSession(res, uid, req){
-  const t = newToken(); S.sessions[t] = {uid, exp:Date.now() + 30 * 86400000}; markDirty();
+  const t = newToken(); S.sessions[t] = {uid, exp:Date.now() + 180 * 86400000}; markDirty();
   const secure = (req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
-  res.setHeader('Set-Cookie', 'bp3=' + t + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + 30 * 86400 + secure);
+  res.setHeader('Set-Cookie', 'bp3=' + t + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + 180 * 86400 + secure);
 }
 const attempts = {};
 function throttled(ip){ const now = Date.now(), a = attempts[ip] = (attempts[ip] || []).filter(t => now - t < 600000); if(a.length >= 20) return true; a.push(now); return false; }
@@ -215,4 +248,4 @@ const server = http.createServer((req, res) => {
   fs.readFile(f, (err, buf) => { if(err){ res.writeHead(404); return res.end('Not found'); } res.writeHead(200, {'Content-Type':MIME[path.extname(f)] || 'application/octet-stream', 'Cache-Control':'public, max-age=3600'}); res.end(buf); });
 });
 server.on('upgrade', onUpgrade);
-server.listen(PORT, () => console.log('Retro Blox running on http://localhost:' + PORT + '  (data in ' + DATA_DIR + ')'));
+loadAll().then(() => server.listen(PORT, () => console.log('Retro Blox running on http://localhost:' + PORT + (USE_REDIS ? '  (data in Redis)' : '  (data in ' + DATA_DIR + ')')))).catch(e => { console.error('Could not load saved data:', e.message); process.exit(1); });

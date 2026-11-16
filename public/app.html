@@ -355,6 +355,11 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 .gm-btns button:hover{filter:brightness(1.12)}
 @media (prefers-reduced-motion:reduce){#alertbar div,#gToast{animation:none;transition:none}}
 
+#gTray{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;background:rgba(20,22,28,.72);border:2px solid rgba(255,255,255,.5);padding:6px 14px;color:#fff;min-height:46px;cursor:pointer}
+#gTray span{font-size:30px;line-height:1}#gTray em{font-style:normal;font-size:12px;color:#cfd6e4}
+#gPrompt{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.68);color:#fff;padding:6px 16px;font-weight:700;font-size:16px;pointer-events:none!important}
+#gPrompt:empty{display:none}
+
 </style></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
@@ -449,7 +454,15 @@ const GAMES = [
  {id:4, kind:'studio', name:'Brick Builder Studio', creator:'Retro Blox', color:['#f2b705','#a36a00'], max:1,
   desc:'Build anything. Click to place bricks, press E to switch to delete mode, R to rotate, and pick a brick size and color from the toolbar. Your creation is saved to your place.'},
  {id:5, kind:'tower', name:'Sky Tower Obby', creator:'Retro Blox', color:['#8e5bd9','#2c1670'], max:12,
-  desc:'A tall tower of moving platforms and vanishing tiles. How high can you climb before you fall? Every server builds its own tower, and everyone in it climbs the same one.'}
+  desc:'A tall tower of moving platforms and vanishing tiles. How high can you climb before you fall? Every server builds its own tower, and everyone in it climbs the same one.'},
+ {id:6, kind:'restaurant', name:'Work At A Restaurant', creator:'Retro Blox', color:['#e8483a','#7a1f16'], max:10,
+  desc:'Run the kitchen at the Retro Diner. Customers walk in and order burgers, fries, sodas and ice cream. Stand at a station and press E (or click) to cook, grab the food when it is ready, then press E at the counter to serve. Hurry, they get angry if they wait too long! Every order earns tokens, with a tip for fast service.\n\nTip: Press Q to throw away your tray if you cooked the wrong thing.'},
+ {id:7, kind:'obby', gen:{seed:11, len:34, every:8, hard:.25, name:'Candy Obby', pal:[0xff8ac4,0x8fd6ff,0xffe36e,0xa6f0a0,0xc7a3ff,0xffb27a], ground:0xf7c6e0, sky:['#ff9ad5','#ffe6f4']}, name:'Candy Obby', creator:'Retro Blox', color:['#ff7ab8','#8a2a62'], max:12,
+  desc:'A sweet, easy obby made of candy-colored bricks. Four checkpoints, a few moving platforms, and a gold finish. Great for beginners.'},
+ {id:8, kind:'obby', gen:{seed:23, len:44, every:11, hard:.65, name:'Neon Inferno', pal:[0x00f0ff,0xff2bd6,0x9dff00,0xffd000,0x7a5cff,0xff5a1a], ground:0x24284a, sky:['#0b0b2a','#3a1a6e']}, name:'Neon Inferno', creator:'Retro Blox', color:['#3a1a6e','#0b0b2a'], max:12,
+  desc:'A hard night-time obby with moving bricks, vanishing tiles, narrow beams and spinning bars over lava. Checkpoints are far apart. Only for brave builders.'},
+ {id:9, kind:'coins', name:'Coin Island', creator:'Retro Blox', color:['#f2b705','#2a7d3b'], max:16,
+  desc:'Climb eight spiral towers and collect gold coins across the island. Every coin is worth 1 token and they come back after a while. Race your friends to the top. Falling just puts you back at the start.'}
 ];
 const GAME_BY_ID = {}; GAMES.forEach(g => GAME_BY_ID[g.id] = g);
 
@@ -618,6 +631,8 @@ function gameThumb(game, w, h){
   if(game.kind === 'obby' || game.kind === 'tower'){ for(let i = 0; i < 6; i++) brick(w * (.06 + i * .15), h * (.78 - i * .09 - (game.kind === 'tower' ? i * .03 : 0)), u * 1.7, u * .55, cols[(i + game.id) % 7]); g.fillStyle = '#ff6a00'; g.fillRect(0, h * .9, w, h * .1); }
   else if(game.kind === 'town'){ for(let i = 0; i < 4; i++){ const x = w * (.07 + i * .23), bw = u * 2, bh = u * 1.5; brick(x, h * .68 - bh * .4, bw, bh, cols[(i * 2 + 1) % 7]); g.fillStyle = '#7c5c46'; g.fillRect(x + bw * .38, h * .68 + bh * .1, bw * .24, bh * .5); } }
   else if(game.kind === 'arena'){ g.fillStyle = '#d9dde3'; g.save(); g.translate(w * .5, h * .78); g.rotate(-.7); g.fillRect(-u * .18, -u * 3, u * .36, u * 3.2); g.fillStyle = '#f5cd30'; g.fillRect(-u * .7, 0, u * 1.4, u * .3); g.restore(); g.save(); g.translate(w * .5, h * .78); g.rotate(.7); g.fillStyle = '#d9dde3'; g.fillRect(-u * .18, -u * 3, u * .36, u * 3.2); g.fillStyle = '#f5cd30'; g.fillRect(-u * .7, 0, u * 1.4, u * .3); g.restore(); }
+  else if(game.kind === 'restaurant'){ for(let i = 0; i < 6; i++){ g.fillStyle = i % 2 ? '#ffffff' : '#c4281c'; g.fillRect(w * (.1 + i * .13), h * .12, w * .13, h * .14); } const bx = w * .5, by = h * .72; g.fillStyle = '#e0a45a'; g.fillRect(bx - u * 2, by - u * 1.5, u * 4, u * .9); g.fillStyle = '#4b974b'; g.fillRect(bx - u * 2.1, by - u * .6, u * 4.2, u * .3); g.fillStyle = '#7c4a2a'; g.fillRect(bx - u * 2, by - u * .3, u * 4, u * .6); g.fillStyle = '#f5cd30'; g.fillRect(bx - u * 2, by + u * .3, u * 4, u * .25); g.fillStyle = '#e0a45a'; g.fillRect(bx - u * 2, by + u * .55, u * 4, u * .6); }
+  else if(game.kind === 'coins'){ for(let i = 0; i < 7; i++){ const cx = w * (.12 + i * .13), cy = h * (.7 - (i % 3) * .14); g.fillStyle = '#a67c00'; g.beginPath(); g.arc(cx, cy + 2, u * .75, 0, 6.3); g.fill(); g.fillStyle = '#ffd23c'; g.beginPath(); g.arc(cx, cy, u * .75, 0, 6.3); g.fill(); g.fillStyle = '#fff3b0'; g.fillRect(cx - u * .12, cy - u * .4, u * .24, u * .8); } }
   else if(game.kind === 'studio' || game.kind === 'custom'){ for(let i = 0; i < 5; i++) for(let j = 0; j <= 4 - i; j++) brick(w * .22 + (i * .5 + j) * u * 1.7, h * .8 - i * u * .62, u * 1.6, u * .6, cols[(i + j) % 7]); }
   return _thumbs[key] = cv.toDataURL('image/png');
 }
@@ -825,6 +840,181 @@ const Engine = (function(){
     G.statCols = ['Coins']; G.mainStat = 'coins'; G.sunTarget = [0, 0, 0]; G.title = {a:'Brick Town', b:'Collect coins and hang out'}; G.titleView = [0, 4, 0];
     G.botHomes = () => { const o = []; for(let i = 0; i < 10; i++) o.push({x:(Math.random() - .5) * 80, y:.05, z:(Math.random() - .5) * 80}); return o; };
   }
+  /* ---------- generated obbies (Candy Obby, Neon Inferno) ---------- */
+  function buildGenObby(cfg){
+    const r = rng(cfg.seed), pal = cfg.pal, pick = () => pal[Math.floor(r() * pal.length)];
+    G.spawn = {x:0, y:.05, z:10}; G.lavaY = -4.2; G.stageNames = ['Start'];
+    if(cfg.sky){ G.sky.material.uniforms.top.value.set(cfg.sky[0]); G.sky.material.uniforms.bottom.value.set(cfg.sky[1]); G.scene.fog.color.set(cfg.sky[1]); }
+    block(0, 0, 0, 80, 60, cfg.ground, 'solid', {h:2, cast:false});
+    let x = 0, y = 0, z = -40, st = 0, sinceCheck = 0;
+    block(x, y, z, 8, 8, pick());
+    for(let i = 1; i <= cfg.len; i++){
+      x = Math.max(-20, Math.min(20, x + (r() - .5) * 10)); z -= 10 + r() * 1.5; y += r() < .45 ? 1 + r() * .8 : 0; sinceCheck++;
+      const roll = r();
+      if(sinceCheck >= cfg.every){ sinceCheck = 0; st++; z -= 3; pad(st, x, y, z); G.stageNames[st] = 'Section ' + (st + 1); z -= 3; continue; }
+      if(roll < cfg.hard * .3){ block(x, y, z, 7, 7, pick(), 'move', {ax:'x', amp:4, spd:.9 + cfg.hard * .5, ph:i}); }
+      else if(roll < cfg.hard * .55){ for(let j = 0; j < 3; j++){ block(x, y, z, 5, 5, pick(), 'vanish', {delay:.6}); if(j < 2) z -= 9; } }
+      else if(roll < cfg.hard * .7){ z -= 8; block(x, y, z, 22, 22, 0x3d434d, 'solid', {h:2}); addSpinner(x, y, z, 14, (r() < .5 ? 1 : -1) * (1.4 + cfg.hard)); z -= 8; }
+      else if(roll < cfg.hard * .85){ z -= 3; block(x, y, z, 3, 14, pick()); z -= 4; }
+      else block(x, y, z, cfg.hard > .4 ? 5 : 6, cfg.hard > .4 ? 5 : 6, pick());
+    }
+    z -= 14; const goal = block(x, y + 1, z, 14, 14, 0xffffff, 'goal', {stage:st + 1, topMap:labelTex('FINISH', '#f2b705', 74)}); goal.mats[0].color.set(0xf2b705); pillar(x, y + 1, z, 8);
+    const gold = new THREE.MeshLambertMaterial({color:0xffd23c, emissive:0x4a3500});
+    [[2.4, 1, 2.4, 1.5], [.9, 2, .9, 3], [3, 2.4, 3, 5.2]].forEach(a => { const m = new THREE.Mesh(new THREE.BoxGeometry(a[0], a[1], a[2]), gold); m.position.set(x, y + a[3], z); m.castShadow = true; G.scene.add(m); });
+    lavaSea(-5, z / 2);
+    G.statCols = ['Stage']; G.mainStat = 'stage'; G.sunTarget = [0, 0, -40]; G.title = {a:cfg.name, b:'Reach the FINISH platform. Checkpoints save your spot.'}; G.titleView = [0, 8, -45]; G.botHomes = () => [];
+  }
+
+  /* ---------- Coin Island ---------- */
+  function buildCoinIsland(){
+    G.spawn = {x:0, y:.05, z:0}; G.lavaY = -30; G.softFall = true;
+    block(0, 0, 0, 120, 120, 0x5fa84a, 'solid', {h:2, cast:false});
+    decor(new THREE.BoxGeometry(2400, .2, 2400), 0x3a9ce0, 0, -6, 0, {cast:false});
+    G.coins = []; const r = rng(91);
+    const addCoin = (cx, top, cz) => { const c = decor(new THREE.CylinderGeometry(1, 1, .3, 16), 0xffd23c, cx, top + 3, cz, {emi:'#6b5000'}); c.rotation.x = Math.PI / 2; G.coins.push({m:c, x:cx, z:cz, y:top + 2.6, on:true, t:0}); };
+    for(let k = 0; k < 8; k++){
+      const a = k / 8 * 6.283 + .3, R = 34 + (k % 2) * 8, px = Math.cos(a) * R, pz = Math.sin(a) * R;
+      block(px, 28, pz, 3, 3, COL.dgrey, 'solid', {h:28, studs:false});
+      for(let j = 0; j < 6; j++){ const aa = a + j * .9, sx = px + Math.cos(aa) * 8, sz = pz + Math.sin(aa) * 8, top = 4 + j * 4; block(sx, top, sz, 5, 5, CYCLE[(k + j) % 7]); addCoin(sx, top, sz); }
+      block(px, 28, pz, 9, 9, COL.yellow, 'solid', {h:1.2}); addCoin(px, 28, pz);
+    }
+    for(let i = 0; i < 24; i++){ const a = i / 24 * 6.283, R = 16 + (i % 3) * 8; addCoin(Math.cos(a) * R, 0, Math.sin(a) * R); }
+    for(let i = 0; i < 10; i++){ const x = (r() - .5) * 100, z = (r() - .5) * 100; if(Math.hypot(x, z) > 18) tree(x, z); }
+    G.statCols = ['Coins']; G.mainStat = 'coins'; G.sunTarget = [0, 0, 0]; G.title = {a:'Coin Island', b:'Climb the spiral towers and grab every coin. Each coin is 1 token.'}; G.titleView = [0, 10, 0]; G.botHomes = () => [];
+  }
+
+  /* ---------- Work At A Restaurant ---------- */
+  const FOODS = {burger:{e:'🍔', n:'Burger', t:3.2}, fries:{e:'🍟', n:'Fries', t:2.6}, soda:{e:'🥤', n:'Soda', t:1.4}, ice:{e:'🍦', n:'Ice Cream', t:2}};
+  const FOODKEYS = ['burger', 'fries', 'soda', 'ice'];
+  const EMOJI_FONT = '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+  const GUESTS = ['Sam', 'Jo', 'Max', 'Ava', 'Leo', 'Mia', 'Zed', 'Kai', 'Ivy', 'Rex', 'Nia', 'Gus'];
+  const rpick = a => a[Math.floor(Math.random() * a.length)];
+  function emojiSprite(text, size){
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 128; const g = cv.getContext('2d');
+    g.font = '88px ' + EMOJI_FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 64, 70);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv), transparent:true, depthTest:false})); sp.scale.set(size, size, 1); return sp;
+  }
+  function orderSprite(items){
+    const n = Math.max(1, items.length), W = 30 + n * 62, cv = document.createElement('canvas'); cv.width = W; cv.height = 100; const g = cv.getContext('2d');
+    g.fillStyle = 'rgba(255,255,255,.96)'; g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 3; g.beginPath(); g.rect(4, 4, W - 8, 70); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(W / 2 - 10, 72); g.lineTo(W / 2, 92); g.lineTo(W / 2 + 10, 72); g.closePath(); g.fill();
+    g.font = '46px ' + EMOJI_FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
+    items.forEach((k, i) => g.fillText(FOODS[k].e, 4 + (W - 8) / n * (i + .5), 42));
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv), transparent:true, depthTest:false})); sp.scale.set(W / 20, 5, 1); sp.center.set(.5, 0); return sp;
+  }
+  function buildRestaurant(){
+    G.spawn = {x:0, y:.05, z:-14}; G.lavaY = -40; G.softFall = true;
+    block(0, 0, 0, 220, 220, 0x6aaa52, 'solid', {h:2, cast:false});
+    decor(new THREE.BoxGeometry(220, .2, 18), 0x4a4e55, 0, .05, 62, {cast:false}); decor(new THREE.BoxGeometry(220, .22, 1), 0xf5cd30, 0, .08, 62, {cast:false});
+    for(let i = 0; i < 10; i++) for(let j = 0; j < 8; j++) decor(new THREE.BoxGeometry(6, .16, 6.5), (i + j) % 2 ? 0xf2f3f3 : 0xd8493e, -27 + i * 6, .08, -22.75 + j * 6.5, {cast:false});
+    const wall = 0xe9d8b4;
+    block(0, 13, -27, 66, 2, wall, 'solid', {h:13, studs:false}); block(-32, 13, 0, 2, 56, wall, 'solid', {h:13, studs:false}); block(32, 13, 0, 2, 56, wall, 'solid', {h:13, studs:false});
+    block(-20, 13, 27, 26, 2, wall, 'solid', {h:13, studs:false}); block(20, 13, 27, 26, 2, wall, 'solid', {h:13, studs:false});
+    block(0, 15, 27, 14, 2, 0xc4281c, 'solid', {h:4, studs:false});
+    const sign = textSprite('RETRO DINER', {color:'#ffe08a'}); sign.scale.multiplyScalar(2.2); sign.position.set(0, 20, 28.5); G.scene.add(sign);
+    decor(new THREE.BoxGeometry(24, 5, .8), 0x1b2a34, 0, 20, 27.7);
+    // service counter (too tall to jump)
+    block(0, 6.4, -4, 62, 3, COL.brown, 'solid', {h:6.4, studs:false}); block(0, 7, -4, 63, 3.8, COL.white, 'solid', {h:.6, studs:false});
+    const stDefs = [['burger', -21, 0x4a4f57], ['fries', -7, 0xd9a21c], ['soda', 7, 0x1b6fd6], ['ice', 21, 0xe86aa8]];
+    G.R = {st:[], cust:[], slots:[-18, -6, 6, 18].map(x => ({x, z:3, c:null})), tray:[], served:0, missed:0, spawnT:2, t:0, prompt:''};
+    stDefs.forEach(d => {
+      const k = d[0], x = d[1]; block(x, 4, -22, 9, 5, d[2], 'solid', {h:4, studs:false});
+      if(k === 'burger'){ decor(new THREE.BoxGeometry(7, .4, 3.4), 0xff5a1a, x, 4.2, -22, {emi:'#7a2200', cast:false}); }
+      else if(k === 'fries'){ decor(new THREE.BoxGeometry(6.4, 1.4, 3.4), 0x8f6a10, x, 4.7, -22); decor(new THREE.BoxGeometry(5.6, .3, 2.6), 0xffe08a, x, 5.4, -22, {cast:false}); }
+      else if(k === 'soda'){ decor(new THREE.BoxGeometry(5, 7, 3), 0x15508f, x, 7.5, -23); [-1.4, 0, 1.4].forEach(o => decor(new THREE.BoxGeometry(.9, .9, .9), [0xff4a4a, 0xffd23c, 0x6adf6a][Math.round(o / 1.4) + 1], x + o, 8, -21.3, {cast:false})); }
+      else { decor(new THREE.BoxGeometry(6, 3, 3.4), 0xffffff, x, 5.5, -22); decor(new THREE.CylinderGeometry(1.5, .1, 3, 10), 0xffd9a8, x, 8, -22); }
+      const lab = textSprite(FOODS[k].e + ' ' + FOODS[k].n, {color:'#fff'}); lab.position.set(x, 11.6, -22); G.scene.add(lab);
+      const bar = new THREE.Sprite(new THREE.SpriteMaterial({color:0x47d36b, depthTest:false})); bar.center.set(0, .5); bar.position.set(x - 3, 9.4, -22); bar.scale.set(.01, .7, 1); bar.visible = false; G.scene.add(bar);
+      G.R.st.push({k, x, z:-22, state:'idle', t:0, bar, icon:null});
+    });
+    [[-22, 12], [22, 12], [-22, 21], [22, 21]].forEach(t => { block(t[0], 3.2, t[1], 7, 7, COL.brown, 'solid', {h:.8, studs:false}); decor(new THREE.CylinderGeometry(.8, .8, 3.2, 8), 0x5b4332, t[0], 1.6, t[1]); [-5, 5].forEach(o => decor(new THREE.BoxGeometry(3, 2.2, 3), COL.red, t[0] + o, 1.1, t[1], {cast:false})); });
+    const rr = rng(5); [[-48, 40], [48, 40], [-60, -10], [60, -10], [-52, -50], [52, -50]].forEach(t => tree(t[0] + (rr() - .5) * 6, t[1]));
+    G.statCols = ['Served']; G.mainStat = 'coins'; G.sunTarget = [0, 0, 0]; G.title = {a:'Work At A Restaurant', b:'Stand at a station and press E to cook. Then press E at the counter to serve.'}; G.titleView = [0, 8, 0]; G.botHomes = () => [];
+    renderTray();
+  }
+  function renderTray(){
+    const el = document.getElementById('gTray'); if(!el || !G.R) return;
+    el.innerHTML = '<b>Tray</b>' + G.R.tray.map(k => '<span>' + FOODS[k].e + '</span>').join('') + (G.R.tray.length ? '' : '<em>empty</em>') + '<em>Q: drop</em>';
+  }
+  function dropTray(){ if(!G.R || !G.R.tray.length) return; G.R.tray.length = 0; renderTray(); toast('Tray cleared', 'Food thrown away'); sfx.hit(); }
+  function genOrder(){
+    const n = 1 + Math.floor(Math.random() * (2 + Math.min(2, G.R.served / 6))), o = [];
+    for(let i = 0; i < n; i++){ let k = rpick(FOODKEYS), tries = 0; while(o.filter(x => x === k).length >= 2 && tries++ < 8) k = rpick(FOODKEYS); o.push(k); }
+    return o;
+  }
+  function setOrderBubble(c){
+    if(c.bub){ c.e.A.group.remove(c.bub); c.bub = null; }
+    if(c.order.length){ c.bub = orderSprite(c.order); c.bub.position.y = 7.7; c.e.A.group.add(c.bub); }
+  }
+  function spawnCust(){
+    const R = G.R, free = R.slots.filter(s => !s.c); if(!free.length) return;
+    const slot = rpick(free), av = DEFAULT_AVATAR(), skin = rpick(['#f5cd30', '#e0b080', '#d09060', '#fdeacb', '#a67c52']), shirt = rpick(['#c4281c', '#0d69ac', '#f5cd30', '#287f47', '#da8541', '#6b327c', '#e0589a', '#12a89d']), pants = rpick(['#287f47', '#232b3a', '#635f62', '#7c5c46', '#0d69ac']);
+    av.c = {h:skin, t:shirt, la:skin, ra:skin, ll:pants, rl:pants};
+    if(Math.random() < .4){ const hats = ITEMS.filter(i => i.type === 'hat'); if(hats.length) av.hats = [rpick(hats).id]; }
+    const e = mkEnt({name:rpick(GUESTS), avatar:av}, (Math.random() - .5) * 8, .05, 52, true); e.face = Math.PI;
+    const bar = new THREE.Sprite(new THREE.SpriteMaterial({color:0x47d36b, depthTest:false})); bar.center.set(0, .5); bar.position.set(-2, 7, 0); bar.scale.set(4, .5, 1); bar.visible = false; e.A.group.add(bar);
+    const patMax = Math.max(32, 58 - R.served * .8), c = {e, slot, order:genOrder(), pat:patMax, patMax, state:'enter', bub:null, bar, hold:0, leg:0, side:Math.random() < .5 ? -1 : 1};
+    slot.c = c; R.cust.push(c);
+  }
+  function walkTo(e, tx, tz, dt, spd){
+    const dx = tx - e.x, dz = tz - e.z, d = Math.hypot(dx, dz); e.grounded = true;
+    if(d < .5){ e.vx = e.vz = 0; return true; }
+    const s = Math.min(d / dt, spd); e.vx = dx / d * s; e.vz = dz / d * s; e.x += e.vx * dt; e.z += e.vz * dt; e.face = Math.atan2(dx, dz); return false;
+  }
+  function custLeave(c, happy){
+    c.state = 'leave'; c.hold = happy ? 1.5 : .4; if(c.slot){ c.slot.c = null; c.slot = null; }
+    if(c.bub){ c.e.A.group.remove(c.bub); c.bub = null; } c.bar.visible = false; if(happy){ c.e.emote = 'cheer'; c.e.emT = 1.5; }
+  }
+  function nearestWaiting(){
+    let best = null, bd = 1e9; G.R.cust.forEach(c => { if(c.state !== 'wait') return; const d = Math.hypot(G.P.x - c.e.x, G.P.z - c.e.z); if(d < bd){ bd = d; best = c; } }); return best && bd < 20 ? best : null;
+  }
+  function serveAll(){
+    const R = G.R, P = G.P; let gave = 0;
+    R.cust.filter(c => c.state === 'wait' && Math.hypot(P.x - c.e.x, P.z - c.e.z) < 20).sort((a, b) => Math.hypot(P.x - a.e.x, P.z - a.e.z) - Math.hypot(P.x - b.e.x, P.z - b.e.z)).forEach(c => {
+      let did = false;
+      c.order.slice().forEach(k => { const i = R.tray.indexOf(k); if(i >= 0){ R.tray.splice(i, 1); c.order.splice(c.order.indexOf(k), 1); did = true; gave++; } });
+      if(!did) return;
+      if(c.order.length){ setOrderBubble(c); sfx.coin(); return; }
+      const tip = c.pat > c.patMax * .5 ? 1 : 0, pay = 2 + tip; R.served++; P.stats.coins = R.served; sfx.win();
+      toast('Order served!', '+' + pay + ' tokens' + (tip ? ' (with tip)' : '')); chatMsg('sys', c.e.user.name + ' paid ' + pay + ' tokens.');
+      G.opts.onReward && G.opts.onReward('tokens', pay); G.opts.onEvent && G.opts.onEvent('served', R.served); custLeave(c, true); updateBoard();
+    });
+    renderTray(); if(!gave){ toast('Nothing to serve', 'Match the food in the customer\'s bubble.'); sfx.hit(); }
+  }
+  function rInteract(){
+    const R = G.R, P = G.P; if(!R || P.dead || G.state !== 'play') return;
+    if(P.z > -12){ serveAll(); return; }
+    let st = null, bd = 1e9; R.st.forEach(s => { const d = Math.hypot(P.x - s.x, P.z - s.z); if(d < bd){ bd = d; st = s; } });
+    if(!st || bd > 11){ toast('Too far', 'Walk up to a cooking station.'); return; }
+    if(st.state === 'idle'){ st.state = 'cook'; st.t = 0; st.bar.visible = true; sfx.check(); }
+    else if(st.state === 'cook') toast('Still cooking...', FOODS[st.k].n);
+    else toast('Ready!', 'Stand close to pick it up.');
+  }
+  function rStep(dt){
+    const R = G.R, P = G.P; R.t += dt;
+    R.spawnT -= dt; if(R.spawnT <= 0){ if(R.slots.some(s => !s.c)){ spawnCust(); R.spawnT = Math.max(3.5, 11 - R.served * .2) + Math.random() * 4; } else R.spawnT = 2; }
+    for(let i = R.cust.length - 1; i >= 0; i--){
+      const c = R.cust[i], e = c.e;
+      if(c.state === 'enter'){ if(c.leg === 0){ if(walkTo(e, 0, 30, dt, 11)) c.leg = 1; } else if(walkTo(e, c.slot.x, c.slot.z, dt, 11)){ c.state = 'wait'; e.face = Math.PI; setOrderBubble(c); c.bar.visible = true; sfx.check(); } }
+      else if(c.state === 'wait'){
+        c.pat -= dt; const f = Math.max(0, c.pat / c.patMax); c.bar.scale.x = Math.max(.01, 4 * f); c.bar.material.color.setHSL(.33 * f, .8, .5);
+        if(c.pat <= 0){ R.missed++; custLeave(c, false); e.face = Math.PI; toast('A customer left angry!', 'Cook faster next time.'); sfx.hit(); }
+      } else if(c.state === 'leave'){
+        if(c.hold > 0){ c.hold -= dt; e.vx = e.vz = 0; continue; }
+        if(c.leg === 0){ if(walkTo(e, 0, 30, dt, 12)) c.leg = 1; } else if(walkTo(e, c.side * 36, 56, dt, 12)){ G.scene.remove(e.A.group); R.cust.splice(i, 1); }
+      }
+    }
+    R.st.forEach(s => {
+      const f = FOODS[s.k];
+      if(s.state === 'cook'){ s.t += dt; s.bar.scale.x = Math.max(.01, 6 * Math.min(1, s.t / f.t)); if(s.t >= f.t){ s.state = 'ready'; s.bar.visible = false; s.icon = emojiSprite(f.e, 4); s.icon.position.set(s.x, 8.6, s.z + 1); G.scene.add(s.icon); sfx.check(); } }
+      else if(s.state === 'ready'){ if(s.icon) s.icon.position.y = 8.6 + Math.sin(R.t * 4) * .3; if(R.tray.length < 5 && Math.hypot(P.x - s.x, P.z - s.z) < 11 && !P.dead){ R.tray.push(s.k); G.scene.remove(s.icon); s.icon = null; s.state = 'idle'; renderTray(); sfx.coin(); } }
+    });
+    let msg = '';
+    if(P.z > -12){ const c = nearestWaiting(); msg = c ? 'Press E or click: serve food' : 'Customers line up here'; }
+    else { let st = null, bd = 1e9; R.st.forEach(s => { const d = Math.hypot(P.x - s.x, P.z - s.z); if(d < bd){ bd = d; st = s; } }); if(st && bd < 11) msg = st.state === 'idle' ? 'Press E or click: cook ' + FOODS[st.k].n : st.state === 'cook' ? 'Cooking ' + FOODS[st.k].n + '...' : (R.tray.length >= 5 ? 'Tray full! Serve or press Q' : 'Ready! Stay close to grab it'); }
+    if(msg !== R.prompt){ R.prompt = msg; const el = document.getElementById('gPrompt'); if(el) el.textContent = msg; }
+  }
+
   function buildStudio(){
     G.spawn = {x:0, y:.05, z:20}; G.lavaY = -80;
     const bp = makePart({x:0, y:-1, z:0, w:160, h:2, d:160, color:0xffffff, topMap:null, studs:false});
@@ -958,6 +1148,7 @@ const Engine = (function(){
   }
   function toolUse(){
     const P = G.P; if(P.dead || P.cd > 0) return;
+    if(G.R){ P.cd = .25; rInteract(); return; }
     const k = P.tool; if(!k) return;
     if(k === 'sword'){ P.swing = .38; P.cd = .45; P.hitDone = false; G.swingCount++; sfx.swing(); }
     else if(k === 'boombox'){ G.music = !G.music; musicToggle(G.music); P.cd = .4; chatMsg('info', G.music ? 'Boombox: now playing.' : 'Boombox: stopped.'); }
@@ -1046,7 +1237,7 @@ const Engine = (function(){
 
   /* ---------- per-step simulation ---------- */
   function worldStep(dt){
-    const T = Date.now() / 1000;
+    const T = Date.now() / 1000; if(G.R) rStep(dt);
     G.movers.forEach(m => { const s = Math.sin(T * m.spd + m.ph) * m.amp, nx = m.bx + (m.ax === 'x' ? s : 0), ny = m.by + (m.ax === 'y' ? s : 0), nz = m.bz + (m.ax === 'z' ? s : 0); m.dx = nx - m.cx; m.dy = ny - m.cy; m.dz = nz - m.cz; m.cx = nx; m.cy = ny; m.cz = nz; m.mesh.position.set(nx, ny, nz); bounds(m); });
     G.spinners.forEach(s => { s.ang = s.w * T; s.group.rotation.y = s.ang; });
     G.vanishers.forEach(v => {
@@ -1067,7 +1258,7 @@ const Engine = (function(){
     const jump = (!typing && G.keys.has('Space')) || G.jumpBtn;
     stepEnt(P, dt, wx, wz, jump, speed, gm);
     if(Math.hypot(P.vx, P.vz) > 1) { const d = Math.atan2(P.vx, P.vz) - P.face; P.face += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, dt * 14); }
-    if(P.y < G.lavaY){ if(G.pvp || G.game.kind === 'town' || G.game.kind === 'studio' || G.game.kind === 'custom'){ respawnEnt(P); } else killEnt(P, null, 'lava'); return; }
+    if(P.y < G.lavaY){ if(G.pvp || G.softFall || G.game.kind === 'town' || G.game.kind === 'studio' || G.game.kind === 'custom'){ respawnEnt(P); } else killEnt(P, null, 'lava'); return; }
     G.killers.forEach(k => { if(!P.dead && killHit(k, P) && P.ff <= 0) killEnt(P, null, 'kill'); });
     G.spinners.forEach(s => { if(!P.dead && spinHit(s, P) && P.ff <= 0) killEnt(P, null, 'spin'); });
     if(P.dead) return;
@@ -1136,7 +1327,7 @@ const Engine = (function(){
     const dt = Math.min(.05, (now - last) / 1000); last = now; G.tR += dt;
     if(G.state === 'play'){ G.acc += dt; let n = 0; while(G.acc >= STEP && n < 8){ simulate(STEP); G.acc -= STEP; n++; } if(n === 8) G.acc = 0; const s = Math.floor(G.T); if(s !== G.lastSec){ G.lastSec = s; } }
     else if(G.state === 'intro' || G.state === 'paused'){ G.acc = 0; if(G.state === 'paused') {} }
-    remoteStep(dt); netPublish(dt); G.ents.forEach(e => animEnt(e, dt));
+    remoteStep(dt); netPublish(dt); G.ents.forEach(e => animEnt(e, dt)); if(G.R) G.R.cust.forEach(c => animEnt(c.e, dt));
     for(let i = G.debris.length - 1; i >= 0; i--){ const d = G.debris[i]; d.vy -= 90 * dt; d.m.position.x += d.vx * dt; d.m.position.y += d.vy * dt; d.m.position.z += d.vz * dt; d.m.rotation.x += d.spin * dt; d.m.rotation.z += d.spin * .7 * dt; d.life -= dt; const sc = Math.max(.01, Math.min(1, d.life / .4)); d.m.scale.set(sc, sc, sc); if(d.life <= 0){ G.scene.remove(d.m); G.debris.splice(i, 1); } }
     if(G.coins) G.coins.forEach(c => { if(c.on) c.m.rotation.z += dt * 3; else { c.t -= dt; if(c.t <= 0){ c.on = true; c.m.visible = true; } } });
     updateCamera(dt);
@@ -1172,7 +1363,7 @@ const Engine = (function(){
       + '<div id="gRight"><div id="gHp"><span>Health</span><div class="bar"><div id="gHpFill"></div></div><b id="gHpNum">100</b></div>'
       + '<div id="gBoard"><div class="bh">Players</div><div class="gr cols" id="gBoardCols"></div><div id="gBoardRows"></div></div></div>'
       + '<div id="gToast"><b></b><span></span></div>'
-      + '<div id="gHotbar"></div>'
+      + '<div id="gHotbar"></div>' + (kind === 'restaurant' ? '<div id="gPrompt"></div><div id="gTray"></div>' : '')
       + (kind === 'studio' ? '<div id="gStudio"><div class="row"><button class="tb on" data-tool="place">Place</button><button class="tb" data-tool="delete">Delete</button><button class="tb" data-act="rot">Rotate (R)</button><select id="gSize">' + G.SIZES.map((s, i) => '<option value="' + i + '"' + (i === G.sizeIdx ? ' selected' : '') + '>' + s[0] + '</option>').join('') + '</select><button class="tb" data-act="clear">Clear</button><span id="studioCount">' + G.bricks.length + ' bricks</span></div><div class="row sw">' + BRICK_COLORS.map((c, i) => '<button class="sq' + (i === G.colorIdx ? ' on' : '') + '" data-ci="' + i + '" style="background:' + c[1] + '" title="' + c[0] + '" aria-label="' + c[0] + '"></button>').join('') + '</div></div>' : '')
       + '<div id="gTouch"><div id="gJoy"><div id="gKnob"></div></div><button id="gJump">Jump</button></div>'
       + '<div id="gTimeBox">Time <b id="gTime">0:00</b></div>'
@@ -1185,7 +1376,7 @@ const Engine = (function(){
     document.querySelectorAll('.gm-tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === tab));
     if(tab === 'players') b.innerHTML = G.ents.map(e => '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span></div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
     else if(tab === 'settings') b.innerHTML = '<label class="set"><input type="checkbox" id="setSound"' + (G.sound ? ' checked' : '') + '> Sound effects</label><label class="set">Camera zoom <input type="range" id="setZoom" min="6" max="' + (G.game.kind === 'studio' ? 120 : 60) + '" value="' + Math.round(G.zoom) + '"></label>';
-    else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Emotes</b>: type /e dance, /e wave or /e cheer</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '');
+    else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Emotes</b>: type /e dance, /e wave or /e cheer</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
     const s = document.getElementById('setSound'); if(s) s.onchange = () => G.sound = s.checked;
     const z = document.getElementById('setZoom'); if(z) z.oninput = () => G.zoom = +z.value;
   }
@@ -1200,14 +1391,14 @@ const Engine = (function(){
     const game = opts.game; abort = new AbortController(); const sig = {signal:abort.signal};
     G = {opts, game, state:'intro', T:0, tR:0, acc:0, lastSec:-1, colliders:[], killers:[], movers:[], vanishers:[], spinners:[], pads:[], debris:[], ents:[], bots:[], keys:new Set(), typing:false, jumpBtn:false, joy:{id:null, vx:0, vy:0, ox:0, oy:0}, look:{id:null, x:0, y:0, sx:0, sy:0}, yaw:0, pitch:.38, zoom:game.kind === 'studio' ? 40 : 16, camDist:80, cf:{x:0, y:8, z:-40}, camBlend:0, sound:true, music:false, won:false, checkpoint:null, ray:new THREE.Raycaster()};
     makeScene();
-    ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio})[game.kind]();
+    const builder = game.kind === 'obby' && game.gen ? (() => buildGenObby(game.gen)) : ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio, coins:buildCoinIsland, restaurant:buildRestaurant})[game.kind]; builder();
     const root = document.getElementById('gameRoot'); root.textContent = ''; root.appendChild(canvas); root.insertAdjacentHTML('beforeend', hudHtml(game.kind)); root.hidden = false; document.body.classList.add('in-game');
     if(window.matchMedia && matchMedia('(pointer: coarse)').matches) root.classList.add('coarse'); else root.classList.remove('coarse');
     // player
     const sp = G.pvp ? G.arenaSpawns() : G.spawn;
     G.P = mkEnt({name:opts.user.name, avatar:opts.user.avatar}, sp.x, sp.y, sp.z, false); G.ents.push(G.P); G.P.ff = 0; G.P.boost = 0; G.P.hitDone = true; G.P.stats.stage = 0;
     G.P.face = G.game.kind === 'town' || G.game.kind === 'studio' || G.pvp ? Math.PI : Math.PI;
-    G.yaw = 0; G.bots = []; G.remotes = {}; buildTools(); resize(); updateBoard(); updateHP();
+    G.yaw = 0; G.bots = []; G.remotes = {}; buildTools(); resize(); updateBoard(); updateHP(); if(G.R) renderTray();
     chatMsg('info', 'Welcome to ' + game.name + '!'); if(G.opts.serverName) chatMsg('info', 'You joined ' + G.opts.serverName + '.');
     netStart();
     // intro -> play
@@ -1215,7 +1406,7 @@ const Engine = (function(){
     G.introEnd = setTimeout(() => { if(G && G.state === 'intro') beginPlay(); }, 100);
     attachInput(sig); last = performance.now(); raf = requestAnimationFrame(frame); return true;
   }
-  function beginPlay(){ G.state = 'play'; G.camBlend = 1.2; G.cf = {x:G.P.x, y:G.P.y + 8, z:G.P.z}; G.T = 0; G.camDist = 40; toast(G.title.a, G.title.b); canvas.focus(); }
+  function beginPlay(){ G.state = 'play'; if(G.R){ G.pitch = .8; G.zoom = 30; } G.camBlend = 1.2; G.cf = {x:G.P.x, y:G.P.y + 8, z:G.P.z}; G.T = 0; G.camDist = 40; toast(G.title.a, G.title.b); canvas.focus(); }
   function stop(){
     if(!G) return null;
     const summary = {kills:G.P.kills, deaths:G.P.deaths, time:G.T, won:G.won, bricks:G.bricks ? G.bricks.length : 0};
@@ -1240,6 +1431,7 @@ const Engine = (function(){
       G.keys.add(e.code);
       if(e.code === 'KeyI') G.zoom = Math.max(4, G.zoom - 3); if(e.code === 'KeyO') G.zoom = Math.min(G.game.kind === 'studio' ? 120 : 60, G.zoom + 3);
       if(/^Digit[1-9]$/.test(e.code)) equip(+e.code.slice(5) - 1);
+      if(G.R && !e.repeat){ if(e.code === 'KeyE') rInteract(); if(e.code === 'KeyQ') dropTray(); }
       if(G.game.kind === 'studio'){ if(e.code === 'KeyE') studioTool(G.tool === 'place' ? 'delete' : 'place'); if(e.code === 'KeyR') studioRot(); }
     }, sig);
     window.addEventListener('keyup', e => { if(G) G.keys.delete(e.code); }, sig);
@@ -1257,6 +1449,7 @@ const Engine = (function(){
     document.getElementById('gmLeave').onclick = () => stop();
     document.querySelectorAll('.gm-tabs button').forEach(b => b.onclick = () => menuBody(b.dataset.tab));
     document.getElementById('gHotbar').onclick = e => { const b = e.target.closest('.slot'); if(b) equip(+b.dataset.i); };
+    const tray = document.getElementById('gTray'); if(tray) tray.onclick = dropTray;
     const st = document.getElementById('gStudio');
     if(st){
       st.onclick = e => { const b = e.target.closest('button'); if(!b) return; if(b.dataset.tool) studioTool(b.dataset.tool); else if(b.dataset.act === 'rot') studioRot(); else if(b.dataset.act === 'clear'){ if(b.dataset.arm){ G.brickParts.slice().forEach(removeBrick); b.dataset.arm = ''; b.textContent = 'Clear'; } else { b.dataset.arm = '1'; b.textContent = 'Click again to clear'; setTimeout(() => { if(b) { b.dataset.arm = ''; b.textContent = 'Clear'; } }, 2500); } } else if(b.dataset.ci != null){ G.colorIdx = +b.dataset.ci; st.querySelectorAll('.sq').forEach(s => s.classList.toggle('on', s === b)); } };
@@ -1783,7 +1976,7 @@ async function playGame(gid, opt){
   const leave = () => { if(nr) nr.leave().catch(() => {}); setLobby(null); };
   const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar))}, seed:hashStr(roomName), serverName:solo ? '' : 'Server ' + server, place:place ? {bricks:place.bricks} : null,
     net:nr ? {room:nr, myId:MYID, nameOf} : null,
-    onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; if(g.kind === 'town') U.stats.coins += amt; save(); } },
+    onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; if(g.kind === 'town' || g.kind === 'coins') U.stats.coins += amt; save(); } },
     onEvent:(name, v) => { if(name === 'win'){ if(!g.custom){ U.stats.wins++; giveBadge(g.kind === 'tower' ? 'tower' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
     onSave:bricks => { if(place && solo){ place.bricks = bricks.map(b => b.slice()); persist(); if(bricks.length >= 20) giveBadge('builder'); } },
     onExit:() => { session = null; endLoad(); leave(); refreshChrome(); render(); toast(s.earned ? 'Thanks for playing! You earned ' + s.earned + ' tokens.' : 'Thanks for playing!'); }});

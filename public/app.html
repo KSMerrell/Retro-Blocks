@@ -1,6 +1,6 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1b2a34"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes">
 <style>html{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>BLOX-P3</title>
+<title>Retro Blox</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -32,7 +32,7 @@ h1,h2,h3{margin:0;font-weight:700}
 .hwrap{max-width:1040px;margin:0 auto;height:100%;display:flex;align-items:center;gap:6px;padding:0 max(10px,env(safe-area-inset-left,0px))}
 .logo{display:flex;align-items:center;gap:7px;color:#fff;font-weight:900;letter-spacing:.08em;font-size:16px;margin-right:10px;text-decoration:none!important}
 .logo img{display:block}
-.hmark{height:24px;width:auto}
+.hmark{height:24px;width:auto;background:#fff;border-radius:3px;padding:3px 5px;box-sizing:border-box}
 .hword{height:15px;width:auto;filter:brightness(0) invert(1)}
 #hdr nav{display:flex;height:100%}
 #hdr nav a{color:#fff;font-weight:600;padding:0 12px;display:flex;align-items:center;height:100%;font-size:15px;text-decoration:none}
@@ -358,21 +358,21 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 </style></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
-    <a class="logo" href="#/home" aria-label="BLOX-P3 home"><img class="hmark" src="/mark.png" alt=""><img class="hword" src="/word.png" alt="BLOX-P3"></a>
+    <a class="logo" href="#/home" aria-label="Retro Blox home"><img class="hmark" src="/mark.png" alt=""><img class="hword" src="/word.png" alt="Retro Blox"></a>
     <nav id="mainnav"><a href="#/games" data-r="games">Games</a><a href="#/catalog" data-r="catalog">Catalog</a><a href="#/create" data-r="create">Create</a><a href="#/tokens" data-r="tokens">Tokens</a></nav>
     <form id="searchf" role="search"><input id="q" type="search" placeholder="Search" aria-label="Search"><button aria-label="Search"><svg width="14" height="14" viewBox="0 0 24 24"><path fill="#333" d="M10 2a8 8 0 105 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></svg></button></form>
     <div class="hright" id="hright"></div>
   </div></header>
   <div id="landingRoot"></div>
   <div id="wrap"><aside id="side" hidden aria-label="Main menu"></aside><main id="app"></main></div>
-  <footer id="foot"><nav><a href="#/blog">Blog</a><a href="#/games">Games</a><a href="#/catalog">Catalog</a><a href="#/tokens">Tokens</a><a href="#/settings">Settings</a></nav><span id="todayDate"></span><br>&copy; <span id="yr"></span> BLOX-P3. All rights reserved. BLOX-P3 is an original fan-made project and is not affiliated with Roblox Corporation.</footer>
+  <footer id="foot"><nav><a href="#/blog">Blog</a><a href="#/games">Games</a><a href="#/catalog">Catalog</a><a href="#/tokens">Tokens</a><a href="#/settings">Settings</a></nav><span id="todayDate"></span><br>&copy; <span id="yr"></span> Retro Blox. All rights reserved. Retro Blox is an original fan-made project and is not affiliated with Roblox Corporation.</footer>
 </div>
 <div id="cp" hidden></div><div id="alertbar" aria-live="polite"></div><div id="modal" hidden></div><div id="loading" hidden></div><div id="gameRoot" hidden></div>
 <script>window.__ME=/*ME*/;</script>
 <script src="/shim.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const LOGO_SVG = "<img class=\"wm\" src=\"/word.png\" alt=\"BLOX-P3\">";
+const LOGO_SVG = "<img class=\"wm\" src=\"/word.png\" alt=\"Retro Blox\">";
 'use strict';
 /* ===================== helpers ===================== */
 const $ = (s, r) => (r || document).querySelector(s);
@@ -414,7 +414,7 @@ const ITEM_DEFS = [
  ['shirt','Plain Red Tee',10,'R',{c1:'#c4281c',c2:'#c4281c',p:'plain'},'A simple red t-shirt.'],
  ['shirt','Green Hoodie',35,'R',{c1:'#287f47',c2:'#1e6038',p:'hood'},'A cozy green hoodie with a front pocket.'],
  ['shirt','Skull Tee',50,'R',{c1:'#1b2a34',c2:'#f2f3f3',p:'skull'},'Dark and mysterious, with a friendly skull.'],
- ['shirt','Brick Logo Shirt',40,'R',{c1:'#0d69ac',c2:'#da8541',p:'logo'},'Show off your BLOX-P3 pride.'],
+ ['shirt','Brick Logo Shirt',40,'R',{c1:'#0d69ac',c2:'#da8541',p:'logo'},'Show off your Retro Blox pride.'],
  ['shirt','Tuxedo',60,'R',{c1:'#1b2a34',c2:'#f2f3f3',p:'tux'},'Black tie. Very fancy.'],
  ['shirt','Pizza Shirt',25,'R',{c1:'#f5cd30',c2:'#c4281c',p:'pizza'},'Contains no actual pizza.'],
  ['shirt','Camo Jacket',45,'R',{c1:'#5a6b3a',c2:'#3a4724',p:'camo'},'You cannot see this shirt.'],
@@ -432,7 +432,7 @@ const ITEM_DEFS = [
  ['gear','Flaming Torch',60,'R',{k:'torch'},'It is hot. Do not touch the flame.']
 ];
 const ITEMS = ITEM_DEFS.map((d, i) => ({id:i+1, type:d[0], name:d[1], price:d[2], cur:d[3], s:d[4], desc:d[5], val:d[6] || 0, ltd:!!d[6],
-  creator:'BLOX-P3', updated:Date.now() - i*86400000*3}));
+  creator:'Retro Blox', updated:Date.now() - i*86400000*3}));
 const ITEM_BY_ID = {}; ITEMS.forEach(it => ITEM_BY_ID[it.id] = it);
 const itemValue = it => it.val || (it.cur === 'R' ? it.price : Math.round(it.price / 10)) || 1;
 const TYPE_NAMES = {hat:'Hats', face:'Faces', shirt:'Shirts', pants:'Pants', gear:'Gear'};
@@ -440,15 +440,15 @@ const FREE_FACE = ITEMS.find(i => i.type === 'face' && i.price === 0).id;
 
 /* ===================== games ===================== */
 const GAMES = [
- {id:1, kind:'obby', name:'BLOX-P3 Obby', creator:'BLOX-P3', color:['#2b8de0','#0b3d78'], max:12,
+ {id:1, kind:'obby', name:'Retro Blox Obby', creator:'Retro Blox', color:['#2b8de0','#0b3d78'], max:12,
   desc:'Six stages of floating bricks above a sea of lava. Touch the lava and you start over from your last checkpoint. Reach the gold platform to win a badge and tokens. Everyone in the server climbs the same course at the same time.\n\nTip: Speed Coils and Gravity Coils work here. Use them at your own risk.'},
- {id:2, kind:'town', name:'Brick Town Hangout', creator:'BLOX-P3', color:['#4cc26a','#176b36'], max:20,
+ {id:2, kind:'town', name:'Brick Town Hangout', creator:'Retro Blox', color:['#4cc26a','#176b36'], max:20,
   desc:'A friendly town for chatting, collecting coins and hanging out with real people. Type /e dance or /e wave to show some moves. Every coin you collect is worth 1 token.'},
- {id:3, kind:'arena', name:'Sword Arena', creator:'BLOX-P3', color:['#e65a3a','#6b1d0e'], max:16,
+ {id:3, kind:'arena', name:'Sword Arena', creator:'Retro Blox', color:['#e65a3a','#6b1d0e'], max:16,
   desc:'Grab your sword and fight the other players on the arena floor. Click to swing. Every knockout earns you 2 tokens. Watch your health bar in the top right.'},
- {id:4, kind:'studio', name:'Brick Builder Studio', creator:'BLOX-P3', color:['#f2b705','#a36a00'], max:1,
+ {id:4, kind:'studio', name:'Brick Builder Studio', creator:'Retro Blox', color:['#f2b705','#a36a00'], max:1,
   desc:'Build anything. Click to place bricks, press E to switch to delete mode, R to rotate, and pick a brick size and color from the toolbar. Your creation is saved to your place.'},
- {id:5, kind:'tower', name:'Sky Tower Obby', creator:'BLOX-P3', color:['#8e5bd9','#2c1670'], max:12,
+ {id:5, kind:'tower', name:'Sky Tower Obby', creator:'Retro Blox', color:['#8e5bd9','#2c1670'], max:12,
   desc:'A tall tower of moving platforms and vanishing tiles. How high can you climb before you fall? Every server builds its own tower, and everyone in it climbs the same one.'}
 ];
 const GAME_BY_ID = {}; GAMES.forEach(g => GAME_BY_ID[g.id] = g);
@@ -456,9 +456,9 @@ const GAME_BY_ID = {}; GAMES.forEach(g => GAME_BY_ID[g.id] = g);
 /* ===================== blog ===================== */
 const DAY = 86400000;
 const BLOG = [
- {t:'BLOX-P3 is now a real multiplayer app', d:Date.now() - 1*DAY, a:'The BLOX-P3 Team', b:'Everyone you see in a game is a real person. Pick a username, add friends, send messages, trade items and hop into the same server together. Tokens are the currency you earn by playing and spend in the Catalog.'},
- {t:'Build and publish your own game', d:Date.now() - 2*DAY, a:'The BLOX-P3 Team', b:'Open Create, press Edit on a place and build with bricks. Red bricks are lava. Yellow bricks are the goal. When you are happy with it, press Publish and your game shows up under Community Games for everybody to play together.'},
- {t:'Tips for good obbies', d:Date.now() - 4*DAY, a:'The BLOX-P3 Team', b:'Start easy, add a checkpoint-sized platform before every hard jump, and leave a little room to land. Test your game with a friend before you publish.'}
+ {t:'Retro Blox is now a real multiplayer app', d:Date.now() - 1*DAY, a:'The Retro Blox Team', b:'Everyone you see in a game is a real person. Pick a username, add friends, send messages, trade items and hop into the same server together. Tokens are the currency you earn by playing and spend in the Catalog.'},
+ {t:'Build and publish your own game', d:Date.now() - 2*DAY, a:'The Retro Blox Team', b:'Open Create, press Edit on a place and build with bricks. Red bricks are lava. Yellow bricks are the goal. When you are happy with it, press Publish and your game shows up under Community Games for everybody to play together.'},
+ {t:'Tips for good obbies', d:Date.now() - 4*DAY, a:'The Retro Blox Team', b:'Start easy, add a checkpoint-sized platform before every hard jump, and leave a little room to land. Test your game with a friend before you publish.'}
 ];
 
 /* ===================== avatar builder (three.js) ===================== */
@@ -1427,7 +1427,7 @@ const avImg = (cfg, view, ang, cls) => '<img class="' + (cls || '') + '" src="' 
 const uImg = (id, view) => avImg(prof(id).avatar, view || 'bust', .2);
 const myImg = view => avImg(U.avatar, view || 'bust', .2);
 const itemImg = it => '<img src="' + itemThumb(it) + '" alt="' + esc(it.name) + '" width="160" height="160">';
-function badgeDefs(){ return {welcome:['Welcome to BLOX-P3', 'Joined the site.'], obby:['Obby Champion', 'Beat the BLOX-P3 Obby.'], tower:['Sky Climber', 'Reached the top of Sky Tower Obby.'], slayer:['Knockout Artist', 'Knock out 10 players in Sword Arena.'], collector:['Coin Collector', 'Collect 25 coins in Brick Town.'], builder:['Master Builder', 'Place 20 bricks in Builder Studio.'], social:['Friendly', 'Have 8 or more friends.'], shopper:['Shopaholic', 'Buy your first item.'], chatter:['Chatterbox', 'Say something in a game.']}; }
+function badgeDefs(){ return {welcome:['Welcome to Retro Blox', 'Joined the site.'], obby:['Obby Champion', 'Beat the Retro Blox Obby.'], tower:['Sky Climber', 'Reached the top of Sky Tower Obby.'], slayer:['Knockout Artist', 'Knock out 10 players in Sword Arena.'], collector:['Coin Collector', 'Collect 25 coins in Brick Town.'], builder:['Master Builder', 'Place 20 bricks in Builder Studio.'], social:['Friendly', 'Have 8 or more friends.'], shopper:['Shopaholic', 'Buy your first item.'], chatter:['Chatterbox', 'Say something in a game.']}; }
 function giveBadge(id){ if(U.badges.indexOf(id) >= 0) return; U.badges.push(id); persist(); toast('Badge earned: ' + badgeDefs()[id][0] + '!'); }
 function checkBadges(){ if(!U) return; if(friendIds().length >= 8) giveBadge('social'); if(U.stats.kills >= 10) giveBadge('slayer'); if(U.stats.coins >= 25) giveBadge('collector'); }
 const route = () => { const h = location.hash.replace(/^#\/?/, ''), [p, q] = h.split('?'); const parts = p.split('/').filter(Boolean); const query = {}; (q || '').split('&').forEach(kv => { if(!kv) return; const [k, v] = kv.split('='); query[decodeURIComponent(k)] = decodeURIComponent(v || ''); }); return {parts, query}; };
@@ -1477,8 +1477,8 @@ function setApp(html){ $('#app').innerHTML = html; }
 function renderLanding(){
   $('#wrap').style.display = 'none';
   let form;
-  if(STATUS === 'loading') form = '<h3>Loading...</h3><p class="muted">Connecting to BLOX-P3.</p>';
-  else if(STATUS === 'gate') form = '<h3>Cannot connect</h3><p>BLOX-P3 could not reach the game server. Check your internet connection and try again.</p><button class="btn big" style="width:100%;font-size:18px" data-act="reloadPage">Try Again</button>';
+  if(STATUS === 'loading') form = '<h3>Loading...</h3><p class="muted">Connecting to Retro Blox.</p>';
+  else if(STATUS === 'gate') form = '<h3>Cannot connect</h3><p>Retro Blox could not reach the game server. Check your internet connection and try again.</p><button class="btn big" style="width:100%;font-size:18px" data-act="reloadPage">Try Again</button>';
   else form = '<h3>Choose your username</h3><p style="margin:0 0 6px;font-size:14px">Pick the name other players will see.</p><label class="f" for="suName">Username</label><input id="suName" type="text" maxlength="20" autocomplete="off" value="' + esc(window.__suggest || '') + '" placeholder="3 to 20 letters, numbers or _"><div class="err" id="suErr" role="alert"></div><button class="btn green big" style="width:100%;font-size:20px" data-act="doOnboard">Start Playing</button><p style="font-size:12px;color:#777;margin:10px 0 0">You start with 150 tokens and 50 tickets. Everyone you meet here is a real person.</p>';
   $('#landingRoot').innerHTML = '<div class="landing"><div class="land-in"><div class="land-left">' + LOGO_SVG + '<h2>Build it. Play it. Share it.</h2><p>Hop into blocky worlds, dress up your avatar, and hang out with real friends. Everything is made out of bricks.</p><div class="land-games">' + GAMES.slice(0, 4).map(g => '<img src="' + gameThumb(g, 200, 200) + '" alt="' + esc(g.name) + '">').join('') + '</div></div><div class="signup" id="authBox">' + form + '</div></div></div>';
   const i = $('#suName'); if(i) i.addEventListener('keydown', e => { if(e.key === 'Enter') ACTIONS.doOnboard(); });
@@ -1492,7 +1492,7 @@ async function doOnboard(){
     if(Object.keys(P).some(id => (P[id].nameLower || '') === name.toLowerCase())){ onboarding = false; return err('That username is already taken.'); }
     const ok = await finishOnboard(name); onboarding = false;
     if(!ok) return err('That username is already taken.');
-    location.hash = '#/home'; render(); setTimeout(() => toast('Welcome to BLOX-P3, ' + name + '!'), 200);
+    location.hash = '#/home'; render(); setTimeout(() => toast('Welcome to Retro Blox, ' + name + '!'), 200);
   }catch(e){ onboarding = false; err('Could not save your account. Please try again.'); }
 }
 
@@ -1623,7 +1623,7 @@ function renderProfile(name){
   if(me) btns = '<a class="btn neutral small" data-act="editDesc">Edit Description</a> <a class="btn neutral small" href="#/avatar">Edit Avatar</a>';
   else { const isF = isFriend(id), sent = reqOut().some(r => r.to === id), inc = reqIn().some(r => r.from === id), pg = playingOf(id); btns = isF ? '<span class="btn neutral small" style="cursor:default">Friends</span> <a class="btn small" data-act="composeTo" data-n="' + id + '">Message</a> <a class="btn small" data-act="tradeWith" data-n="' + id + '">Trade</a>' + (pg ? ' <a class="btn green small" data-act="joinFriend" data-n="' + id + '">Join Game</a>' : '') : inc ? '<a class="btn green small" data-act="acceptReq" data-n="' + id + '">Accept Friend Request</a>' : sent ? '<span class="btn neutral small" style="cursor:default">Request Sent</span>' : '<a class="btn small" data-act="addFriend" data-n="' + id + '">Add Friend</a>'; }
   const visits = Object.keys(o.visits || {}).reduce((s, k) => s + (o.visits[k] || 0), 0);
-  setApp('<div class="box"><div class="prof"><div class="pav">' + avImg(o.avatar, 'full', .35) + '</div><div class="pinfo"><h1>' + esc(o.name) + '</h1><div class="status" style="margin:2px 0 8px">' + (me ? 'Online' : statusOf(id)) + '</div><div class="row" style="margin-bottom:10px">' + btns + '</div><p style="white-space:pre-wrap;margin:0 0 10px;word-break:break-word">' + esc(o.desc || 'Hi! I just joined BLOX-P3.') + '</p><div class="pstats"><div><b>' + visits + '</b><span>Place Visits</span></div><div><b>' + ((o.owned || []).length) + '</b><span>Items</span></div><div><b>' + ((o.stats || {}).kills || 0) + '</b><span>Knockouts</span></div></div><div class="muted" style="font-size:13px">Joined ' + fmtDate(o.joined || Date.now()) + '</div></div></div></div>'
+  setApp('<div class="box"><div class="prof"><div class="pav">' + avImg(o.avatar, 'full', .35) + '</div><div class="pinfo"><h1>' + esc(o.name) + '</h1><div class="status" style="margin:2px 0 8px">' + (me ? 'Online' : statusOf(id)) + '</div><div class="row" style="margin-bottom:10px">' + btns + '</div><p style="white-space:pre-wrap;margin:0 0 10px;word-break:break-word">' + esc(o.desc || 'Hi! I just joined Retro Blox.') + '</p><div class="pstats"><div><b>' + visits + '</b><span>Place Visits</span></div><div><b>' + ((o.owned || []).length) + '</b><span>Items</span></div><div><b>' + ((o.stats || {}).kills || 0) + '</b><span>Knockouts</span></div></div><div class="muted" style="font-size:13px">Joined ' + fmtDate(o.joined || Date.now()) + '</div></div></div></div>'
     + (me ? '<div class="box"><div class="sec-h"><span>Friends (' + fr.length + ')</span><a href="#/friends">See All</a></div>' + (fr.length ? '<div class="pcards">' + fr.slice(0, 6).map(f => pcard(f)).join('') + '</div>' : '<p class="muted">No friends yet.</p>') + '</div>' : '')
     + (me ? '<div class="box"><div class="sec-h"><span>Favorite Games</span></div>' + (favG.length ? '<div class="gcards">' + favG.map(gcard).join('') + '</div>' : '<p class="muted">No favorite games yet.</p>') + '</div>' : '')
     + (() => { const mg = customGames().filter(g => g.owner === id); return mg.length ? '<div class="box"><div class="sec-h"><span>Games by ' + esc(o.name) + '</span></div><div class="gcards">' + mg.map(gcard).join('') + '</div></div>' : ''; })()
@@ -1730,7 +1730,7 @@ function renderBlog(){
 }
 function renderTokens(){
   setApp('<h1 class="page-h">Tokens and Tickets</h1><div class="box"><div class="sec-h"><span>Your Balance</span></div><div class="row" style="font-size:22px;gap:30px"><span>' + tokp(U.tokens) + ' Tokens</span><span>' + tixp(U.tix) + ' Tickets</span></div><p style="margin-top:12px">' + (dailyReady() ? '<a class="btn green" data-act="claimDaily">Claim Daily Bonus (+25 tokens, +10 tickets)</a>' : '<span class="muted">Daily bonus claimed. Come back tomorrow.</span>') + '</p></div>'
-    + '<div class="box"><div class="sec-h"><span>Ways to Earn Tokens</span></div><div class="lrow"><div class="grow"><b>Play Brick Town Hangout</b><div class="status">Every coin you collect is worth 1 token.</div></div><a class="btn small" href="#/game/2">Play</a></div><div class="lrow"><div class="grow"><b>Win Sword Arena fights</b><div class="status">2 tokens for each knockout.</div></div><a class="btn small" href="#/game/3">Play</a></div><div class="lrow"><div class="grow"><b>Beat an obby</b><div class="status">Reach the top of the BLOX-P3 Obby for 50 tokens, or Sky Tower for 40.</div></div><a class="btn small" href="#/game/1">Play</a></div></div>'
+    + '<div class="box"><div class="sec-h"><span>Ways to Earn Tokens</span></div><div class="lrow"><div class="grow"><b>Play Brick Town Hangout</b><div class="status">Every coin you collect is worth 1 token.</div></div><a class="btn small" href="#/game/2">Play</a></div><div class="lrow"><div class="grow"><b>Win Sword Arena fights</b><div class="status">2 tokens for each knockout.</div></div><a class="btn small" href="#/game/3">Play</a></div><div class="lrow"><div class="grow"><b>Beat an obby</b><div class="status">Reach the top of the Retro Blox Obby for 50 tokens, or Sky Tower for 40.</div></div><a class="btn small" href="#/game/1">Play</a></div></div>'
     + '<div class="box"><div class="sec-h"><span>Currency Exchange</span></div><p class="muted" style="margin:0 0 10px">1 token = 10 tickets. Exchange in either direction.</p><div class="row"><div style="flex:1 1 220px"><label class="f" for="exR" style="margin-top:0">Tokens to Tickets</label><div class="row" style="flex-wrap:nowrap"><input type="text" id="exR" inputmode="numeric" placeholder="Tokens"><a class="btn small" data-act="exR">Exchange</a></div></div><div style="flex:1 1 220px"><label class="f" for="exT" style="margin-top:0">Tickets to Tokens</label><div class="row" style="flex-wrap:nowrap"><input type="text" id="exT" inputmode="numeric" placeholder="Tickets (multiples of 10)"><a class="btn small" data-act="exT">Exchange</a></div></div></div></div>');
 }
 
@@ -1753,7 +1753,7 @@ function publishModal(i){
   const p = U.places[i]; if(!p) return;
   if(p.bricks.length < 5){ toast('Place at least 5 bricks in Builder Studio first.', true); return; }
   const cur = placeGame(p);
-  modal(cur ? 'Update Game' : 'Publish Game', '<label class="f" for="pbN" style="margin-top:0">Game name</label><input id="pbN" type="text" maxlength="40" value="' + esc(cur ? cur.name : p.name) + '"><label class="f" for="pbD">Description</label><textarea id="pbD" maxlength="300" placeholder="What should players do?">' + esc(cur ? cur.desc : '') + '</textarea><p class="muted" style="font-size:13px">' + p.bricks.length + ' bricks. Anyone on BLOX-P3 will be able to play this together. Red bricks are lava, yellow bricks are the goal.</p><div class="err" id="pbE"></div>', [{label:'Cancel', cls:'neutral'}, {label:cur ? 'Update' : 'Publish', cls:'green', fn:() => {
+  modal(cur ? 'Update Game' : 'Publish Game', '<label class="f" for="pbN" style="margin-top:0">Game name</label><input id="pbN" type="text" maxlength="40" value="' + esc(cur ? cur.name : p.name) + '"><label class="f" for="pbD">Description</label><textarea id="pbD" maxlength="300" placeholder="What should players do?">' + esc(cur ? cur.desc : '') + '</textarea><p class="muted" style="font-size:13px">' + p.bricks.length + ' bricks. Anyone on Retro Blox will be able to play this together. Red bricks are lava, yellow bricks are the goal.</p><div class="err" id="pbE"></div>', [{label:'Cancel', cls:'neutral'}, {label:cur ? 'Update' : 'Publish', cls:'green', fn:() => {
     const n = $('#pbN').value.trim(), d = $('#pbD').value.trim(); if(n.length < 3){ $('#pbE').textContent = 'Game names need at least 3 characters.'; return false; }
     if(allGames().some(g => g.name.toLowerCase() === n.toLowerCase() && g.id !== (cur && cur.id))){ $('#pbE').textContent = 'A game with that name already exists.'; return false; }
     const id = cur ? cur.id : 'c' + newId();

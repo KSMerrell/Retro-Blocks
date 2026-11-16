@@ -1,1 +1,1 @@
-{"name":"blox-p3","version":"1.0.0","description":"BLOX-P3: multiplayer blocky games with accounts, friends, trading and user-made games.","main":"server.js","scripts":{"start":"node server.js"},"engines":{"node":">=18"},"license":"MIT"}
+{"name":"retro-blox","version":"1.0.0","description":"Retro Blox: multiplayer blocky games with accounts, friends, trading and user-made games.","main":"server.js","scripts":{"start":"node server.js"},"engines":{"node":">=18"},"license":"MIT"}

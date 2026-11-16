@@ -1,5 +1,5 @@
 'use strict';
-/* BLOX-P3 server: accounts, document database, live rooms. No dependencies. Node 18+. */
+/* Retro Blox server: accounts, document database, live rooms. No dependencies. Node 18+. */
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const PORT = +process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -215,4 +215,4 @@ const server = http.createServer((req, res) => {
   fs.readFile(f, (err, buf) => { if(err){ res.writeHead(404); return res.end('Not found'); } res.writeHead(200, {'Content-Type':MIME[path.extname(f)] || 'application/octet-stream', 'Cache-Control':'public, max-age=3600'}); res.end(buf); });
 });
 server.on('upgrade', onUpgrade);
-server.listen(PORT, () => console.log('BLOX-P3 running on http://localhost:' + PORT + '  (data in ' + DATA_DIR + ')'));
+server.listen(PORT, () => console.log('Retro Blox running on http://localhost:' + PORT + '  (data in ' + DATA_DIR + ')'));

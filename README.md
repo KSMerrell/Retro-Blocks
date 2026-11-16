@@ -1,4 +1,4 @@
-# BLOX-P3
+# Retro Blox
 
 A real multiplayer app: usernames and passwords, a saved database, live game servers, friends, messages, trading, groups, and games that players build and publish. It installs on phones and desktops like an app (Add to Home Screen / Install).
 

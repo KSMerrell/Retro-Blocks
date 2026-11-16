@@ -1,4 +1,4 @@
-/* Browser side of the BLOX-P3 server: window.claude.use('db' | 'room' | 'user') over one WebSocket. */
+/* Browser side of the Retro Blox server: window.claude.use('db' | 'room' | 'user') over one WebSocket. */
 (function(){
   const ME = window.__ME;
   let ws = null, open = false, reqId = 0, sidSeq = 0; const pending = {}, queue = [], subsAll = {}, roomsAll = {}; let backoff = 500;

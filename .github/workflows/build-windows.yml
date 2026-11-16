@@ -1,0 +1,23 @@
+name: Build Windows app
+on:
+  workflow_dispatch:
+  push:
+    paths: ['desktop/**', '.github/workflows/build-windows.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install
+        working-directory: desktop
+      - run: npm run dist
+        working-directory: desktop
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-latest
+          name: Retro Blox for Windows
+          files: desktop/dist/Retro-Blox-Setup.exe

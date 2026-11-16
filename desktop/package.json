@@ -1,0 +1,17 @@
+{
+  "name": "retro-blox-desktop",
+  "version": "1.0.0",
+  "description": "Retro Blox",
+  "main": "main.js",
+  "author": "Retro Blox",
+  "license": "UNLICENSED",
+  "scripts": { "start": "electron .", "dist": "electron-builder --win nsis --publish never" },
+  "devDependencies": { "electron": "33.2.1", "electron-builder": "25.1.8" },
+  "build": {
+    "appId": "com.retroblox.app",
+    "productName": "Retro Blox",
+    "files": ["main.js", "offline.html"],
+    "win": { "target": "nsis", "icon": "build/icon.ico" },
+    "nsis": { "oneClick": true, "perMachine": false, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Retro Blox", "artifactName": "Retro-Blox-Setup.${ext}" }
+  }
+}

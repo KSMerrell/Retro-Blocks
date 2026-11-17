@@ -40,9 +40,12 @@ async function flush(sync){
       const cmds = [], seen = new Set();
       for(const k of Object.keys(HASHES)) for(const f in S[k]){ const key = k + '\0' + f, v = JSON.stringify(S[k][f]); seen.add(key); if(saved.get(key) !== v) cmds.push(['HSET', HASHES[k], f, v, key, v]); }
       for(const key of [...saved.keys()]) if(!seen.has(key)){ const [k, f] = key.split('\0'); cmds.push(['HDEL', HASHES[k], f, key]); }
-      for(let i = 0; i < cmds.length; i += 100){
-        const chunk = cmds.slice(i, i + 100); await redis(chunk.map(c => c.slice(0, c[0] === 'HSET' ? 4 : 3)));
+      let i = 0;
+      while(i < cmds.length){
+        let bytes = 0, j = i; while(j < cmds.length && j - i < 100 && (j === i || bytes + (cmds[j][3] || '').length < 500000)){ bytes += (cmds[j][3] || '').length + 60; j++; }
+        const chunk = cmds.slice(i, j); await redis(chunk.map(c => c.slice(0, c[0] === 'HSET' ? 4 : 3)));
         chunk.forEach(c => { if(c[0] === 'HSET') saved.set(c[4], c[5]); else saved.delete(c[3]); });
+        i = j;
       }
     } else {
       const tmp = DB_FILE + '.tmp', json = JSON.stringify(S);
@@ -77,6 +80,8 @@ const segs = p => p.split('/');
 const validPath = p => typeof p === 'string' && p.length < 400 && /^[A-Za-z0-9_\-.~:@+]{1,200}(\/[A-Za-z0-9_\-.~:@+]{1,200})*$/.test(p);
 function allowRead(uid, collPath){ const s = segs(collPath); if(s[0] === 'data' && s[1] === 'users') return s[2] === uid; return true; }
 // write rules per collection: returns true when allowed
+const smallImg = v => v == null || (typeof v === 'string' && v.length < 60000 && (v === '' || v.startsWith('data:image/')));
+const validItem = d => ['shirt', 'pants'].includes(d.type) && typeof d.name === 'string' && d.name.length >= 2 && d.name.length <= 40 && Number.isInteger(d.price) && d.price >= 0 && d.price <= 1000 && smallImg(d.img);
 function allowWrite(uid, p, op, data, old){
   const s = segs(p), col = s[0], id = s[s.length - 1];
   if(col === 'data'){ return s[1] === 'users' && s[2] === uid; }
@@ -93,13 +98,17 @@ function allowWrite(uid, p, op, data, old){
     case 'members': return op === 'delete' ? !!old && old.uid === uid : data && mine(data.uid) && id === data.gid + '_' + uid;
     case 'wall': case 'feed': return op === 'delete' ? !!old && old.uid === uid : !old && data && mine(data.uid);
     case 'votes': return data ? mine(data.uid) && id.endsWith('_' + uid) : id.endsWith('_' + uid);
-    case 'games': return op === 'delete' ? !!old && old.owner === uid : old ? old.owner === uid && data.owner === uid : data && mine(data.owner);
+    case 'games': return op === 'delete' ? !!old && old.owner === uid : data && smallImg(data.icon) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
+    case 'items': return op === 'delete' ? !!old && old.creator === uid : data && validItem(data) && (old ? old.creator === uid && data.creator === uid : mine(data.creator));
+    case 'ads': return op === 'delete' ? !!old && old.owner === uid : data && smallImg(data.img) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
+    case 'sales': return op === 'delete' ? !!old && old.seller === uid : old ? old.seller === uid && data && data.seller === old.seller && data.buyer === old.buyer && data.amt === old.amt && data.item === old.item : data && mine(data.buyer) && typeof data.seller === 'string' && Number.isInteger(data.amt) && data.amt >= 0 && data.amt <= 2000;
     default: return false;
   }
 }
 function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'messages') return d.from === uid || d.to === uid;
   if(coll === 'trades' || coll === 'requests') return d.from === uid || d.to === uid;
+  if(coll === 'sales') return d.seller === uid || d.buyer === uid;
   if(coll === 'friends') return (d.ids || []).includes(uid);
   return true;
 }

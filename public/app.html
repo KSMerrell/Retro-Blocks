@@ -1657,7 +1657,7 @@ const Engine = (function(){
       Object.keys(G.remotes).forEach(k => { if(!seen[k]) removeRemote(k); });
     };
     G.unsubs = [N.room.onPeers(sync),
-      N.room.on('chat', m => { if(m.isMe) return; const d = m.data || {}, t = String(d.t || '').slice(0, 120); if(!t) return; const e = G.remotes[m.peer]; const nm = e ? e.user.name : ((N.nameOf && N.nameOf(m.by)) || 'Player'); chatMsg('say', t, nm); if(e) say(e, t); }),
+      N.room.on('chat', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const d = m.data || {}, t = String(d.t || '').slice(0, 120); if(!t) return; const e = G.remotes[m.peer]; const nm = e ? e.user.name : ((N.nameOf && N.nameOf(m.by)) || 'Player'); chatMsg('say', t, nm); if(e) say(e, t); }),
       N.room.on('hit', m => { const d = m.data || {}; if(m.isMe || d.to !== G.myId || G.P.dead || !G.pvp) return; const from = remoteByUid(m.by); damage(G.P, Math.max(0, Math.min(30, +d.d || 0)), from, +d.dx || 0, +d.dz || 0); }),
       N.room.on('ko', m => { const d = m.data || {}; if(m.isMe || d.k !== G.myId) return; G.P.kills++; G.opts.onReward && G.opts.onReward('tokens', 2); G.opts.onEvent && G.opts.onEvent('ko'); const nm = (m.by && N.nameOf && N.nameOf(m.by)) || 'a player'; toast('Knockout!', 'You knocked out ' + nm + '. +2 tokens'); chatMsg('sys', 'You knocked out ' + nm + '. +2 tokens'); updateBoard(); })];
     sync();
@@ -1930,7 +1930,7 @@ const Engine = (function(){
 
 /* ===================== shared state: db + room + identity ===================== */
 let DB = null, ROOM = null, USERCAP = null, MYID = null, U = null, LOBBY_OK = false;
-let P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
+let P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
 const loadedOnce = {};
 function esc2(s){ return esc(s); }
 const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -1948,9 +1948,10 @@ function persist(){ save(); pubSave(); }
 /* ---- helpers over shared data ---- */
 const prof = id => id === MYID && U ? Object.assign({id:MYID}, pubData()) : (P[id] || {id, name:'Unknown', avatar:DEFAULT_AVATAR(), desc:'', joined:0, owned:[], badges:[], stats:{}, visits:{}});
 const nameOf = id => (prof(id).name) || '';
-const friendIds = () => FRIENDDOCS.map(d => d.ids.find(i => i !== MYID)).filter(Boolean);
+const isBlocked = id => BLOCKDOCS.some(b => b.who === id);
+const friendIds = () => FRIENDDOCS.map(d => d.ids.find(i => i !== MYID)).filter(i => i && !isBlocked(i));
 const isFriend = id => friendIds().indexOf(id) >= 0;
-const reqIn = () => REQS.filter(r => r.to === MYID);
+const reqIn = () => REQS.filter(r => r.to === MYID && !isBlocked(r.from));
 const reqOut = () => REQS.filter(r => r.from === MYID);
 const isOnline = id => !!ONLINE[id];
 const playingOf = id => ONLINE[id] && ONLINE[id].pg ? ONLINE[id].pg : null;
@@ -1983,10 +1984,11 @@ function startSubs(){
   DB.collection('profiles').onSnapshot(snap => { const o = {}; snap.docs.forEach(d => { o[d.id] = Object.assign({id:d.id}, d.data()); }); P = o; registerUGC(); queueRender(); }, err);
   DB.collection('items').onSnapshot(snap => { ITEMDOCS = snapDocs(snap); registerUGC(); queueRender(); }, err);
   DB.collection('ads').onSnapshot(snap => { ADDOCS = snapDocs(snap); queueRender(); }, err);
+  DB.collection('blocks').onSnapshot(snap => { BLOCKDOCS = snapDocs(snap).filter(b => b.by === MYID); queueRender(); }, err);
   DB.collection('sales').onSnapshot(snap => { SALEDOCS = snapDocs(snap).filter(s => s.seller === MYID || s.buyer === MYID); applySales(); }, err);
   DB.collection('friends').where('ids', 'array-contains', MYID).onSnapshot(snap => { FRIENDDOCS = snapDocs(snap); queueRender(); }, err);
   DB.collection('requests').onSnapshot(snap => { notifyNew(snap, 'req', r => { if(r.to === MYID) toast(nameOf(r.from) + ' sent you a friend request.'); }); REQS = snapDocs(snap).filter(r => r.to === MYID || r.from === MYID); queueRender(); }, err);
-  DB.collection('messages').onSnapshot(snap => { notifyNew(snap, 'msg', m => { if(m.to === MYID) toast('New message from ' + nameOf(m.from) + '.'); }); MSGDOCS = snapDocs(snap).filter(m => m.to === MYID || m.from === MYID); queueRender(); }, err);
+  DB.collection('messages').onSnapshot(snap => { notifyNew(snap, 'msg', m => { if(m.to === MYID) toast('New message from ' + nameOf(m.from) + '.'); }); MSGDOCS = snapDocs(snap).filter(m => (m.to === MYID && !isBlocked(m.from)) || (m.from === MYID && !isBlocked(m.to))); queueRender(); }, err);
   DB.collection('trades').onSnapshot(snap => { const all = snapDocs(snap); notifyNew(snap, 'trade', t => { if(t.to === MYID) toast(nameOf(t.from) + ' sent you a trade.'); }); TRADEDOCS = all.filter(t => t.to === MYID || t.from === MYID); applyAcceptedTrades(); queueRender(); }, err);
   DB.collection('groups').onSnapshot(snap => { GROUPDOCS = snapDocs(snap); queueRender(); }, err);
   DB.collection('members').onSnapshot(snap => { MEMBERDOCS = snapDocs(snap); queueRender(); }, err);
@@ -1997,7 +1999,7 @@ function startSubs(){
   if(ROOM){
     ROOM.presence({pg:null}).catch(() => {});
     ROOM.onPeers(ch => { const o = {}; ch.peers.forEach(p => { if(p.kind === 'viewer' && p.by){ o[p.by] = Object.assign({}, o[p.by] || {}, p.presence || {}); } }); ONLINE = o; queueRender(); });
-    ROOM.on('dm', m => { if(m.isMe) return; const d = m.data || {}; if(d.to !== MYID) return; receiveDM(m.by, String(d.t || '').slice(0, 100)); });
+    ROOM.on('dm', m => { if(m.isMe) return; const d = m.data || {}; if(d.to !== MYID || isBlocked(m.by)) return; receiveDM(m.by, String(d.t || '').slice(0, 100)); });
   }
 }
 function setLobby(pg){ if(ROOM) ROOM.presence({pg}).catch(() => {}); }
@@ -2290,7 +2292,8 @@ function renderProfile(name){
   const favG = me ? U.favs.map(x => gameById(x)).filter(Boolean) : [];
   let btns = '';
   if(me) btns = '<a class="btn neutral small" data-act="editDesc">Edit Description</a> <a class="btn neutral small" href="#/avatar">Edit Avatar</a>';
-  else { const isF = isFriend(id), sent = reqOut().some(r => r.to === id), inc = reqIn().some(r => r.from === id), pg = playingOf(id); btns = isF ? '<span class="btn neutral small" style="cursor:default">Friends</span> <a class="btn small" data-act="composeTo" data-n="' + id + '">Message</a> <a class="btn small" data-act="tradeWith" data-n="' + id + '">Trade</a>' + (pg ? ' <a class="btn green small" data-act="joinFriend" data-n="' + id + '">Join Game</a>' : '') : inc ? '<a class="btn green small" data-act="acceptReq" data-n="' + id + '">Accept Friend Request</a>' : sent ? '<span class="btn neutral small" style="cursor:default">Request Sent</span>' : '<a class="btn small" data-act="addFriend" data-n="' + id + '">Add Friend</a>'; }
+  else { const isF = isFriend(id), sent = reqOut().some(r => r.to === id), inc = reqIn().some(r => r.from === id), pg = playingOf(id); btns = isF ? '<span class="btn neutral small" style="cursor:default">Friends</span> <a class="btn small" data-act="composeTo" data-n="' + id + '">Message</a> <a class="btn small" data-act="tradeWith" data-n="' + id + '">Trade</a>' + (pg ? ' <a class="btn green small" data-act="joinFriend" data-n="' + id + '">Join Game</a>' : '') : isBlocked(id) ? '<span class="btn neutral small" style="cursor:default">Blocked</span>' : inc ? '<a class="btn green small" data-act="acceptReq" data-n="' + id + '">Accept Friend Request</a>' : sent ? '<span class="btn neutral small" style="cursor:default">Request Sent</span>' : '<a class="btn small" data-act="addFriend" data-n="' + id + '">Add Friend</a>'; }
+  if(!me) btns += ' <a class="btn neutral small" data-act="' + (isBlocked(id) ? 'unblockUser' : 'blockUser') + '" data-n="' + id + '">' + (isBlocked(id) ? 'Unblock' : 'Block') + '</a> <a class="btn neutral small" data-act="reportUser" data-n="' + id + '">Report</a>';
   const visits = Object.keys(o.visits || {}).reduce((s, k) => s + (o.visits[k] || 0), 0);
   setApp('<div class="box"><div class="prof"><div class="pav">' + avImg(o.avatar, 'full', .35) + '</div><div class="pinfo"><h1>' + esc(o.name) + '</h1><div class="status" style="margin:2px 0 8px">' + (me ? 'Online' : statusOf(id)) + '</div><div class="row" style="margin-bottom:10px">' + btns + '</div><p style="white-space:pre-wrap;margin:0 0 10px;word-break:break-word">' + esc(o.desc || 'Hi! I just joined Retro Blox.') + '</p><div class="pstats"><div><b>' + visits + '</b><span>Place Visits</span></div><div><b>' + ((o.owned || []).length) + '</b><span>Items</span></div><div><b>' + ((o.stats || {}).kills || 0) + '</b><span>Knockouts</span></div></div><div class="muted" style="font-size:13px">Joined ' + fmtDate(o.joined || Date.now()) + '</div></div></div></div>'
     + (me ? '<div class="box"><div class="sec-h"><span>Friends (' + fr.length + ')</span><a href="#/friends">See All</a></div>' + (fr.length ? '<div class="pcards">' + fr.slice(0, 6).map(f => pcard(f)).join('') + '</div>' : '<p class="muted">No friends yet.</p>') + '</div>' : '')
@@ -2409,6 +2412,22 @@ function createPlacesHtml(){
   return '<div class="box"><div class="sec-h"><span>My Places</span><a class="btn small" data-act="newPlace">New Place</a></div>' + U.places.map((p, i) => { const pub = placeGame(p); return '<div class="lrow"><img class="s" src="' + gameThumb(GAMES[3], 120, 120) + '" alt="" width="60" height="60"><div class="grow"><b>' + esc(p.name) + '</b><div class="status">' + p.bricks.length + ' bricks' + (pub ? ' &middot; <b style="color:#02b757">Published</b> as <a href="#/game/' + pub.id + '">' + esc(pub.name) + '</a>' : '') + '</div></div><a class="btn green small" data-act="play" data-g="4" data-p="' + i + '">Edit</a><a class="btn small" data-act="publishPlace" data-p="' + i + '">' + (pub ? 'Update Game' : 'Publish') + '</a>' + (pub ? '<a class="btn neutral small" data-act="editGame" data-g="' + pub.id + '">Icon &amp; Info</a><a class="btn neutral small" data-act="unpublish" data-p="' + i + '">Unpublish</a>' : '') + '<a class="btn neutral small" data-act="renamePlace" data-p="' + i + '">Rename</a>' + (U.places.length > 1 ? '<a class="btn neutral small" data-act="delPlace" data-p="' + i + '">Delete</a>' : '') + '</div>'; }).join('') + '</div><div class="box"><div class="sec-h"><span>How building and publishing works</span></div><p style="margin:0 0 8px">Press <b>Edit</b> to open Builder Studio. Use <b>Select</b>, <b>Move</b> and <b>Scale</b> on the toolbar, add parts with <b>Insert</b>, change numbers in <b>Properties</b>, and press <b>Play Test</b> to try your game. Undo is Ctrl+Z. Your place saves automatically.</p><p style="margin:0 0 8px">In a published game, <b>red bricks are lava</b> that send players back to the start and <b>yellow bricks are the goal</b>. Every other color is solid.</p><p style="margin:0">Press <b>Publish</b> (at least 5 bricks) to put it under Community Games, where anyone can join a server and play it together. <b>Update Game</b> republishes your latest bricks.</p></div>';
 }
 
+/* ---- block and report ---- */
+function blockModal(id){
+  confirmBox('Block ' + nameOf(id), 'Block <b>' + esc(nameOf(id)) + '</b>? They will be removed from your friends and cannot message you, send you friend requests or trades. You will not see their chat. You can unblock them in Settings.', 'Block', () => {
+    DB.doc('blocks/' + MYID + '_' + id).set({by:MYID, who:id, t:Date.now()}).then(() => {
+      const q = [DB.doc('friends/' + pairId(MYID, id)).delete(), DB.doc('requests/' + MYID + '_' + id).delete(), DB.doc('requests/' + id + '_' + MYID).delete()].map(p => p.catch(() => {}));
+      Promise.all(q).then(() => { toast(nameOf(id) + ' is blocked.'); render(); });
+    }).catch(() => toast('Could not block. Try again.', true));
+  }, 'red');
+}
+function reportModal(id, ctx){
+  modal('Report ' + nameOf(id), '<label class="f" for="rpR" style="margin-top:0">What is the problem?</label><select id="rpR"><option value="inappropriate">Inappropriate name, picture or content</option><option value="harassment">Harassment or bullying</option><option value="scam">Scamming or trading tricks</option><option value="cheating">Cheating or exploits</option><option value="other">Something else</option></select><label class="f" for="rpD">Details (optional)</label><textarea id="rpD" maxlength="400" placeholder="Tell us what happened"></textarea><label style="display:block;margin-top:10px"><input type="checkbox" id="rpB"> Also block this player</label><p class="muted" style="font-size:13px">Reports are reviewed by the site owner. Please only report real problems.</p>', [{label:'Cancel', cls:'neutral'}, {label:'Send Report', cls:'red', fn:() => {
+    const doc = {by:MYID, who:id, reason:$('#rpR').value, detail:$('#rpD').value.trim().slice(0, 400), ctx:String(ctx || 'profile').slice(0, 80), name:nameOf(id), me:U.name, t:Date.now()}, alsoBlock = $('#rpB').checked;
+    DB.collection('reports').add(doc).then(() => { toast('Report sent. Thank you.'); if(alsoBlock && !isBlocked(id)) DB.doc('blocks/' + MYID + '_' + id).set({by:MYID, who:id, t:Date.now()}).then(() => { DB.doc('friends/' + pairId(MYID, id)).delete().catch(() => {}); render(); }).catch(() => {}); }).catch(() => toast('Could not send the report.', true));
+  }}]);
+}
+
 /* ---- image helpers for uploads ---- */
 function readImage(file, w, h, maxChars){
   return new Promise((res, rej) => {
@@ -2472,7 +2491,7 @@ function editGameModal(id){
 }
 
 function renderSettings(){
-  setApp('<h1 class="page-h">Settings</h1><div class="box"><div class="sec-h"><span>Account Info</span></div><div class="lrow"><div class="grow muted">Username</div><div style="flex:2"><b>' + esc(U.name) + '</b></div></div><div class="lrow"><div class="grow muted">Member since</div><div style="flex:2">' + fmtDate(U.created) + '</div></div><label class="f" for="descIn">Description</label><textarea id="descIn" maxlength="500">' + esc(U.desc) + '</textarea><p><a class="btn small" data-act="saveDesc">Save</a></p></div><div class="box"><div class="sec-h"><span>Account</span></div><p><a class="btn neutral" data-act="logout">Log Out</a></p><p class="muted" style="font-size:13px">Deleting your account removes your profile, items, tokens and username. Friends, messages and group posts you made stay behind.</p><p><a class="btn red" data-act="deleteAccount">Delete Account</a></p></div>');
+  setApp('<h1 class="page-h">Settings</h1><div class="box"><div class="sec-h"><span>Account Info</span></div><div class="lrow"><div class="grow muted">Username</div><div style="flex:2"><b>' + esc(U.name) + '</b></div></div><div class="lrow"><div class="grow muted">Member since</div><div style="flex:2">' + fmtDate(U.created) + '</div></div><label class="f" for="descIn">Description</label><textarea id="descIn" maxlength="500">' + esc(U.desc) + '</textarea><p><a class="btn small" data-act="saveDesc">Save</a></p></div><div class="box"><div class="sec-h"><span>Blocked Players</span></div>' + (BLOCKDOCS.length ? BLOCKDOCS.map(b => '<div class="lrow"><div class="grow"><b>' + esc(nameOf(b.who)) + '</b></div><a class="btn neutral small" data-act="unblockUser" data-n="' + b.who + '">Unblock</a></div>').join('') : '<p class="muted" style="margin:0">You have not blocked anyone. Blocked players cannot message you, send friend requests or trades, and their chat is hidden from you.</p>') + '</div><div class="box"><div class="sec-h"><span>Account</span></div><p><a class="btn neutral" data-act="logout">Log Out</a></p><p class="muted" style="font-size:13px">Deleting your account removes your profile, items, tokens and username. Friends, messages and group posts you made stay behind.</p><p><a class="btn red" data-act="deleteAccount">Delete Account</a></p></div>');
 }
 function renderSearch(q){
   const kw = (q.q || '').trim().toLowerCase();
@@ -2515,7 +2534,7 @@ async function playGame(gid, opt){
   U.stats.visits++; U.visits[gid] = (U.visits[gid] || 0) + 1; U.recent = [gid].concat(U.recent.filter(x => x !== gid)).slice(0, 6); persist();
   const leave = () => { if(nr) nr.leave().catch(() => {}); setLobby(null); };
   const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar)), owned:U.owned.slice()}, seed:hashStr(roomName), serverName:solo ? '' : 'Server ' + server, place:place ? {bricks:place.bricks} : null,
-    net:nr ? {room:nr, myId:MYID, nameOf} : null,
+    net:nr ? {room:nr, myId:MYID, nameOf, isBlocked} : null,
     onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; if(g.kind === 'town' || g.kind === 'coins') U.stats.coins += amt; save(); } },
     onEvent:(name, v) => { if(name === 'win'){ if(!g.custom){ U.stats.wins++; giveBadge(g.kind === 'tower' ? 'tower' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
     onSave:bricks => { if(place && solo){ place.bricks = bricks.map(b => b.slice()); persist(); if(bricks.length >= 20) giveBadge('builder'); } },
@@ -2554,6 +2573,9 @@ const ACTIONS = {
   postStatus,
   play:el => { if(el.dataset.p != null && el.dataset.g === '4') playGame(4, {place:+el.dataset.p}); else playGame(gidOf(el.dataset.g), {server:+(el.dataset.s || 0)}); },
   publishPlace:el => publishModal(+el.dataset.p),
+  blockUser:el => blockModal(el.dataset.n),
+  unblockUser:el => { const id = el.dataset.n; DB.doc('blocks/' + MYID + '_' + id).delete().then(() => { toast(nameOf(id) + ' is unblocked.'); render(); }).catch(() => toast('Could not unblock.', true)); },
+  reportUser:el => reportModal(el.dataset.n),
   editGame:el => editGameModal(el.dataset.g),
   createItem:() => {
     const type = $('#ciType').value, name = $('#ciName').value.trim(), desc = $('#ciDesc').value.trim(), price = Math.round(+$('#ciPrice').value), err = m => { $('#ciErr').textContent = m; };

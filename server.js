@@ -82,6 +82,8 @@ function allowRead(uid, collPath){ const s = segs(collPath); if(s[0] === 'data' 
 // write rules per collection: returns true when allowed
 const smallImg = v => v == null || (typeof v === 'string' && v.length < 60000 && (v === '' || v.startsWith('data:image/')));
 const validItem = d => ['shirt', 'pants'].includes(d.type) && typeof d.name === 'string' && d.name.length >= 2 && d.name.length <= 40 && Number.isInteger(d.price) && d.price >= 0 && d.price <= 1000 && smallImg(d.img);
+const blockedPair = (a, b) => !!(S.docs['blocks/' + a + '_' + b] || S.docs['blocks/' + b + '_' + a]);
+const REPORT_REASONS = ['inappropriate', 'harassment', 'scam', 'cheating', 'other'];
 function allowWrite(uid, p, op, data, old){
   const s = segs(p), col = s[0], id = s[s.length - 1];
   if(col === 'data'){ return s[1] === 'users' && s[2] === uid; }
@@ -90,10 +92,12 @@ function allowWrite(uid, p, op, data, old){
   switch(col){
     case 'profiles': return id === uid;
     case 'names': return op === 'delete' ? !!old && old.uid === uid : (!old || old.uid === uid) && data && data.uid === uid;
-    case 'friends': { if(op === 'delete') return !!old && (old.ids || []).includes(uid); if(!(data && Array.isArray(data.ids) && data.ids.length === 2 && data.ids.includes(uid) && id === data.ids.slice().sort().join('__'))) return false; if(old) return true; const other = data.ids.find(x => x !== uid); return !!S.docs['requests/' + other + '_' + uid]; }
-    case 'requests': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : data && mine(data.from) && id === data.from + '_' + data.to;
-    case 'messages': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : !old && data && mine(data.from) && typeof data.to === 'string';
-    case 'trades': return op === 'delete' ? false : old ? (old.from === uid || old.to === uid) && data && data.from === old.from && data.to === old.to : data && mine(data.from);
+    case 'friends': { if(op === 'delete') return !!old && (old.ids || []).includes(uid); if(!(data && Array.isArray(data.ids) && data.ids.length === 2 && data.ids.includes(uid) && id === data.ids.slice().sort().join('__'))) return false; if(old) return true; const other = data.ids.find(x => x !== uid); return !!S.docs['requests/' + other + '_' + uid] && !blockedPair(uid, other); }
+    case 'requests': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : data && mine(data.from) && id === data.from + '_' + data.to && !blockedPair(data.from, data.to);
+    case 'blocks': return op === 'delete' ? !!old && old.by === uid : !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && id === uid + '_' + data.who;
+    case 'reports': return op === 'set' && !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && REPORT_REASONS.includes(data.reason) && String(data.detail || '').length <= 400 && String(data.ctx || '').length <= 80;
+    case 'messages': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : !old && data && mine(data.from) && typeof data.to === 'string' && !blockedPair(uid, data.to);
+    case 'trades': return op === 'delete' ? false : old ? (old.from === uid || old.to === uid) && data && data.from === old.from && data.to === old.to : data && mine(data.from) && !blockedPair(data.from, data.to);
     case 'groups': return op === 'delete' ? !!old && old.owner === uid : old ? old.owner === uid : data && mine(data.owner);
     case 'members': return op === 'delete' ? !!old && old.uid === uid : data && mine(data.uid) && id === data.gid + '_' + uid;
     case 'wall': case 'feed': return op === 'delete' ? !!old && old.uid === uid : !old && data && mine(data.uid);
@@ -109,6 +113,7 @@ function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'messages') return d.from === uid || d.to === uid;
   if(coll === 'trades' || coll === 'requests') return d.from === uid || d.to === uid;
   if(coll === 'sales') return d.seller === uid || d.buyer === uid;
+  if(coll === 'blocks' || coll === 'reports') return d.by === uid;
   if(coll === 'friends') return (d.ids || []).includes(uid);
   return true;
 }
@@ -138,6 +143,7 @@ function writeDoc(uid, op, p, data){
     if(JSON.stringify(next).length > MAXDOC) return {code:'invalid_argument'};
     if(!allowWrite(uid, p, op, next, old)) return {code:'permission_denied'};
     S.docs[p] = {d:next, v:(e ? e.v : 0) + 1};
+    if(p.startsWith('reports/')) console.log('REPORT', JSON.stringify(next));
   }
   markDirty(); const s = segs(p); notifyColl(s.slice(0, -1).join('/')); return {ok:true};
 }

@@ -296,7 +296,7 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 #gHud{position:absolute;inset:0;pointer-events:none}
 #gHud>*{pointer-events:auto}
 #gMenuBtn{position:absolute;left:max(8px,env(safe-area-inset-left,0px));top:calc(8px + env(safe-area-inset-top,0px));width:38px;height:38px;border:1px solid rgba(255,255,255,.35);background:rgba(20,22,28,.62);border-radius:3px;cursor:pointer;display:grid;place-items:center;padding:0}
-#gChat{position:absolute;left:max(8px,env(safe-area-inset-left,0px));top:calc(52px + env(safe-area-inset-top,0px));width:min(330px,calc(100vw - 190px));display:flex;flex-direction:column}
+#gChat{position:absolute;left:max(8px,env(safe-area-inset-left,0px));top:calc(52px + env(safe-area-inset-top,0px));width:min(270px,calc(100vw - 190px));display:flex;flex-direction:column}
 #gChatLog{max-height:150px;overflow-y:auto;background:rgba(20,22,28,.4);padding:5px 8px;font-size:15px;line-height:1.35;color:#fff;text-shadow:0 1px 2px #000;scrollbar-width:thin}
 #gChatLog:empty{display:none}
 #gChatIn{background:rgba(20,22,28,.55);border:0;border-top:1px solid rgba(255,255,255,.25);color:#fff;padding:5px 8px;font-size:14px;border-radius:0;width:100%}
@@ -355,14 +355,16 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 .gm-btns button:hover{filter:brightness(1.12)}
 @media (prefers-reduced-motion:reduce){#alertbar div,#gToast{animation:none;transition:none}}
 
-#gTray{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;background:rgba(20,22,28,.72);border:2px solid rgba(255,255,255,.5);padding:6px 14px;color:#fff;min-height:46px;cursor:pointer}
+#gTray{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(36px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;background:rgba(20,22,28,.72);border:2px solid rgba(255,255,255,.5);padding:6px 14px;color:#fff;min-height:46px;cursor:pointer}
 #gTray span{font-size:30px;line-height:1}#gTray em{font-style:normal;font-size:12px;color:#cfd6e4}
-#gPrompt{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.68);color:#fff;padding:6px 16px;font-weight:700;font-size:16px;pointer-events:none!important}
+#gPrompt{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(104px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.68);color:#fff;padding:6px 16px;font-weight:700;font-size:16px;pointer-events:none!important}
 #gPrompt:empty{display:none}
 #gSpeed{position:absolute;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));background:rgba(20,22,28,.72);border:2px solid rgba(255,255,255,.5);color:#fff;padding:8px 16px;font-size:14px;pointer-events:none!important;line-height:1.2}
 #gSpeed b{font-size:34px;font-weight:900}#gSpeed span{color:#cfd6e4}
 #gameRoot.studio #gRight,#gameRoot.studio #gTimeBox,#gameRoot.studio #gHotbar{display:none!important}
-#gameRoot.studio #gChat{bottom:calc(34px + env(safe-area-inset-bottom,0px))}
+#gameRoot.studio #gChat{top:auto;bottom:calc(30px + env(safe-area-inset-bottom,0px));width:min(330px,calc(100vw - 300px))}
+#gameRoot.studio #gEmoBtn,#gameRoot.studio #gEmoPanel{display:none!important}
+#sRib select{width:auto;max-width:150px}
 #sRib{position:absolute;left:56px;right:8px;top:calc(8px + env(safe-area-inset-top,0px));display:flex;flex-wrap:wrap;gap:0;background:linear-gradient(#f4f5f7,#d9dce2);border:1px solid #8d929c;box-shadow:0 2px 8px rgba(0,0,0,.35);color:#1a1d24;font-size:12px;z-index:3}
 #sRib .sg{padding:3px 8px 4px;border-right:1px solid #aeb2bb;min-width:0}
 #sRib .sg b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#4a4f5a;margin-bottom:2px}
@@ -373,7 +375,7 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 #sRib button.go{background:linear-gradient(#bff0c4,#7dd488);border-color:#2f8a3b}
 #sRib select{font:12px system-ui,sans-serif;padding:3px;border:1px solid #9aa0ab;background:#fff;color:#1a1d24}
 #sRib .sw{max-width:190px}#sRib .sq{width:16px;height:16px;padding:0!important;border:1px solid #555!important;border-radius:0!important}#sRib .sq.on{outline:2px solid #1a74e8;outline-offset:1px}
-#sSide{position:absolute;right:8px;top:calc(118px + env(safe-area-inset-top,0px));width:230px;display:flex;flex-direction:column;gap:6px;max-height:calc(100% - 190px);z-index:2}
+#sSide{position:absolute;right:8px;top:130px;width:230px;display:flex;flex-direction:column;gap:6px;max-height:calc(100% - 190px);z-index:2}
 #sSide>div{background:rgba(245,246,248,.96);border:1px solid #8d929c;color:#1a1d24;display:flex;flex-direction:column;min-height:0}
 #sSide h4{margin:0;padding:3px 8px;font-size:12px;background:linear-gradient(#e9ebef,#cdd1d8);border-bottom:1px solid #8d929c}
 #sExp{max-height:220px}#sExpList{overflow:auto;font-size:12px}
@@ -408,6 +410,8 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 #gEmoPanel{position:absolute;left:calc(52px + max(8px,env(safe-area-inset-left,0px)));top:calc(52px + env(safe-area-inset-top,0px));display:flex;flex-wrap:wrap;gap:4px;max-width:240px;background:rgba(20,22,28,.82);border:1px solid rgba(255,255,255,.3);border-radius:3px;padding:6px;pointer-events:auto}
 #gEmoPanel[hidden]{display:none}#gEmoPanel button{width:38px;height:38px;font-size:22px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:3px;cursor:pointer;padding:0}#gEmoPanel span{color:#ddd;font-size:13px;padding:4px}
 .root-hide #gEmoBtn{display:none}
+
+body:not(.in-game) #app{padding-bottom:56px}
 
 </style></head><body>
 <div id="shell">
@@ -1513,6 +1517,8 @@ const Engine = (function(){
   }
   function sPropsRefresh(){ const b = G.sel; if(!b) return; document.querySelectorAll('#sPropBody input[data-p]').forEach(i => { i.value = b[+i.dataset.p]; }); }
   function studioHudEvents(){
+    const sPos = () => { const r = document.getElementById('sRib'), sd = document.getElementById('sSide'); if(!r || !sd) return; const b = r.getBoundingClientRect(); sd.style.top = Math.round(b.bottom + 6) + 'px'; sd.style.maxHeight = Math.max(120, window.innerHeight - b.bottom - 34) + 'px'; };
+    sPos(); window.addEventListener('resize', sPos); try{ new ResizeObserver(sPos).observe(document.getElementById('sRib')); }catch(e){} setTimeout(sPos, 300);
     const rib = document.getElementById('sRib'); if(!rib) return;
     rib.onclick = e => { const bt = e.target.closest('button'); if(!bt) return;
       if(bt.dataset.t) studioTool(bt.dataset.t);
@@ -2730,7 +2736,7 @@ async function playGame(gid, opt){
 }
 
 /* ===================== chat & party (live, friends who are online) ===================== */
-const CHATS = {}; let cpOpen = []; let cpMin = false;
+const CHATS = {}; let cpOpen = []; let cpMin = (() => { try{ return localStorage.getItem('bbCpMin') !== '0'; }catch(e){ return true; } })();
 function receiveDM(from, text){ text = cleanText(text); if(!text) return; (CHATS[from] = CHATS[from] || []).push({me:false, t:text}); if(cpOpen.indexOf(from) < 0){ cpOpen.push(from); if(cpOpen.length > 2) cpOpen.shift(); } if(U && !Engine.active()) renderCP(); }
 function renderCP(){
   const el = $('#cp'); if(!U){ el.innerHTML = ''; return; }
@@ -2826,7 +2832,7 @@ const ACTIONS = {
   newPlace:() => { if(U.places.length >= 4){ toast('You can have at most 4 places.', true); return; } U.places.push({name:'Place ' + (U.places.length + 1), bricks:[]}); persist(); render(); },
   renamePlace:el => { const p = U.places[+el.dataset.p]; modal('Rename Place', '<input id="rnP" type="text" maxlength="30" value="' + esc(p.name) + '">', [{label:'Cancel', cls:'neutral'}, {label:'Save', fn:() => { const v = $('#rnP').value.trim(); if(!v) return false; p.name = v; persist(); render(); }}]); },
   delPlace:el => { const i = +el.dataset.p; confirmBox('Delete Place', 'Delete <b>' + esc(U.places[i].name) + '</b>? This cannot be undone.' + (placeGame(U.places[i]) ? ' Its published game will be unpublished.' : ''), 'Delete', () => { const g = placeGame(U.places[i]); if(g) DB.doc('games/' + g.id).delete().catch(() => {}); U.places.splice(i, 1); persist(); render(); }, 'red'); },
-  cpToggle:() => { cpMin = !cpMin; renderCP(); }, cpOpen:el => { const id = el.dataset.n; if(cpOpen.indexOf(id) < 0) cpOpen.push(id); if(cpOpen.length > 2) cpOpen.shift(); renderCP(); const i = $('[data-chat="' + id + '"]'); if(i) i.focus(); }, cpClose:el => { cpOpen = cpOpen.filter(x => x !== el.dataset.n); renderCP(); }
+  cpToggle:() => { cpMin = !cpMin; try{ localStorage.setItem('bbCpMin', cpMin ? '1' : '0'); }catch(e){} renderCP(); }, cpOpen:el => { const id = el.dataset.n; if(cpOpen.indexOf(id) < 0) cpOpen.push(id); if(cpOpen.length > 2) cpOpen.shift(); renderCP(); const i = $('[data-chat="' + id + '"]'); if(i) i.focus(); }, cpClose:el => { cpOpen = cpOpen.filter(x => x !== el.dataset.n); renderCP(); }
 };
 document.addEventListener('click', e => {
   if(!e.target.closest('.hbtn')){ const a = $('#balDrop'), b = $('#menuDrop'); if(a) a.hidden = true; if(b) b.hidden = true; }

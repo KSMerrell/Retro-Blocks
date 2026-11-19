@@ -398,6 +398,17 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 .ad .hbox{aspect-ratio:6/5;display:flex;align-items:center;justify-content:center;text-align:center;background:repeating-linear-gradient(45deg,#f1f3f6,#f1f3f6 10px,#e6e9ee 10px,#e6e9ee 20px);color:#555;font-weight:700;padding:10px}
 @media (max-width:1180px){.adwrap{display:block}.adrail{width:auto;position:static;flex-direction:row;flex-wrap:wrap;margin-top:12px}.adrail .ad{width:200px}}
 
+.daily{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.dd{border:1px solid #bbb;background:#f7f7f7;text-align:center;padding:8px 2px;font-size:12px}
+.dd b{display:flex;align-items:center;justify-content:center;gap:3px;font-size:15px;margin-top:4px}.dd.now{border-color:#02b757;background:#e6f9ee;box-shadow:0 0 0 1px #02b757}.dd.done{opacity:.55;background:#ddd}
+.lbt{width:100%;border-collapse:collapse}.lbt th,.lbt td{text-align:left;padding:7px 8px;border-bottom:1px solid #ddd}.lbt th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#666}.lbt tr.me td{background:#fff8d6;font-weight:700}
+.pets{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}.pet{border:1px solid #bbb;background:#fff;text-align:center;padding:10px 6px;position:relative}.pet .em{font-size:44px;line-height:1.1}.pet.locked .em{filter:grayscale(1) brightness(.4)}.pet.on{border-color:#02b757;box-shadow:0 0 0 1px #02b757}
+
+.evt{background:linear-gradient(180deg,#eaf6ff,#fff);border-color:#8fc7ff}
+#gEmoBtn{position:absolute;left:calc(52px + max(8px,env(safe-area-inset-left,0px)));top:calc(8px + env(safe-area-inset-top,0px));width:38px;height:38px;border:1px solid rgba(255,255,255,.35);background:rgba(20,22,28,.62);border-radius:3px;cursor:pointer;font-size:20px;line-height:1;padding:0;pointer-events:auto}
+#gEmoPanel{position:absolute;left:calc(52px + max(8px,env(safe-area-inset-left,0px)));top:calc(52px + env(safe-area-inset-top,0px));display:flex;flex-wrap:wrap;gap:4px;max-width:240px;background:rgba(20,22,28,.82);border:1px solid rgba(255,255,255,.3);border-radius:3px;padding:6px;pointer-events:auto}
+#gEmoPanel[hidden]{display:none}#gEmoPanel button{width:38px;height:38px;font-size:22px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:3px;cursor:pointer;padding:0}#gEmoPanel span{color:#ddd;font-size:13px;padding:4px}
+.root-hide #gEmoBtn{display:none}
+
 </style></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
@@ -475,17 +486,41 @@ const ITEM_DEFS = [
  ['gear','Flaming Torch',60,'R',{k:'torch'},'It is hot. Do not touch the flame.'],
  ['gear','Pizza Slice',30,'T',{k:'pizza'},'Click to eat. Restores health and gives a short speed boost.'],
  ['gear','Lemonade',35,'T',{k:'lemon'},'Click to drink. Cold, sour and fast.'],
- ['gear','Party Balloon',120,'R',{k:'balloon'},'Hold it to float down slowly. Jump off a ledge and glide.']
+ ['gear','Party Balloon',120,'R',{k:'balloon'},'Hold it to float down slowly. Jump off a ledge and glide.'],
+ ['hat','Frosty Beanie',40,'R',{k:'bean',c:'#e8f6ff'},'Winter event item. A fluffy white beanie for snowy days.',0,'winter'],
+ ['hat','Holiday Cap',45,'R',{k:'bean',c:'#c4281c'},'Winter event item. Bright, warm and festive.',0,'winter'],
+ ['hat','Ice Crown',500,'R',{k:'crown',c:'#9fe3ff'},'Winter event item. Carved from a single glacier. Limited item.',800,'winter'],
+ ['shirt','Cozy Sweater',35,'R',{c1:'#c4281c',c2:'#287f47',p:'stripes'},'Winter event item. Red and green stripes, extra itchy.',0,'winter'],
+ ['shirt','Frost Hoodie',50,'R',{c1:'#9fd3ff',c2:'#6aa8d8',p:'hood'},'Winter event item. A hoodie the color of fresh ice.',0,'winter'],
+ ['pants','Snow Pants',30,'R',{c:'#e8f6ff',s:'#9fc4e0'},'Winter event item. Built for snowball fights.',0,'winter']
 ];
 const ITEMS = ITEM_DEFS.map((d, i) => ({id:i+1, type:d[0], name:d[1], price:d[2], cur:d[3], s:d[4], desc:d[5], val:d[6] || 0, ltd:!!d[6],
-  creator:'Retro Blox', updated:Date.now() - i*86400000*3}));
+  creator:'Retro Blox', updated:Date.now() - i*86400000*3, ev:d[7] || ''}));
 const ITEM_BY_ID = {}; ITEMS.forEach(it => ITEM_BY_ID[it.id] = it);
 const itemValue = it => it.val || (it.cur === 'R' ? it.price : Math.round(it.price / 10)) || 1;
 const TYPE_NAMES = {hat:'Hats', face:'Faces', shirt:'Shirts', pants:'Pants', gear:'Gear'};
 const FREE_FACE = ITEMS.find(i => i.type === 'face' && i.price === 0).id;
 
 /* ===================== games ===================== */
-const GAMES = [
+/* seasonal events: items and games tagged with an event only show while it is on */
+const EVENTS = {winter:{name:'Winter Wonderland', from:Date.UTC(2026, 10, 20), to:Date.UTC(2027, 0, 15), end:'January 15'}};
+const eventOn = k => { const e = EVENTS[k], t = Date.now(); return !!e && t >= e.from && t < e.to; };
+const PETS = [
+ {id:'puppy', n:'Puppy', e:'🐶', r:0}, {id:'kitty', n:'Kitty', e:'🐱', r:0}, {id:'frog', n:'Froggy', e:'🐸', r:0}, {id:'chick', n:'Chick', e:'🐥', r:0}, {id:'bunny', n:'Bunny', e:'🐰', r:0},
+ {id:'fox', n:'Fox', e:'🦊', r:1}, {id:'panda', n:'Panda', e:'🐼', r:1}, {id:'penguin', n:'Penguin', e:'🐧', r:1}, {id:'piglet', n:'Piglet', e:'🐷', r:1},
+ {id:'unicorn', n:'Unicorn', e:'🦄', r:2}, {id:'dragon', n:'Dragon', e:'🐲', r:2}, {id:'owl', n:'Owl', e:'🦉', r:2},
+ {id:'robot', n:'Robo-Pal', e:'🤖', r:3}, {id:'ghost', n:'Ghost', e:'👻', r:3},
+ {id:'snowman', n:'Snowman', e:'⛄', r:2, ev:'winter'}, {id:'reindeer', n:'Reindeer', e:'🦌', r:3, ev:'winter'}
+];
+const PET_BY_ID = {}; PETS.forEach(p => PET_BY_ID[p.id] = p);
+const RARITY = ['Common', 'Uncommon', 'Rare', 'Epic'], RARITY_W = [60, 28, 10, 2];
+const EMOTES = [
+ {id:'heart', n:'Heart', e:'❤️', price:0}, {id:'laugh', n:'Laugh', e:'😂', price:0}, {id:'thumbs', n:'Thumbs Up', e:'👍', price:0},
+ {id:'cool', n:'Cool', e:'😎', price:30}, {id:'fire', n:'Fire', e:'🔥', price:30}, {id:'wow', n:'Wow', e:'😮', price:30}, {id:'cry', n:'Cry', e:'😭', price:30},
+ {id:'party', n:'Party', e:'🎉', price:40}, {id:'star', n:'Star', e:'⭐', price:50}, {id:'skull', n:'Skull', e:'💀', price:50}, {id:'snow', n:'Snowflake', e:'❄️', price:60, ev:'winter'}
+];
+const EMO_BY_ID = {}; EMOTES.forEach(x => EMO_BY_ID[x.id] = x);
+const GAMES_ALL = [
  {id:1, kind:'obby', name:'Retro Blox Obby', creator:'Retro Blox', color:['#2b8de0','#0b3d78'], max:12,
   desc:'Six stages of floating bricks above a sea of lava. Touch the lava and you start over from your last checkpoint. Reach the gold platform to win a badge and tokens. Everyone in the server climbs the same course at the same time.\n\nTip: Speed Coils and Gravity Coils work here. Use them at your own risk.'},
  {id:2, kind:'town', name:'Brick Town Hangout', creator:'Retro Blox', color:['#4cc26a','#176b36'], max:20,
@@ -508,9 +543,12 @@ const GAMES = [
   desc:'Hop in a brick car and race around the track. Use W and S for gas and brake, A and D to steer, Space for the handbrake and H for the horn. Hit the yellow boost pads for a speed burst. Finish 3 laps to win tokens. Other players drive on the same track at the same time.'},
  {id:11, kind:'tiledrop', name:'Tile Drop', creator:'Retro Blox', color:['#12a89d','#0b3d3a'], max:16,
   desc:'Stand on the colored floor while tiles flash and fall into the lava. The longer you survive, the faster they fall. Reach 30 seconds for 2 tokens and 60 seconds for 4 tokens. Everyone in the server sees the same tiles fall.'},
+ {id:13, kind:'obby', event:'winter', gen:{seed:37, len:40, every:10, hard:.45, name:'Frostbite Frenzy', pal:[0xbfe6ff,0xffffff,0x8fc7ff,0xff6f6f,0x7fdc9b,0xffe08a], ground:0xeaf6ff, sky:['#7fa9de','#f2f8ff']}, name:'Frostbite Frenzy', creator:'Retro Blox', color:['#8fc7ff','#274b82'], max:12,
+  desc:'Winter event! Race across icy bricks, sliding beams and vanishing snow tiles to reach the gold finish. Four checkpoints along the way. Only here for the Winter Wonderland event, so play it before it melts away.'},
  {id:12, kind:'coaster', name:'Thunder Rail Coaster', creator:'Retro Blox', color:['#e0589a','#1f3b73'], max:16,
   desc:'Welcome to the theme park! Walk to the station, step on the glowing pad and ride a huge roller coaster with a lift hill, big drops and fast hills. Every finished ride earns 3 tokens. Look around for the Ferris wheel and the carousel.'}
 ];
+const GAMES = GAMES_ALL.filter(g => !g.event || eventOn(g.event));
 const GAME_BY_ID = {}; GAMES.forEach(g => GAME_BY_ID[g.id] = g);
 
 /* ===================== blog ===================== */
@@ -1323,22 +1361,43 @@ const Engine = (function(){
     G.tool = G.game.kind === 'studio' ? 'select' : 'place'; G.sizeIdx = 1; G.colorIdx = 5; G.rot = false; G.snap = 1; G.sel = null; G.handles = []; G.hist = []; G.redo = []; G.clip = null; G.drag = null; G.sMode = G.game.kind === 'studio' ? 'edit' : 'play'; G.focus = {x:0, y:3, z:20};
     G.SIZES = [['Block 2x2', 2, 2, 2], ['Brick 4x2', 4, 2, 2], ['Plate 6x6', 6, 1, 6], ['Wall 8x6', 8, 6, 1], ['Pillar 2x8', 2, 8, 2], ['Cube 4x4', 4, 4, 4], ['Plate 12x12', 12, 1, 12], ['Wall 12x8', 12, 8, 1], ['Cube 8x8', 8, 8, 8], ['Long plate 20x4', 20, 1, 4]];
     if(G.game.kind === 'studio'){ const ghost = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.4, depthWrite:false})); ghost.visible = false; G.scene.add(ghost); G.ghost = ghost; G.selBox = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({color:0x2a8cff})); G.selBox.visible = false; G.scene.add(G.selBox); }
-    (G.opts.place && G.opts.place.bricks || []).forEach(b => addBrick(b, true));
+    G.lightCount = 0; G.partType = 0; (G.opts.place && G.opts.place.bricks || []).forEach(b => addBrick(b, true)); sSpawnFrom();
     if(G.game.kind === 'studio') G.hist = [JSON.stringify(G.bricks)];
   }
   /* ---------- Studio (2017 style): select, move, scale, rotate, properties, undo, test play ---------- */
   const SNAPS = [['Off', 0], ['0.5', .5], ['1', 1], ['2', 2], ['4', 4]];
   const snapV = v => G.snap ? Math.round(v / G.snap) * G.snap : Math.round(v * 100) / 100;
   const sClamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  /* Part types (stored in b[7]). Shapes keep a box hitbox. */
+  const PTYPES = [[0, 'Block'], [1, 'Cylinder'], [2, 'Sphere'], [3, 'Cone'], [10, 'Spawn Point'], [11, 'Checkpoint'], [12, 'Bounce Pad'], [13, 'Speed Pad'], [14, 'Ice'], [15, 'Glass'], [16, 'Neon'], [17, 'Light'], [18, 'Moving Platform'], [19, 'Vanishing Block'], [20, 'Finish']];
+  const PT_DESC = {0:'Normal brick', 1:'Cylinder shape (box hitbox)', 2:'Sphere shape (box hitbox)', 3:'Cone shape (box hitbox)', 10:'Spawn Point: players start here', 11:'Checkpoint: touch it to save your spot', 12:'Bounce Pad: launches players high', 13:'Speed Pad: gives a speed burst', 14:'Ice: slippery floor', 15:'Glass: see-through but solid', 16:'Neon: glows', 17:'Light: shines on nearby parts', 18:'Moving Platform: slides side to side', 19:'Vanishing Block: falls away after you step on it', 20:'Finish: reach it to win'};
   function partFromBrick(b){
-    const col = BRICK_COLORS[b[6]] ? BRICK_COLORS[b[6]][1] : '#a3a2a5';
-    const live = G.game.kind === 'custom' || G.sMode === 'test', kind = live ? (b[6] === 1 ? 'kill' : b[6] === 0 ? 'goal' : 'solid') : 'solid';
-    const p = makePart({x:b[0], y:b[1], z:b[2], w:b[3], h:b[4], d:b[5], color:new THREE.Color(col), kind}); p.mesh.userData.brick = b; p.brick = b;
+    const col = BRICK_COLORS[b[6]] ? BRICK_COLORS[b[6]][1] : '#a3a2a5', t = b[7] | 0;
+    const live = G.game.kind === 'custom' || G.sMode === 'test';
+    let kind = live ? (b[6] === 1 ? 'kill' : b[6] === 0 ? 'goal' : 'solid') : 'solid';
+    if(live){ if(t === 11) kind = 'cp'; else if(t === 12) kind = 'bounce'; else if(t === 13) kind = 'speed'; else if(t === 14) kind = 'ice'; else if(t === 20) kind = 'goal'; else if(t === 18) kind = 'move'; else if(t === 19) kind = 'vanish'; }
+    const glow = t === 16 || t === 17 || t === 13 || t === 12 || t === 11;
+    const p = makePart({x:b[0], y:b[1], z:b[2], w:b[3], h:b[4], d:b[5], color:new THREE.Color(col), kind:kind === 'move' || kind === 'vanish' ? 'solid' : kind, studs:t === 0, emissive:glow ? col : undefined}); p.mesh.userData.brick = b; p.brick = b; p.kind = kind;
+    const m = p.mesh, mat = p.mats[0];
+    if(t === 14){ mat.color.set('#bfe8f5'); }
+    if(t === 15){ mat.transparent = true; mat.opacity = .38; mat.color.set(col); }
+    if(t === 1 || t === 2 || t === 3 || t === 17){
+      const geo = t === 1 ? new THREE.CylinderGeometry(.5, .5, 1, 22) : t === 3 ? new THREE.ConeGeometry(.5, 1, 22) : new THREE.SphereGeometry(.5, 20, 14);
+      m.geometry.dispose(); m.geometry = geo; m.material = mat; m.scale.set(b[3], b[4], b[5]);
+    }
+    if(t === 17){
+      mat.emissive = new THREE.Color(col); mat.transparent = true; mat.opacity = .9; p.hx = p.hy = p.hz = 0; bounds(p); p.kind = 'none';
+      if(G.lightCount < 12 && G.sMode !== 'edit-off'){ const L = new THREE.PointLight(new THREE.Color(col), 1.3, Math.max(30, Math.max(b[3], b[4], b[5]) * 8)); L.position.set(0, 0, 0); L.scale.set(1 / Math.max(.01, b[3]), 1 / Math.max(.01, b[4]), 1 / Math.max(.01, b[5])); m.add(L); p.light = L; G.lightCount++; }
+      return p;
+    }
+    if(kind === 'move'){ p.move = true; p.ax = 'x'; p.amp = Math.max(6, b[3]); p.spd = .9; p.ph = 0; p.bx = p.cx; p.by = p.cy; p.bz = p.cz; G.movers.push(p); }
+    if(kind === 'vanish'){ p.vs = 'idle'; p.t = 0; p.delay = .7; p.mats.forEach(x => x.transparent = true); G.vanishers.push(p); }
     if(kind === 'kill') G.killers.push(p); else G.colliders.push(p);
     return p;
   }
   const sPart = b => G.brickParts.find(p => p.brick === b);
-  function sDrop(p){ G.scene.remove(p.mesh); try{ p.mesh.geometry.dispose(); }catch(e){} let i = G.colliders.indexOf(p); if(i >= 0) G.colliders.splice(i, 1); i = G.killers.indexOf(p); if(i >= 0) G.killers.splice(i, 1); }
+  function sSpawnFrom(){ const sb = G.bricks.find(b => (b[7] | 0) === 10); if(sb) G.spawn = {x:sb[0], y:sb[1] + sb[4] / 2 + .05, z:sb[2]}; else if(G.game.kind === 'studio') G.spawn = {x:0, y:.05, z:20}; }
+  function sDrop(p){ if(p.light) G.lightCount = Math.max(0, G.lightCount - 1); let mi = G.movers.indexOf(p); if(mi >= 0) G.movers.splice(mi, 1); mi = G.vanishers.indexOf(p); if(mi >= 0) G.vanishers.splice(mi, 1); G.scene.remove(p.mesh); try{ p.mesh.geometry.dispose(); }catch(e){} let i = G.colliders.indexOf(p); if(i >= 0) G.colliders.splice(i, 1); i = G.killers.indexOf(p); if(i >= 0) G.killers.splice(i, 1); }
   function sRebuild(b){ const p = sPart(b); if(!p) return; sDrop(p); G.brickParts[G.brickParts.indexOf(p)] = partFromBrick(b); }
   function sCommit(){ G.hist.push(JSON.stringify(G.bricks)); if(G.hist.length > 60) G.hist.shift(); G.redo.length = 0; saveBricks(); sUI(); }
   function sRestore(str){
@@ -1379,7 +1438,7 @@ const Engine = (function(){
   function sFree(w, h, d, x, z){ let top = 0; G.bricks.forEach(o => { if(Math.abs(o[0] - x) < (o[3] + w) / 2 - .01 && Math.abs(o[2] - z) < (o[5] + d) / 2 - .01) top = Math.max(top, o[1] + o[4] / 2); }); return top + h / 2; }
   function sInsert(){
     if(G.bricks.length >= 1000){ chatMsg('sys', 'Brick limit reached (1000).'); return; }
-    const s = G.SIZES[G.sizeIdx], x = sClamp(snapV(G.focus.x), -78, 78), z = sClamp(snapV(G.focus.z), -78, 78), b = [x, sFree(s[1], s[2], s[3], x, z), z, s[1], s[2], s[3], G.colorIdx];
+    const s = G.SIZES[G.sizeIdx], x = sClamp(snapV(G.focus.x), -78, 78), z = sClamp(snapV(G.focus.z), -78, 78), b = [x, sFree(s[1], s[2], s[3], x, z), z, s[1], s[2], s[3], G.colorIdx, G.partType | 0];
     addBrick(b, true); sfx.place(); sSelect(b); sCommit();
   }
   function sDelete(b){ b = b || G.sel; if(!b) return; const p = sPart(b); if(!p) return; sDrop(p); G.brickParts.splice(G.brickParts.indexOf(p), 1); G.bricks.splice(G.bricks.indexOf(b), 1); if(G.sel === b) G.sel = null; sfx.del(); sSelVis(); sCommit(); }
@@ -1391,7 +1450,7 @@ const Engine = (function(){
   function sRotate(){ const b = G.sel; if(!b) return; const t = b[3]; b[3] = b[5]; b[5] = t; sRebuild(b); sSelVis(); sfx.place(); sCommit(); }
   function sSetProp(i, v){
     const b = G.sel; if(!b || !isFinite(v)) return;
-    if(i < 3) b[i] = i === 1 ? sClamp(v, 0, 120) : sClamp(v, -78, 78); else if(i < 6) b[i] = sClamp(v, .5, 80); else b[6] = sClamp(Math.round(v), 0, BRICK_COLORS.length - 1);
+    if(i < 3) b[i] = i === 1 ? sClamp(v, 0, 120) : sClamp(v, -78, 78); else if(i < 6) b[i] = sClamp(v, .5, 80); else if(i === 6) b[6] = sClamp(Math.round(v), 0, BRICK_COLORS.length - 1); else b[7] = PTYPES.some(t => t[0] === Math.round(v)) ? Math.round(v) : 0;
     sRebuild(b); sSelVis(); sCommit();
   }
   function sColor(i){ G.colorIdx = i; if(G.sel){ sSetProp(6, i); } else sUI(); document.querySelectorAll('#sRib .sq').forEach(s => s.classList.toggle('on', +s.dataset.ci === i)); }
@@ -1401,7 +1460,7 @@ const Engine = (function(){
   function sPlay(on){
     if(!G || G.game.kind !== 'studio' || on === (G.sMode === 'test')) return;
     const root = document.getElementById('gameRoot');
-    if(on){ sSelect(null); G.sMode = 'test'; G.won = false; sConvert(); const sp = G.spawn, P = G.P; P.x = sp.x; P.y = sp.y; P.z = sp.z; P.vx = P.vy = P.vz = 0; P.dead = false; P.A.group.visible = true; G.checkpoint = null; G.zoom = 18; G.pitch = .38; G.camBlend = .8; G.cf = {x:sp.x, y:sp.y + 8, z:sp.z}; if(G.ghost) G.ghost.visible = false; G.T = 0; toast('Test mode', 'Red bricks are lava. Reach a yellow brick to win. Click Stop to go back to building.'); }
+    if(on){ sSelect(null); G.sMode = 'test'; G.won = false; sConvert(); sSpawnFrom(); G.cpPart = null; const sp = G.spawn, P = G.P; P.x = sp.x; P.y = sp.y; P.z = sp.z; P.vx = P.vy = P.vz = 0; P.dead = false; P.A.group.visible = true; G.checkpoint = null; G.zoom = 18; G.pitch = .38; G.camBlend = .8; G.cf = {x:sp.x, y:sp.y + 8, z:sp.z}; if(G.ghost) G.ghost.visible = false; G.T = 0; toast('Test mode', 'Red bricks are lava. Reach a yellow brick to win. Click Stop to go back to building.'); }
     else { G.sMode = 'edit'; sConvert(); G.focus = {x:G.P.x, y:Math.max(0, G.P.y), z:G.P.z}; G.zoom = 60; G.pitch = .7; G.won = false; P_hide(); }
     root.classList.toggle('testing', G.sMode === 'test'); const bt = document.getElementById('sPlay'); if(bt) bt.textContent = G.sMode === 'test' ? '■ Stop' : '▶ Play Test'; sfx.equip();
   }
@@ -1427,7 +1486,7 @@ const Engine = (function(){
     const tools = [['select', 'Select', '1'], ['move', 'Move', '2'], ['scale', 'Scale', '3'], ['rotate', 'Rotate', '4'], ['place', 'Quick Build', '5']];
     return '<div id="sRib">'
       + '<div class="sg"><b>Tools</b><div class="sr">' + tools.map(t => '<button data-t="' + t[0] + '"' + (t[0] === G.tool ? ' class="on"' : '') + ' title="' + t[1] + ' (' + t[2] + ')">' + t[1] + '</button>').join('') + '</div></div>'
-      + '<div class="sg"><b>Insert</b><div class="sr"><select id="sShape">' + G.SIZES.map((s, i) => '<option value="' + i + '"' + (i === G.sizeIdx ? ' selected' : '') + '>' + s[0] + '</option>').join('') + '</select><button data-a="insert">+ Part</button></div></div>'
+      + '<div class="sg"><b>Insert</b><div class="sr"><select id="sPartT" title="Part type">' + PTYPES.map(t => '<option value="' + t[0] + '">' + t[1] + '</option>').join('') + '</select><select id="sShape">' + G.SIZES.map((s, i) => '<option value="' + i + '"' + (i === G.sizeIdx ? ' selected' : '') + '>' + s[0] + '</option>').join('') + '</select><button data-a="insert">+ Part</button></div></div>'
       + '<div class="sg"><b>Edit</b><div class="sr"><button data-a="undo" title="Ctrl+Z">Undo</button><button data-a="redo" title="Ctrl+Y">Redo</button><button data-a="copy" title="Ctrl+C">Copy</button><button data-a="paste" title="Ctrl+V">Paste</button><button data-a="dup" title="Ctrl+D">Duplicate</button><button data-a="del" title="Delete">Delete</button></div></div>'
       + '<div class="sg"><b>Snap to grid</b><div class="sr"><select id="sSnap">' + SNAPS.map(s => '<option value="' + s[1] + '"' + (s[1] === G.snap ? ' selected' : '') + '>' + s[0] + '</option>').join('') + '</select><button data-a="clear">Clear All</button></div></div>'
       + '<div class="sg"><b>Color</b><div class="sr sw">' + BRICK_COLORS.map((c, i) => '<button class="sq' + (i === G.colorIdx ? ' on' : '') + '" data-ci="' + i + '" style="background:' + c[1] + '" title="' + c[0] + '" aria-label="' + c[0] + '"></button>').join('') + '</div></div>'
@@ -1446,10 +1505,10 @@ const Engine = (function(){
   function sProps(){
     const el = document.getElementById('sPropBody'); if(!el) return; const b = G.sel;
     if(!b){ el.innerHTML = '<p class="sh">Click a part to select it. Use Insert to add a new part.</p>'; return; }
-    const nm = ['X', 'Y', 'Z'], beh = b[6] === 1 ? 'Lava: kills players' : b[6] === 0 ? 'Finish: reach it to win' : 'Normal brick';
+    const nm = ['X', 'Y', 'Z'], beh = (b[7] | 0) ? PT_DESC[b[7] | 0] : b[6] === 1 ? 'Lava: kills players' : b[6] === 0 ? 'Finish: reach it to win' : 'Normal brick';
     el.innerHTML = '<div class="pg">Position</div>' + nm.map((n, i) => '<label class="pr"><span>' + n + '</span><input type="number" step="0.5" data-p="' + i + '" value="' + b[i] + '"></label>').join('')
       + '<div class="pg">Size</div>' + nm.map((n, i) => '<label class="pr"><span>' + n + '</span><input type="number" step="0.5" min="0.5" data-p="' + (3 + i) + '" value="' + b[3 + i] + '"></label>').join('')
-      + '<div class="pg">Appearance</div><label class="pr"><span>Color</span><select data-p="6">' + BRICK_COLORS.map((c, i) => '<option value="' + i + '"' + (i === b[6] ? ' selected' : '') + '>' + c[0] + '</option>').join('') + '</select></label>'
+      + '<div class="pg">Appearance</div><label class="pr"><span>Color</span><select data-p="6">' + BRICK_COLORS.map((c, i) => '<option value="' + i + '"' + (i === b[6] ? ' selected' : '') + '>' + c[0] + '</option>').join('') + '</select></label><label class="pr"><span>Part type</span><select data-p="7">' + PTYPES.map(t => '<option value="' + t[0] + '"' + (t[0] === (b[7] | 0) ? ' selected' : '') + '>' + t[1] + '</option>').join('') + '</select></label>'
       + '<div class="pg">Behavior</div><p class="sh" id="sBeh">' + beh + '</p><p class="sh">Anchored: true</p>';
   }
   function sPropsRefresh(){ const b = G.sel; if(!b) return; document.querySelectorAll('#sPropBody input[data-p]').forEach(i => { i.value = b[+i.dataset.p]; }); }
@@ -1460,7 +1519,7 @@ const Engine = (function(){
       else if(bt.dataset.ci != null) sColor(+bt.dataset.ci);
       else { const a = bt.dataset.a; if(a === 'insert') sInsert(); else if(a === 'undo') sUndo(); else if(a === 'redo') sRedo(); else if(a === 'copy') sCopy(); else if(a === 'paste') sPaste(); else if(a === 'dup'){ if(G.sel) sPaste(G.sel); } else if(a === 'del') sDelete(); else if(a === 'play') sPlay(G.sMode !== 'test');
         else if(a === 'clear'){ if(bt.dataset.arm){ G.brickParts.slice().forEach(sDrop); G.brickParts = []; G.bricks = []; G.sel = null; bt.dataset.arm = ''; bt.textContent = 'Clear All'; sSelVis(); sCommit(); } else { bt.dataset.arm = '1'; bt.textContent = 'Click again'; setTimeout(() => { bt.dataset.arm = ''; bt.textContent = 'Clear All'; }, 2500); } } } };
-    document.getElementById('sShape').onchange = e => { G.sizeIdx = +e.target.value; };
+    document.getElementById('sShape').onchange = e => { G.sizeIdx = +e.target.value; }; document.getElementById('sPartT').onchange = e => { G.partType = +e.target.value; };
     document.getElementById('sSnap').onchange = e => { G.snap = +e.target.value; };
     document.getElementById('sPropBody').onchange = e => { const t = e.target; if(t.dataset && t.dataset.p != null) sSetProp(+t.dataset.p, +t.value); };
     document.getElementById('sExpList').onclick = e => { const r = e.target.closest('.xr[data-i]'); if(!r) return; const b = G.bricks[+r.dataset.i]; if(b){ sSelect(b); G.focus = {x:b[0], y:b[1], z:b[2]}; } };
@@ -1495,7 +1554,7 @@ const Engine = (function(){
     if(G.tool === 'place'){
       if(!hit) return; if(ev.shiftKey){ if(part) sDelete(part.brick); return; }
       if(G.bricks.length >= 1000){ chatMsg('sys', 'Brick limit reached (1000).'); return; }
-      const pl = placement(hit), b = [pl.c.x, pl.c.y, pl.c.z, pl.sz.x, pl.sz.y, pl.sz.z, G.colorIdx];
+      const pl = placement(hit), b = [pl.c.x, pl.c.y, pl.c.z, pl.sz.x, pl.sz.y, pl.sz.z, G.colorIdx, G.partType | 0];
       if(Math.abs(b[0]) > 78 || Math.abs(b[2]) > 78 || b[1] > 120) return;
       addBrick(b, true); sfx.place(); sCommit(); return;
     }
@@ -1526,7 +1585,7 @@ const Engine = (function(){
     return blocked;
   }
   function stepEnt(e, dt, wx, wz, jump, speed, gmul){
-    const k = 1 - Math.exp(-(e.grounded ? 30 : 14) * dt);
+    const k = 1 - Math.exp(-(e.grounded ? (e.ground && e.ground.kind === 'ice' ? 1.3 : 30) : 14) * dt);
     e.vx += (wx * speed - e.vx) * k; e.vz += (wz * speed - e.vz) * k;
     e.coyote = e.grounded ? .09 : e.coyote - dt;
     if(jump && e.coyote > 0){ e.vy = JUMP; e.grounded = false; e.coyote = 0; if(!e.bot) sfx.jump(); }
@@ -1635,13 +1694,14 @@ const Engine = (function(){
     G.ents.push(e); G.remotes[p.peer] = e; chatMsg('info', user.name + ' joined the server.'); updateBoard(); return e;
   }
   function removeRemote(k){
-    const e = G.remotes[k]; if(!e) return; G.scene.remove(e.A.group); if(e.car) G.scene.remove(e.car); const i = G.ents.indexOf(e); if(i >= 0) G.ents.splice(i, 1); delete G.remotes[k]; chatMsg('info', e.user.name + ' left the server.'); updateBoard();
+    const e = G.remotes[k]; if(!e) return; if(e.petSp) G.scene.remove(e.petSp); if(e.emoSp) G.scene.remove(e.emoSp); G.scene.remove(e.A.group); if(e.car) G.scene.remove(e.car); const i = G.ents.indexOf(e); if(i >= 0) G.ents.splice(i, 1); delete G.remotes[k]; chatMsg('info', e.user.name + ' left the server.'); updateBoard();
   }
   function applyRemote(e, p){
     const pr = p.presence || {};
     if(pr.x == null){ e.A.group.visible = false; return; }
     e.tx = pr.x; e.ty = pr.y; e.tz = pr.z; if(pr.f != null) e.face = pr.f;
     e.hp = pr.hp == null ? 100 : pr.hp; e.dead = !!pr.d; e.airR = !!pr.a; e.emote = pr.em || null; e.emT = pr.em ? 5 : 0; e.A.group.visible = !e.dead;
+    if(pr.pt !== undefined) setPet(e, String(pr.pt).slice(0, 8));
     if((pr.g || 0) !== e.gid){ e.gid = pr.g || 0; setGear(e.A, e.gid); const it = e.gid ? ITEM_BY_ID[e.gid] : null; e.tool = it ? it.s.k : null; if(e.A.gearObj) e.A.armR.rotation.x = -1.5; }
     if(pr.sw != null && pr.sw !== e.swc){ e.swc = pr.sw; e.swing = .38; }
     e.stats = Object.assign({stage:0, height:0, coins:0}, pr.st || {}); e.kills = pr.k || 0; e.deaths = pr.dt || 0; e.mu = pr.mu == null ? -1 : pr.mu; if(pr.cr && !e.car){ e.car = mkCar(CAR_COLS[hashStr(String(e.uid || e.user.name)) % 8]); G.scene.add(e.car); } e.cr = !!pr.cr;
@@ -1657,7 +1717,8 @@ const Engine = (function(){
       Object.keys(G.remotes).forEach(k => { if(!seen[k]) removeRemote(k); });
     };
     G.unsubs = [N.room.onPeers(sync),
-      N.room.on('chat', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const d = m.data || {}, t = String(d.t || '').slice(0, 120); if(!t) return; const e = G.remotes[m.peer]; const nm = e ? e.user.name : ((N.nameOf && N.nameOf(m.by)) || 'Player'); chatMsg('say', t, nm); if(e) say(e, t); }),
+      N.room.on('emo', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const e = G.remotes[m.peer], em = EMO_BY_ID[String((m.data || {}).id)]; if(e && em) showEmo(e, em.e); }),
+      N.room.on('chat', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const d = m.data || {}, t = (typeof cleanText === 'function' ? cleanText : x => x)(String(d.t || '').slice(0, 120)); if(!t) return; const e = G.remotes[m.peer]; const nm = e ? e.user.name : ((N.nameOf && N.nameOf(m.by)) || 'Player'); chatMsg('say', t, nm); if(e) say(e, t); }),
       N.room.on('hit', m => { const d = m.data || {}; if(m.isMe || d.to !== G.myId || G.P.dead || !G.pvp) return; const from = remoteByUid(m.by); damage(G.P, Math.max(0, Math.min(30, +d.d || 0)), from, +d.dx || 0, +d.dz || 0); }),
       N.room.on('ko', m => { const d = m.data || {}; if(m.isMe || d.k !== G.myId) return; G.P.kills++; G.opts.onReward && G.opts.onReward('tokens', 2); G.opts.onEvent && G.opts.onEvent('ko'); const nm = (m.by && N.nameOf && N.nameOf(m.by)) || 'a player'; toast('Knockout!', 'You knocked out ' + nm + '. +2 tokens'); chatMsg('sys', 'You knocked out ' + nm + '. +2 tokens'); updateBoard(); })];
     sync();
@@ -1665,7 +1726,7 @@ const Engine = (function(){
   function netPublish(dt){
     if(!G.net || G.state !== 'play') return; G.pubT += dt; if(G.pubT < .066) return; G.pubT = 0;
     const P = G.P, st = {stage:P.stats.stage, height:P.stats.height, coins:P.stats.coins};
-    const patch = {x:r1(P.x), y:r1(P.y), z:r1(P.z), f:r2(P.face), hp:Math.round(P.hp), d:P.dead ? 1 : 0, a:P.grounded ? 0 : 1, em:P.emote || null, sw:G.swingCount, g:(P.A.gearItem && P.A.gearItem.id) || 0, st, k:P.kills, dt:P.deaths, mu:P.mu == null ? -1 : P.mu, cr:G.car ? 1 : 0};
+    const patch = {x:r1(P.x), y:r1(P.y), z:r1(P.z), f:r2(P.face), hp:Math.round(P.hp), d:P.dead ? 1 : 0, a:P.grounded ? 0 : 1, em:P.emote || null, sw:G.swingCount, g:(P.A.gearItem && P.A.gearItem.id) || 0, pt:G.opts.user.petEm || '', st, k:P.kills, dt:P.deaths, mu:P.mu == null ? -1 : P.mu, cr:G.car ? 1 : 0};
     const key = JSON.stringify(patch); if(key === G.lastPub) return; G.lastPub = key; G.net.room.presence(patch).catch(() => {});
   }
   function remoteStep(dt){
@@ -1711,6 +1772,9 @@ const Engine = (function(){
     const gr = P.ground;
     if(gr){
       if(gr.kind === 'check' && gr.stage > P.stats.stage){ P.stats.stage = gr.stage; G.checkpoint = {x:gr.cx, y:gr.maxy + .05, z:gr.cz}; sfx.check(); const nm = G.stageNames[gr.stage] || ''; toast('Checkpoint ' + gr.stage, nm ? 'Next: ' + nm : ''); chatMsg('sys', 'Checkpoint ' + gr.stage + ' reached.'); G.opts.onEvent && G.opts.onEvent('checkpoint', gr.stage); updateBoard(); }
+      else if(gr.kind === 'cp' && G.cpPart !== gr){ G.cpPart = gr; G.checkpoint = {x:gr.cx, y:gr.maxy + .05, z:gr.cz}; sfx.check(); toast('Checkpoint saved', 'You will respawn here'); }
+      else if(gr.kind === 'bounce'){ P.vy = JUMP * 2.15; P.grounded = false; P.ground = null; sfx.boost(); }
+      else if(gr.kind === 'speed'){ if(P.boost < .5) sfx.boost(); P.boost = 1.8; }
       else if(gr.kind === 'goal' && !G.won) win();
       else if(gr.kind === 'vanish' && gr.vs === 'idle'){ gr.vs = 'warn'; gr.t = 0; }
     }
@@ -1729,7 +1793,28 @@ const Engine = (function(){
   function simulate(dt){
     G.T += dt; worldStep(dt); stepPlayer(dt);
   }
+  /* pets and emote icons */
+  function setPet(e, emoji){
+    emoji = emoji || ''; if((e.petEm || '') === emoji) return; if(e.petSp){ G.scene.remove(e.petSp); e.petSp = null; } e.petEm = emoji;
+    if(emoji){ e.petSp = emojiSprite(emoji, 3.4); e.petSp.position.set(e.x - 3, e.y + 2.5, e.z - 3); G.scene.add(e.petSp); }
+  }
+  function showEmo(e, emoji){ if(!e) return; if(e.emoSp) G.scene.remove(e.emoSp); e.emoSp = emojiSprite(emoji, 5); e.emoSp.position.set(e.x, e.y + 9, e.z); G.scene.add(e.emoSp); e.emoT = 3; }
+  function petEmoStep(e, dt){
+    if(e.petSp){ const f = 1 - Math.exp(-6 * dt), tx = e.x - Math.sin(e.face || 0) * 4 + Math.cos(e.face || 0) * 2.5, tz = e.z - Math.cos(e.face || 0) * 4 - Math.sin(e.face || 0) * 2.5, ty = e.y + 2.4 + Math.sin(G.T * 5 + (e.x | 0)) * .35, p = e.petSp.position; p.x += (tx - p.x) * f; p.y += (ty - p.y) * f; p.z += (tz - p.z) * f; e.petSp.visible = !e.dead; }
+    if(e.emoSp){ e.emoT -= dt; if(e.emoT <= 0){ G.scene.remove(e.emoSp); e.emoSp = null; } else { e.emoSp.position.set(e.x, e.y + 9 + (3 - e.emoT) * .6, e.z); e.emoSp.visible = !e.dead; } }
+  }
+  function playEmo(id){
+    const em = EMO_BY_ID[id], own = G.opts.user.emotes || []; if(!em || own.indexOf(id) < 0 || !G.P || G.P.dead) return false;
+    showEmo(G.P, em.e); sfx.coin(); if(G.net) G.net.room.emit('emo', {id}).catch(() => {}); return true;
+  }
+  function emoPanel(){
+    const el = document.getElementById('gEmoPanel'); if(!el) return; const own = G.opts.user.emotes || [];
+    el.innerHTML = EMOTES.filter(x => own.indexOf(x.id) >= 0).map(x => '<button data-emo="' + x.id + '" title="' + x.n + '">' + x.e + '</button>').join('') || '<span>No emotes yet</span>';
+    el.onclick = e => { const b = e.target.closest('button'); if(b){ playEmo(b.dataset.emo); el.hidden = true; canvas.focus(); } };
+    const btn = document.getElementById('gEmoBtn'); if(btn) btn.onclick = () => { el.hidden = !el.hidden; };
+  }
   function animEnt(e, dt){
+    petEmoStep(e, dt);
     const A = e.A, hs = Math.hypot(e.vx, e.vz), air = !e.grounded && !e.dead, amp = Math.min(1, hs / 14);
     e.walkT += dt * hs * .7;
     A.group.position.set(e.x, e.y, e.z);
@@ -1806,7 +1891,7 @@ const Engine = (function(){
   /* ---------- HUD ---------- */
   function hudHtml(kind){
     return '<div id="gHud">'
-      + '<button id="gMenuBtn" aria-label="Menu"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 6h16M4 12h16M4 18h16" stroke="#fff" stroke-width="2.6" stroke-linecap="square"/></svg></button>'
+      + '<button id="gEmoBtn" aria-label="Emotes" title="Emotes">😀</button><div id="gEmoPanel" hidden></div><button id="gMenuBtn" aria-label="Menu"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 6h16M4 12h16M4 18h16" stroke="#fff" stroke-width="2.6" stroke-linecap="square"/></svg></button>'
       + '<div id="gChat"><div id="gChatLog"></div><input id="gChatIn" maxlength="120" placeholder="To chat click here or press the &quot;/&quot; key" autocomplete="off" aria-label="Chat"></div>'
       + '<div id="gRight"><div id="gHp"><span>Health</span><div class="bar"><div id="gHpFill"></div></div><b id="gHpNum">100</b></div>'
       + '<div id="gBoard"><div class="bh">Players</div><div class="gr cols" id="gBoardCols"></div><div id="gBoardRows"></div></div></div>'
@@ -1847,7 +1932,7 @@ const Engine = (function(){
     G.P = mkEnt({name:opts.user.name, avatar:opts.user.avatar}, sp.x, sp.y, sp.z, false); G.ents.push(G.P); G.P.ff = 0; G.P.boost = 0; G.P.hitDone = true; G.P.stats.stage = 0;
     G.P.face = G.game.kind === 'town' || G.game.kind === 'studio' || G.pvp ? Math.PI : Math.PI;
     G.yaw = 0; G.bots = []; G.remotes = {}; buildTools(); resize(); updateBoard(); updateHP(); if(G.R) renderTray(); if(game.kind === 'studio'){ root.classList.add('studio'); studioHudEvents(); P_hide(); sUI(); } else root.classList.remove('studio');
-    chatMsg('info', 'Welcome to ' + game.name + '!'); if(G.opts.serverName) chatMsg('info', 'You joined ' + G.opts.serverName + '.');
+    emoPanel(); setPet(G.P, opts.user.petEm); chatMsg('info', 'Welcome to ' + game.name + '!'); if(G.opts.serverName) chatMsg('info', 'You joined ' + G.opts.serverName + '.');
     netStart();
     // intro -> play
     window.addEventListener('resize', resize, sig);
@@ -1857,7 +1942,7 @@ const Engine = (function(){
   function beginPlay(){ G.state = 'play'; if(G.R){ G.pitch = .8; G.zoom = 30; } if(G.game.kind === 'studio'){ G.pitch = .7; G.zoom = 70; G.yaw = .5; G.camDist = 70; } if(G.car){ G.yaw = G.car.ang + Math.PI; G.pitch = .3; G.zoom = 26; } G.camBlend = 1.2; G.cf = {x:G.P.x, y:G.P.y + 8, z:G.P.z}; G.T = 0; G.camDist = 40; toast(G.title.a, G.title.b); canvas.focus(); }
   function stop(){
     if(!G) return null;
-    const summary = {kills:G.P.kills, deaths:G.P.deaths, time:G.T, won:G.won, bricks:G.bricks ? G.bricks.length : 0};
+    const summary = {kills:G.P.kills, deaths:G.P.deaths, time:G.T, won:G.won, bricks:G.bricks ? G.bricks.length : 0, stage:G.P.stats.stage, coins:G.P.stats.coins, lap:G.car ? G.car.best : 0, rides:G.co ? G.co.rides : 0};
     if(G.bricks && G.opts.onSave){ clearTimeout(saveT); G.opts.onSave(G.bricks); }
     clearTimeout(G.introEnd); (G.unsubs || []).forEach(u => { try{ u(); }catch(e){} }); if(G.net){ try{ G.net.room.presence({x:null, y:null, z:null}).catch(() => {}); }catch(e){} } cancelAnimationFrame(raf); abort && abort.abort(); musicSet(-1);
     G.scene.traverse(o => { if(o.geometry) o.geometry.dispose(); });
@@ -1888,7 +1973,7 @@ const Engine = (function(){
     document.addEventListener('visibilitychange', () => { if(G && document.hidden && G.state === 'play') pause(); }, sig);
     chatIn.addEventListener('focus', () => { G.typing = true; G.keys.clear(); }); chatIn.addEventListener('blur', () => { if(G) G.typing = false; });
     chatIn.addEventListener('keydown', e => {
-      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(t){ const m = /^\/e\s+(dance|wave|cheer)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
+      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(t){ const m = /^\/e\s+(dance|wave|cheer)/i.exec(t), m2 = /^\/e\s+(\w+)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else if(m2 && EMO_BY_ID[m2[1].toLowerCase()]){ if(!playEmo(m2[1].toLowerCase())) chatMsg('info', 'You do not own that emote yet.'); } else if(typeof badText === 'function' && badText(t)){ chatMsg('info', 'Your message was not sent because it has words that are not allowed.'); } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       else if(e.key === 'Escape'){ chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       e.stopPropagation();
     });
@@ -1930,7 +2015,7 @@ const Engine = (function(){
 
 /* ===================== shared state: db + room + identity ===================== */
 let DB = null, ROOM = null, USERCAP = null, MYID = null, U = null, LOBBY_OK = false;
-let P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
+let P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SCORES = {}, REPORTDOCS = [], BANDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
 const loadedOnce = {};
 function esc2(s){ return esc(s); }
 const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -1942,12 +2027,24 @@ function mkWriter(path, data, delay){
   return () => { clearTimeout(t); t = setTimeout(flush, delay || 500); };
 }
 let save = () => {}, pubSave = () => {};
-function pubData(){ return {name:U.name, nameLower:U.name.toLowerCase(), avatar:U.avatar, desc:U.desc || '', joined:U.created, owned:U.owned, badges:U.badges, stats:U.stats, visits:U.visits || {}, places:U.places.length}; }
+function pubData(){ return {name:U.name, nameLower:U.name.toLowerCase(), avatar:U.avatar, pet:U.pet || '', desc:U.desc || '', joined:U.created, owned:U.owned, badges:U.badges, stats:U.stats, visits:U.visits || {}, places:U.places.length}; }
 function persist(){ save(); pubSave(); }
 
 /* ---- helpers over shared data ---- */
 const prof = id => id === MYID && U ? Object.assign({id:MYID}, pubData()) : (P[id] || {id, name:'Unknown', avatar:DEFAULT_AVATAR(), desc:'', joined:0, owned:[], badges:[], stats:{}, visits:{}});
 const nameOf = id => (prof(id).name) || '';
+
+/* ---- word filter (client mirror of the server rules) ---- */
+const BAD_WORDS = ['fuck','fucker','fucking','shit','shitty','bitch','bastard','asshole','dick','dickhead','cock','pussy','cunt','whore','slut','nigger','nigga','faggot','fag','retard','retarded','rape','rapist','nazi','hitler','porn','sex','sexy','nude','nudes','penis','vagina','boob','boobs','cum','kys'];
+const BAD_SUB = BAD_WORDS.filter(w => w.length >= 5);
+const LEET = {'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i','+':'t'};
+function badText(str){
+  const t = String(str || '').toLowerCase().replace(/[01345 7@$!+]/g, c => LEET[c] || c).replace(/(.)\1{2,}/g, '$1$1');
+  const words = t.split(/[^a-z]+/).filter(Boolean); if(words.some(w => BAD_WORDS.includes(w))) return true;
+  const packed = t.replace(/[^a-z]/g, ''); return BAD_SUB.some(w => packed.includes(w));
+}
+function cleanText(s){ return String(s || '').replace(/[A-Za-z0-9@$!+]+/g, w => badText(w) ? '#'.repeat(w.length) : w); }
+window.onContentBlocked = () => { try{ toast('That text has words that are not allowed here. Please change it.', true); }catch(e){} };
 const isBlocked = id => BLOCKDOCS.some(b => b.who === id);
 const friendIds = () => FRIENDDOCS.map(d => d.ids.find(i => i !== MYID)).filter(i => i && !isBlocked(i));
 const isFriend = id => friendIds().indexOf(id) >= 0;
@@ -1957,7 +2054,7 @@ const isOnline = id => !!ONLINE[id];
 const playingOf = id => ONLINE[id] && ONLINE[id].pg ? ONLINE[id].pg : null;
 function onlineIds(){ return Object.keys(ONLINE).filter(id => id !== MYID); }
 function playingCount(gid){ let n = 0; Object.keys(ONLINE).forEach(id => { const g = ONLINE[id].pg; if(g && g.g === gid) n++; }); return n; }
-function serverCounts(gid){ const c = {}; Object.keys(ONLINE).forEach(id => { const g = ONLINE[id].pg; if(g && g.g === gid) c[g.s] = (c[g.s] || 0) + 1; }); return c; }
+function serverCounts(gid){ const c = {}; Object.keys(ONLINE).forEach(id => { const g = ONLINE[id].pg; if(g && g.g === gid && typeof g.s === 'number') c[g.s] = (c[g.s] || 0) + 1; }); return c; }
 function pickServer(g){ const c = serverCounts(g.id), open = Object.keys(c).map(Number).filter(s => c[s] < g.max).sort((a, b) => c[b] - c[a]); if(open.length) return open[0]; const used = Object.keys(c).map(Number); let s = 1; while(used.indexOf(s) >= 0) s++; return s; }
 function voteOf(gid){ let up = 0, dn = 0; VOTEDOCS.forEach(v => { if(v.g === gid){ if(v.v === 1) up++; else if(v.v === -1) dn++; } }); return {up, dn, pct:up + dn ? Math.round(up / (up + dn) * 100) : null}; }
 function visitsOf(gid){ let n = 0; Object.keys(P).forEach(id => { if(id !== MYID && P[id].visits) n += P[id].visits[gid] || 0; }); if(U && U.visits) n += U.visits[gid] || 0; return n; }
@@ -1985,6 +2082,7 @@ function startSubs(){
   DB.collection('items').onSnapshot(snap => { ITEMDOCS = snapDocs(snap); registerUGC(); queueRender(); }, err);
   DB.collection('ads').onSnapshot(snap => { ADDOCS = snapDocs(snap); queueRender(); }, err);
   DB.collection('blocks').onSnapshot(snap => { BLOCKDOCS = snapDocs(snap).filter(b => b.by === MYID); queueRender(); }, err);
+  if(window.__ME && window.__ME.admin){ DB.collection('reports').onSnapshot(snap => { REPORTDOCS = snapDocs(snap); queueRender(); }, err); DB.collection('bans').onSnapshot(snap => { BANDOCS = snapDocs(snap); queueRender(); }, err); }
   DB.collection('sales').onSnapshot(snap => { SALEDOCS = snapDocs(snap).filter(s => s.seller === MYID || s.buyer === MYID); applySales(); }, err);
   DB.collection('friends').where('ids', 'array-contains', MYID).onSnapshot(snap => { FRIENDDOCS = snapDocs(snap); queueRender(); }, err);
   DB.collection('requests').onSnapshot(snap => { notifyNew(snap, 'req', r => { if(r.to === MYID) toast(nameOf(r.from) + ' sent you a friend request.'); }); REQS = snapDocs(snap).filter(r => r.to === MYID || r.from === MYID); queueRender(); }, err);
@@ -1999,6 +2097,7 @@ function startSubs(){
   if(ROOM){
     ROOM.presence({pg:null}).catch(() => {});
     ROOM.onPeers(ch => { const o = {}; ch.peers.forEach(p => { if(p.kind === 'viewer' && p.by){ o[p.by] = Object.assign({}, o[p.by] || {}, p.presence || {}); } }); ONLINE = o; queueRender(); });
+    ROOM.on('invite', m => { if(m.isMe) return; const d = m.data || {}; if(d.to !== MYID || isBlocked(m.by)) return; const g = gameById(d.g); if(!g || !/^p[a-z0-9]{6}$/.test(String(d.s))) return; onInvite(m.by, g, d.s); });
     ROOM.on('dm', m => { if(m.isMe) return; const d = m.data || {}; if(d.to !== MYID || isBlocked(m.by)) return; receiveDM(m.by, String(d.t || '').slice(0, 100)); });
   }
 }
@@ -2037,9 +2136,9 @@ function applyAcceptedTrades(){
 
 /* ---- identity & onboarding ---- */
 function newState(name){
-  return {name, created:Date.now(), tokens:150, tix:50, lastDaily:0, owned:[FREE_FACE], avatar:DEFAULT_AVATAR(), favs:[], places:[{name:'My First Place', bricks:[]}], recent:[], best:{}, badges:['welcome'], stats:{visits:0, kills:0, coins:0, wins:0, deaths:0}, visits:{}, desc:'', read:{}, gone:{}};
+  return {name, created:Date.now(), tokens:150, tix:50, lastDaily:0, pets:[], pet:'', emotes:['heart', 'laugh', 'thumbs'], streak:0, lastDay:'', lb:{}, owned:[FREE_FACE], avatar:DEFAULT_AVATAR(), favs:[], places:[{name:'My First Place', bricks:[]}], recent:[], best:{}, badges:['welcome'], stats:{visits:0, kills:0, coins:0, wins:0, deaths:0}, visits:{}, desc:'', read:{}, gone:{}};
 }
-function migrate(){ const d = {tokens:0, tix:0, lastDaily:0, owned:[FREE_FACE], favs:[], places:[{name:'My First Place', bricks:[]}], recent:[], best:{}, badges:[], stats:{visits:0, kills:0, coins:0, wins:0, deaths:0}, visits:{}, desc:'', read:{}, gone:{}}; Object.keys(d).forEach(k => { if(U[k] === undefined) U[k] = d[k]; }); }
+function migrate(){ const d = {pets:[], pet:'', emotes:['heart', 'laugh', 'thumbs'], streak:0, lastDay:'', lb:{}, tokens:0, tix:0, lastDaily:0, owned:[FREE_FACE], favs:[], places:[{name:'My First Place', bricks:[]}], recent:[], best:{}, badges:[], stats:{visits:0, kills:0, coins:0, wins:0, deaths:0}, visits:{}, desc:'', read:{}, gone:{}}; Object.keys(d).forEach(k => { if(U[k] === undefined) U[k] = d[k]; }); }
 async function claimName(name){
   const ref = DB.doc('names/' + name.toLowerCase());
   const lease = await ref.acquire({holder:MYID, ttlMs:5000}); if(!lease.acquired) return false;
@@ -2064,11 +2163,18 @@ async function finishOnboard(name){
 /* ---- community games ---- */
 const gidOf = s => /^\d+$/.test(String(s)) ? +s : String(s);
 function packBricks(bs){ return bs.map(b => b.join(',')).join(';'); }
-function unpackBricks(str){ return String(str || '').split(';').filter(Boolean).map(r => r.split(',').map(Number)).filter(b => b.length === 7 && b.every(isFinite)).slice(0, 1000); }
+function unpackBricks(str){ return String(str || '').split(';').filter(Boolean).map(r => r.split(',').map(Number)).filter(b => (b.length === 7 || b.length === 8) && b.every(isFinite)).slice(0, 1000); }
 function customGame(d){ const c = BRICK_COLORS[(hashStr(d.id) % 12) + 1][1]; return {id:d.id, kind:'custom', custom:true, name:d.name, creator:nameOf(d.owner), owner:d.owner, color:[c, '#1b2a34'], max:16, desc:d.desc || '', bricks:d.bricks, t:d.t || 0, n:d.n || 0, icon:d.icon || ''}; }
 const gameById = id => GAME_BY_ID[id] || (() => { const d = GAMEDOCS.find(x => x.id === id); return d ? customGame(d) : null; })();
 const customGames = () => GAMEDOCS.map(customGame);
 const allGames = () => GAMES.concat(customGames());
+
+/* ---- leaderboards ---- */
+const _scoreSubs = {};
+function loadScores(gid){
+  if(_scoreSubs[gid] || Object.keys(_scoreSubs).length > 40 || !DB) return; _scoreSubs[gid] = true;
+  DB.collection('scores').where('gid', '==', String(gid)).onSnapshot(snap => { SCORES[gid] = snapDocs(snap); queueRender(); }, () => {});
+}
 
 /* ===================== small helpers ===================== */
 const _thumbRaw = avatarThumb, _thumbC = new Map();
@@ -2091,14 +2197,20 @@ const avImg = (cfg, view, ang, cls) => '<img class="' + (cls || '') + '" src="' 
 const uImg = (id, view) => avImg(prof(id).avatar, view || 'bust', .2);
 const myImg = view => avImg(U.avatar, view || 'bust', .2);
 const itemImg = it => '<img src="' + itemThumb(it) + '" alt="' + esc(it.name) + '" width="160" height="160">';
-function badgeDefs(){ return {welcome:['Welcome to Retro Blox', 'Joined the site.'], obby:['Obby Champion', 'Beat the Retro Blox Obby.'], tower:['Sky Climber', 'Reached the top of Sky Tower Obby.'], slayer:['Knockout Artist', 'Knock out 10 players in Sword Arena.'], collector:['Coin Collector', 'Collect 25 coins in Brick Town.'], builder:['Master Builder', 'Place 20 bricks in Builder Studio.'], social:['Friendly', 'Have 8 or more friends.'], shopper:['Shopaholic', 'Buy your first item.'], chatter:['Chatterbox', 'Say something in a game.']}; }
+function badgeDefs(){ return {welcome:['Welcome to Retro Blox', 'Joined the site.'], obby:['Obby Champion', 'Beat the Retro Blox Obby.'], tower:['Sky Climber', 'Reached the top of Sky Tower Obby.'], slayer:['Knockout Artist', 'Knock out 10 players in Sword Arena.'], collector:['Coin Collector', 'Collect 25 coins in Brick Town.'], builder:['Master Builder', 'Place 20 bricks in Builder Studio.'], social:['Friendly', 'Have 8 or more friends.'], shopper:['Shopaholic', 'Buy your first item.'], chatter:['Chatterbox', 'Say something in a game.'], streak7:['Hot Streak', 'Claim the daily reward 7 days in a row.'], racer:['Speed Demon', 'Finish a race in Brick Racers.'], rider:['Thrill Seeker', 'Ride the Thunder Rail Coaster 3 times.'], chef:['Head Chef', 'Earn 30 tokens in one shift at Work At A Restaurant.'], survivor:['Last One Standing', 'Survive 60 seconds in Tile Drop.'], candy:['Sweet Tooth', 'Beat the Candy Obby.'], inferno:['Fireproof', 'Beat the Neon Inferno.'], island:['Island Hopper', 'Collect 30 coins in one visit to Coin Island.'], creator:['Game Creator', 'Publish your own game.'], designer:['Fashion Designer', 'Make an item for the Catalog.'], veteran:['Regular', 'Play 50 games.'], baller:['Big Spender', 'Earn 1000 tokens from playing games.'], petlover:['Pet Lover', 'Collect 5 different pets.'], toprank:['Top Ten', 'Get on a game leaderboard.']}; }
 function giveBadge(id){ if(U.badges.indexOf(id) >= 0) return; U.badges.push(id); persist(); toast('Badge earned: ' + badgeDefs()[id][0] + '!'); }
-function checkBadges(){ if(!U) return; if(friendIds().length >= 8) giveBadge('social'); if(U.stats.kills >= 10) giveBadge('slayer'); if(U.stats.coins >= 25) giveBadge('collector'); }
+function checkBadges(){ if(!U) return; if((U.stats.visits || 0) >= 50) giveBadge('veteran'); if((U.stats.earned || 0) >= 1000) giveBadge('baller'); if(ITEMDOCS.some(d => d.creator === MYID)) giveBadge('designer'); if(GAMEDOCS.some(d => d.owner === MYID)) giveBadge('creator'); if(friendIds().length >= 8) giveBadge('social'); if(U.stats.kills >= 10) giveBadge('slayer'); if(U.stats.coins >= 25) giveBadge('collector'); }
 const route = () => { const h = location.hash.replace(/^#\/?/, ''), [p, q] = h.split('?'); const parts = p.split('/').filter(Boolean); const query = {}; (q || '').split('&').forEach(kv => { if(!kv) return; const [k, v] = kv.split('='); query[decodeURIComponent(k)] = decodeURIComponent(v || ''); }); return {parts, query}; };
 const go = (path) => { if(location.hash === '#/' + path) render(); else location.hash = '#/' + path; };
 const qs = o => Object.keys(o).filter(k => o[k] !== '' && o[k] != null).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(o[k])).join('&');
 const todayStr = () => new Date().toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
-const dailyReady = () => Date.now() - U.lastDaily > 20 * 3600 * 1000;
+const dayKey = d => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+const DAILY = [20, 25, 30, 40, 50, 60, 100];
+const dailyReady = () => U.lastDay !== dayKey(new Date()) && Date.now() - U.lastDaily > 4 * 3600 * 1000;
+const streakNext = () => (U.lastDay === dayKey(new Date(Date.now() - 86400000)) ? (U.streak || 0) : 0) + 1;
+const dailyAmt = () => DAILY[(streakNext() - 1) % 7];
+function dailyBody(){ const st = streakNext(), cur = (st - 1) % 7; return '<p style="margin:0 0 10px">Log in every day to keep your streak going. Day 7 pays the most!</p><div class="daily">' + DAILY.map((a, i) => '<div class="dd' + (i === cur ? ' now' : i < cur ? ' done' : '') + '"><span>Day ' + (i + 1) + '</span><b><i class="tok"></i>' + a + '</b></div>').join('') + '</div><p class="muted" style="margin:10px 0 0">Current streak: ' + (st - 1) + ' day' + (st - 1 === 1 ? '' : 's') + '. You also get 10 tickets.</p>'; }
+function dailyModal(){ if(!U || !dailyReady() || Engine.active()) return; modal('Daily Reward', dailyBody(), [{label:'Later', cls:'neutral'}, {label:'Claim +' + dailyAmt() + ' tokens', cls:'green', fn:() => { ACTIONS.claimDaily(); }}]); }
 function statusOf(id){ const pg = playingOf(id); return pg && gameById(pg.g) ? 'Playing ' + gameById(pg.g).name : isOnline(id) ? 'Online' : 'Offline'; }
 function findByName(name){ const l = String(name).toLowerCase(); if(U && U.name.toLowerCase() === l) return MYID; return Object.keys(P).find(id => (P[id].nameLower || '') === l) || null; }
 function allPeople(){ return Object.keys(P).filter(id => id !== MYID && P[id].name); }
@@ -2116,7 +2228,7 @@ function refreshChrome(){
   $('#hright').innerHTML = '<a class="hbtn" href="#/friends?tab=requests" title="Friend requests">' + ico('friends').replace('<svg', '<svg width="20" height="20" fill="#fff"') + (reqN ? '<span class="badge-n">' + reqN + '</span>' : '') + '</a>'
     + '<a class="hbtn" href="#/messages" title="Messages">' + ico('messages').replace('<svg', '<svg width="20" height="20" fill="#fff"') + (un ? '<span class="badge-n">' + un + '</span>' : '') + '</a>'
     + '<div style="position:relative;height:100%"><button class="hbtn" data-act="toggleBal" aria-haspopup="true"><i class="tok"></i>' + U.tokens + '</button><div class="drop" id="balDrop" hidden><div><i class="tok"></i> <b>' + U.tokens + '</b> Tokens</div><div><i class="tix"></i> <b>' + U.tix + '</b> Tickets</div><a href="#/tokens">Get Tokens</a></div></div>'
-    + '<div style="position:relative;height:100%"><button class="hbtn" data-act="toggleMenu" aria-haspopup="true" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/></svg> <span style="font-size:13px">' + esc(U.name) + '</span></button><div class="drop" id="menuDrop" hidden><a href="#/settings">Settings</a><a href="#/profile/' + encodeURIComponent(U.name) + '">My Profile</a><a data-act="logout">Log Out</a>' + (isStandalone() ? '' : '<a data-act="installApp">Install App</a>') + '</div></div>';
+    + '<div style="position:relative;height:100%"><button class="hbtn" data-act="toggleMenu" aria-haspopup="true" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/></svg> <span style="font-size:13px">' + esc(U.name) + '</span></button><div class="drop" id="menuDrop" hidden><a href="#/pets">Pets &amp; Emotes</a><a href="#/settings">Settings</a>' + (window.__ME && window.__ME.admin ? '<a href="#/admin">Reports (Admin)</a>' : '') + '<a href="#/profile/' + encodeURIComponent(U.name) + '">My Profile</a><a data-act="logout">Log Out</a>' + (isStandalone() ? '' : '<a data-act="installApp">Install App</a>') + '</div></div>';
   const items = [['home', 'Home'], ['profile', 'Profile'], ['messages', 'Messages', un], ['friends', 'Friends', reqN], ['avatar', 'Avatar'], ['inventory', 'Inventory'], ['trade', 'Trade', trN], ['groups', 'Groups'], ['feed', 'My Feed'], ['blog', 'Blog'], ['tokens', 'Shop']];
   $('#side').innerHTML = items.map(i => { const target = i[0] === 'profile' ? 'profile/' + encodeURIComponent(U.name) : i[0]; const on = cur === i[0] || (i[0] === 'groups' && cur === 'group'); return '<a href="#/' + target + '" class="' + (on ? 'on' : '') + '">' + ico(i[0] === 'tokens' ? 'shop' : i[0]) + i[1] + (i[2] ? '<span class="cnt">' + i[2] + '</span>' : '') + '</a>'; }).join('');
   renderCP();
@@ -2129,7 +2241,7 @@ function render(){
   closeModal();
   if(!U){ renderLanding(); refreshChrome(); return; }
   const dec = s => { try{ return decodeURIComponent(s || ''); }catch(e){ return s || ''; } };
-  const pages = {'':renderHome, home:renderHome, games:renderGames, game:() => renderGame(gidOf(parts[1])), catalog:() => renderCatalog(query), item:() => renderItem(+parts[1]), avatar:renderAvatar, inventory:() => renderInventory(query), profile:() => renderProfile(dec(parts[1]) || U.name), friends:() => renderFriends(query), messages:() => renderMessages(query), trade:() => renderTrade(query), groups:() => renderGroups(query), group:() => renderGroup(dec(parts[1])), feed:renderFeed, blog:renderBlog, tokens:renderTokens, robux:renderTokens, create:renderCreate, settings:renderSettings, search:() => renderSearch(query)};
+  const pages = {'':renderHome, home:renderHome, games:renderGames, game:() => renderGame(gidOf(parts[1])), catalog:() => renderCatalog(query), item:() => renderItem(+parts[1]), avatar:renderAvatar, inventory:() => renderInventory(query), profile:() => renderProfile(dec(parts[1]) || U.name), friends:() => renderFriends(query), messages:() => renderMessages(query), trade:() => renderTrade(query), groups:() => renderGroups(query), group:() => renderGroup(dec(parts[1])), feed:renderFeed, blog:renderBlog, tokens:renderTokens, robux:renderTokens, create:renderCreate, settings:renderSettings, pets:renderPets, admin:renderAdmin, search:() => renderSearch(query)};
   const fn = pages[p] || renderHome;
   $('#wrap').style.display = ''; $('#landingRoot').innerHTML = '';
   fn(); refreshChrome(); checkBadges(); window.scrollTo(0, 0);
@@ -2196,7 +2308,7 @@ function adsHtml(){
 function setAppAds(html){ setApp('<div class="adwrap"><div class="admain">' + html + '</div><aside class="adrail" aria-label="Sponsored games">' + adsHtml() + '</aside></div>'); }
 function renderHome(){
   const cg = customGames().sort((a, b) => playingCount(b.id) - playingCount(a.id) || b.t - a.t), fr = friendIds().sort((a, b) => isOnline(b) - isOnline(a)), rec = GAMES.slice().sort((a, b) => playingCount(b.id) - playingCount(a.id)), recents = U.recent.map(id => gameById(id)).filter(Boolean), favs = U.favs.map(id => gameById(id)).filter(Boolean);
-  setAppAds('<div class="box"><div class="hello"><div class="avs">' + myImg('bust') + '</div><div><h1>Hello, ' + esc(U.name) + '!</h1><div class="muted" style="margin:-4px 0 6px">Today is ' + todayStr() + '</div><div class="pillrow"><span>' + tokp(U.tokens) + ' Tokens</span><span>' + tixp(U.tix) + ' Tickets</span>' + (dailyReady() ? '<a class="btn green small" data-act="claimDaily">Claim Daily Bonus (+25 tokens, +10 tickets)</a>' : '<span class="muted" style="font-size:13px">Daily bonus claimed. Come back tomorrow.</span>') + '</div><div class="pillrow"><a class="btn neutral small" href="#/avatar">Edit Avatar</a><a class="btn neutral small" href="#/catalog">Shop Catalog</a><a class="btn neutral small" href="#/create">Create a Place</a></div></div></div></div>'
+  setAppAds(eventBanner() + '<div class="box"><div class="hello"><div class="avs">' + myImg('bust') + '</div><div><h1>Hello, ' + esc(U.name) + '!</h1><div class="muted" style="margin:-4px 0 6px">Today is ' + todayStr() + '</div><div class="pillrow"><span>' + tokp(U.tokens) + ' Tokens</span><span>' + tixp(U.tix) + ' Tickets</span>' + (dailyReady() ? '<a class="btn green small" data-act="claimDaily">Claim Daily Reward (+' + dailyAmt() + ' tokens)</a>' : '<span class="muted" style="font-size:13px">Daily reward claimed. Streak: ' + (U.streak || 0) + ' day' + ((U.streak || 0) === 1 ? '' : 's') + '. Come back tomorrow.</span>') + '</div><div class="pillrow"><a class="btn neutral small" href="#/avatar">Edit Avatar</a><a class="btn neutral small" href="#/catalog">Shop Catalog</a><a class="btn neutral small" href="#/create">Create a Place</a></div></div></div></div>'
     + '<div class="box"><div class="sec-h"><span>Friends (' + fr.length + ')</span><a href="#/friends">See All</a></div>' + (fr.length ? '<div class="pcards">' + fr.slice(0, 8).map(id => pcard(id)).join('') + '</div>' : '<p class="muted">You have no friends yet. <a href="#/friends?tab=find">Find some people.</a></p>') + '</div>'
     + (recents.length ? '<div class="box"><div class="sec-h"><span>Recently Played</span><a href="#/games">See All</a></div><div class="gcards">' + recents.slice(0, 6).map(gcard).join('') + '</div></div>' : '')
     + '<div class="box"><div class="sec-h"><span>Games</span><a href="#/games">See All</a></div><div class="gcards">' + rec.map(gcard).join('') + '</div></div>'
@@ -2210,11 +2322,11 @@ function postStatus(){ const i = $('#statusIn'), t = i.value.trim(); if(!t) retu
 /* ===================== GAMES ===================== */
 function renderGames(){
   const cg = customGames().sort((a, b) => playingCount(b.id) - playingCount(a.id) || b.t - a.t), byPop = GAMES.slice().sort((a, b) => playingCount(b.id) - playingCount(a.id)), byRate = allGames().sort((a, b) => (voteOf(b.id).pct || 0) - (voteOf(a.id).pct || 0)).slice(0, 8), fp = friendIds().filter(id => playingOf(id));
-  setAppAds('<h1 class="page-h">Games</h1>'
+  setAppAds('<h1 class="page-h">Games</h1>' + eventBanner()
     + (fp.length ? '<div class="box"><div class="sec-h"><span>Friend Activity</span></div><div class="pcards">' + fp.slice(0, 6).map(id => pcard(id)).join('') + '</div></div>' : '')
     + '<div class="box"><div class="sec-h"><span>Community Games</span><a class="btn small" href="#/create">Make Your Own</a></div>' + (cg.length ? '<div class="gcards">' + cg.map(gcard).join('') + '</div>' : '<p class="muted" style="margin:0">No community games yet. Build one in <a href="#/create">Create</a> and be the first to publish.</p>') + '</div>'
     + '<div class="box"><div class="sec-h"><span>Popular</span></div><div class="gcards">' + byPop.map(gcard).join('') + '</div></div>'
-    + '<div class="box"><div class="sec-h"><span>Top Rated</span></div><div class="gcards">' + byRate.map(gcard).join('') + '</div></div>');
+    + topEarners() + '<div class="box"><div class="sec-h"><span>Top Rated</span></div><div class="gcards">' + byRate.map(gcard).join('') + '</div></div>');
 }
 function playersOnServer(gid, s){ return Object.keys(ONLINE).filter(id => { const g = ONLINE[id].pg; return g && g.g === gid && g.s === s; }); }
 function renderGame(id){
@@ -2224,20 +2336,21 @@ function renderGame(id){
   let body;
   if(tab === 'servers'){
     if(g.kind === 'studio') body = '<p class="muted">Builder Studio is a private workspace. Open it from <a href="#/create">Create</a>.</p>';
-    else { const c = serverCounts(g.id), nums = Object.keys(c).map(Number).sort((a, b) => a - b); body = (nums.length ? nums.map(s => '<div class="srv"><div><b>Server ' + s + '</b><div class="status">' + c[s] + ' of ' + g.max + ' players</div></div><div class="heads">' + playersOnServer(g.id, s).slice(0, 5).map(p => avImg(prof(p).avatar, 'head', .15)).join('') + '</div><a class="btn green small" data-act="play" data-g="' + g.id + '" data-s="' + s + '">' + (c[s] >= g.max ? 'Full' : 'Join') + '</a></div>').join('') : '<p class="muted">Nobody is playing right now. Be the first!</p>') + '<p><a class="btn small" data-act="play" data-g="' + g.id + '" data-s="' + pickServer({id:g.id, max:g.max}) + '">Start a new server</a></p>'; }
+    else { const c = serverCounts(g.id), nums = Object.keys(c).map(Number).sort((a, b) => a - b); body = (nums.length ? nums.map(s => '<div class="srv"><div><b>Server ' + s + '</b><div class="status">' + c[s] + ' of ' + g.max + ' players</div></div><div class="heads">' + playersOnServer(g.id, s).slice(0, 5).map(p => avImg(prof(p).avatar, 'head', .15)).join('') + '</div><a class="btn green small" data-act="play" data-g="' + g.id + '" data-s="' + s + '">' + (c[s] >= g.max ? 'Full' : 'Join') + '</a></div>').join('') : '<p class="muted">Nobody is playing right now. Be the first!</p>') + '<p><a class="btn small" data-act="play" data-g="' + g.id + '" data-s="' + pickServer({id:g.id, max:g.max}) + '">Start a new server</a> <a class="btn neutral small" data-act="privServer" data-g="' + g.id + '">Create Private Server</a></p>'; }
   }
+  else if(tab === 'top') body = lbHtml(g);
   else if(tab === 'store') body = '<p class="muted">This game has nothing for sale. Everything you need is in the <a href="#/catalog?cat=gear">Catalog</a>' + (g.kind === 'arena' ? '. Try the Linked Sword and Speed Coil.' : '.') + '</p>';
   else body = '<p style="white-space:pre-wrap;margin:0">' + esc(g.desc) + '</p>' + (g.custom && g.owner === MYID ? '<p style="margin:12px 0 0"><a class="btn small" data-act="editGame" data-g="' + g.id + '">Edit Name, Icon &amp; Info</a> <a class="btn neutral small" href="#/create?tab=ads">Advertise</a> <a class="btn neutral small" href="#/create">Unpublish in Create</a></p>' : '') + (g.custom ? '<p class="muted" style="font-size:13px;margin:10px 0 0">Community game: red bricks are lava, yellow bricks are the goal.</p>' : '') + (frp.length ? '<h3 style="margin:16px 0 8px">Friends Playing</h3><div class="pcards">' + frp.map(f => pcard(f)).join('') + '</div>' : '');
   const more = allGames().filter(x => x.id !== g.id), firstSrv = g.kind === 'studio' ? 0 : pickServer(g);
   setAppAds('<div class="box"><div class="gp"><div class="shot"><img src="' + gameThumb(g, 640, 400) + '" alt=""></div><div class="info"><h1>' + esc(g.name) + '</h1><div class="muted">By ' + (g.custom ? '<a href="#/profile/' + encodeURIComponent(g.creator) + '">' + esc(g.creator) + '</a>' : esc(g.creator)) + '</div><div style="margin-top:12px"><a class="btn green big" data-act="play" data-g="' + g.id + '" data-s="' + firstSrv + '"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M6 3l15 9-15 9z"/></svg> Play</a></div><div class="vote"><button data-act="fav" data-g="' + g.id + '" class="' + (fav ? 'on' : '') + '" aria-label="Favorite" title="Favorite"><svg viewBox="0 0 24 24"><path d="M12 2l3 7 7 .6-5.3 4.7 1.7 7.2L12 17.8 5.6 21.5l1.7-7.2L2 9.6 9 9z"/></svg></button><button data-act="vote" data-g="' + g.id + '" data-v="1" class="' + (mine === 1 ? 'on' : '') + '" aria-label="Like"><svg viewBox="0 0 24 24"><path d="M2 10h4v11H2zM8 10l4-8c1.6 0 2.6 1.2 2.2 2.8L13.5 8H20c1.2 0 2 1 1.8 2.2l-1.6 9c-.2 1-1 1.8-2 1.8H8z"/></svg></button><button data-act="vote" data-g="' + g.id + '" data-v="-1" class="' + (mine === -1 ? 'on' : '') + '" aria-label="Dislike"><svg viewBox="0 0 24 24" style="transform:rotate(180deg)"><path d="M2 10h4v11H2zM8 10l4-8c1.6 0 2.6 1.2 2.2 2.8L13.5 8H20c1.2 0 2 1 1.8 2.2l-1.6 9c-.2 1-1 1.8-2 1.8H8z"/></svg></button><div class="bar"><i style="width:' + (v.pct || 0) + '%"></i></div><span class="muted" style="font-size:13px">' + (v.pct == null ? 'No votes yet' : v.pct + '% (' + (v.up + v.dn) + ')') + '</span></div><div class="statline"><div><b>' + playingCount(g.id) + '</b><span>Playing</span></div><div><b>' + fmtNum(visitsOf(g.id)) + '</b><span>Visits</span></div><div><b>' + g.max + '</b><span>Max Players</span></div></div></div></div></div>'
-    + '<div class="box"><div class="tabs"><a href="#/game/' + g.id + '" class="' + (tab === 'about' ? 'on' : '') + '">About</a><a href="#/game/' + g.id + '?tab=store" class="' + (tab === 'store' ? 'on' : '') + '">Store</a><a href="#/game/' + g.id + '?tab=servers" class="' + (tab === 'servers' ? 'on' : '') + '">Servers</a></div>' + body + '</div>'
+    + '<div class="box"><div class="tabs"><a href="#/game/' + g.id + '" class="' + (tab === 'about' ? 'on' : '') + '">About</a><a href="#/game/' + g.id + '?tab=store" class="' + (tab === 'store' ? 'on' : '') + '">Store</a><a href="#/game/' + g.id + '?tab=servers" class="' + (tab === 'servers' ? 'on' : '') + '">Servers</a><a href="#/game/' + g.id + '?tab=top" class="' + (tab === 'top' ? 'on' : '') + '">Leaderboard</a></div>' + body + '</div>'
     + '<div class="box"><div class="sec-h"><span>More Games</span></div><div class="gcards">' + more.slice(0, 10).map(gcard).join('') + '</div></div>');
 }
 
 /* ===================== CATALOG ===================== */
 function renderCatalog(q){
   const cat = q.cat || 'all', sort = q.sort || 'rel', kw = (q.q || '').toLowerCase(), ltd = q.ltd === '1';
-  let list = ITEMS.filter(i => (cat === 'all' || i.type === cat || (cat === 'ugc' && i.ugc)) && (!kw || i.name.toLowerCase().indexOf(kw) >= 0 || i.type.indexOf(kw) >= 0) && (!ltd || i.ltd));
+  let list = ITEMS.filter(i => (!i.ev || eventOn(i.ev)) && (cat === 'all' || i.type === cat || (cat === 'ugc' && i.ugc)) && (!kw || i.name.toLowerCase().indexOf(kw) >= 0 || i.type.indexOf(kw) >= 0) && (!ltd || i.ltd));
   const cost = i => i.cur === 'R' ? i.price : i.price / 10;
   if(sort === 'lo') list.sort((a, b) => cost(a) - cost(b)); else if(sort === 'hi') list.sort((a, b) => cost(b) - cost(a)); else if(sort === 'new') list.sort((a, b) => b.updated - a.updated); else if(sort === 'sold') list.sort((a, b) => ownersCount(b.id) - ownersCount(a.id));
   const cats = [['all', 'All Items'], ['hat', 'Hats'], ['face', 'Faces'], ['shirt', 'Shirts'], ['pants', 'Pants'], ['gear', 'Gear'], ['ugc', 'Community Made']];
@@ -2401,7 +2514,7 @@ function renderBlog(){
   setApp('<h1 class="page-h">Blog</h1>' + BLOG.map(b => '<div class="box"><h2 style="margin:0">' + esc(b.t) + '</h2><div class="muted" style="margin:2px 0 8px;font-size:13px">' + fmtDate(b.d) + ' &middot; ' + esc(b.a) + '</div><div style="white-space:pre-wrap">' + esc(b.b) + '</div></div>').join(''));
 }
 function renderTokens(){
-  setApp('<h1 class="page-h">Tokens and Tickets</h1><div class="box"><div class="sec-h"><span>Your Balance</span></div><div class="row" style="font-size:22px;gap:30px"><span>' + tokp(U.tokens) + ' Tokens</span><span>' + tixp(U.tix) + ' Tickets</span></div><p style="margin-top:12px">' + (dailyReady() ? '<a class="btn green" data-act="claimDaily">Claim Daily Bonus (+25 tokens, +10 tickets)</a>' : '<span class="muted">Daily bonus claimed. Come back tomorrow.</span>') + '</p></div>'
+  setApp('<h1 class="page-h">Tokens and Tickets</h1><div class="box"><div class="sec-h"><span>Your Balance</span></div><div class="row" style="font-size:22px;gap:30px"><span>' + tokp(U.tokens) + ' Tokens</span><span>' + tixp(U.tix) + ' Tickets</span></div><p style="margin-top:12px">' + (dailyReady() ? '<a class="btn green" data-act="claimDaily">Claim Daily Reward (+' + dailyAmt() + ' tokens)</a>' : '<span class="muted">Daily reward claimed. Streak: ' + (U.streak || 0) + ' day' + ((U.streak || 0) === 1 ? '' : 's') + '. Come back tomorrow.</span>') + '</p></div>'
     + '<div class="box"><div class="sec-h"><span>Ways to Earn Tokens</span></div><div class="lrow"><div class="grow"><b>Play Brick Town Hangout</b><div class="status">Every coin you collect is worth 1 token.</div></div><a class="btn small" href="#/game/2">Play</a></div><div class="lrow"><div class="grow"><b>Win Sword Arena fights</b><div class="status">2 tokens for each knockout.</div></div><a class="btn small" href="#/game/3">Play</a></div><div class="lrow"><div class="grow"><b>Beat an obby</b><div class="status">Reach the top of the Retro Blox Obby for 50 tokens, or Sky Tower for 40.</div></div><a class="btn small" href="#/game/1">Play</a></div></div>'
     + '<div class="box"><div class="sec-h"><span>Currency Exchange</span></div><p class="muted" style="margin:0 0 10px">1 token = 10 tickets. Exchange in either direction.</p><div class="row"><div style="flex:1 1 220px"><label class="f" for="exR" style="margin-top:0">Tokens to Tickets</label><div class="row" style="flex-wrap:nowrap"><input type="text" id="exR" inputmode="numeric" placeholder="Tokens"><a class="btn small" data-act="exR">Exchange</a></div></div><div style="flex:1 1 220px"><label class="f" for="exT" style="margin-top:0">Tickets to Tokens</label><div class="row" style="flex-wrap:nowrap"><input type="text" id="exT" inputmode="numeric" placeholder="Tickets (multiples of 10)"><a class="btn small" data-act="exT">Exchange</a></div></div></div></div>');
 }
@@ -2410,6 +2523,73 @@ function renderTokens(){
 function placeGame(p){ return p.pid ? GAMEDOCS.find(d => d.id === p.pid && d.owner === MYID) : null; }
 function createPlacesHtml(){
   return '<div class="box"><div class="sec-h"><span>My Places</span><a class="btn small" data-act="newPlace">New Place</a></div>' + U.places.map((p, i) => { const pub = placeGame(p); return '<div class="lrow"><img class="s" src="' + gameThumb(GAMES[3], 120, 120) + '" alt="" width="60" height="60"><div class="grow"><b>' + esc(p.name) + '</b><div class="status">' + p.bricks.length + ' bricks' + (pub ? ' &middot; <b style="color:#02b757">Published</b> as <a href="#/game/' + pub.id + '">' + esc(pub.name) + '</a>' : '') + '</div></div><a class="btn green small" data-act="play" data-g="4" data-p="' + i + '">Edit</a><a class="btn small" data-act="publishPlace" data-p="' + i + '">' + (pub ? 'Update Game' : 'Publish') + '</a>' + (pub ? '<a class="btn neutral small" data-act="editGame" data-g="' + pub.id + '">Icon &amp; Info</a><a class="btn neutral small" data-act="unpublish" data-p="' + i + '">Unpublish</a>' : '') + '<a class="btn neutral small" data-act="renamePlace" data-p="' + i + '">Rename</a>' + (U.places.length > 1 ? '<a class="btn neutral small" data-act="delPlace" data-p="' + i + '">Delete</a>' : '') + '</div>'; }).join('') + '</div><div class="box"><div class="sec-h"><span>How building and publishing works</span></div><p style="margin:0 0 8px">Press <b>Edit</b> to open Builder Studio. Use <b>Select</b>, <b>Move</b> and <b>Scale</b> on the toolbar, add parts with <b>Insert</b>, change numbers in <b>Properties</b>, and press <b>Play Test</b> to try your game. Undo is Ctrl+Z. Your place saves automatically.</p><p style="margin:0 0 8px">In a published game, <b>red bricks are lava</b> that send players back to the start and <b>yellow bricks are the goal</b>. Every other color is solid.</p><p style="margin:0">Press <b>Publish</b> (at least 5 bricks) to put it under Community Games, where anyone can join a server and play it together. <b>Update Game</b> republishes your latest bricks.</p></div>';
+}
+
+/* ---- private servers, invites, pets ---- */
+function privateModal(gid){
+  const g = gameById(gid); if(!g || g.kind === 'studio') return; const fr = friendIds().filter(isOnline);
+  modal('Private Server', '<p style="margin:0 0 8px">Make a server just for you and your friends. Only people you invite (or friends who press Join Game on your profile) can find it.</p>' + (fr.length ? '<div class="inv">' + fr.map(id => '<label class="lrow" style="cursor:pointer"><input type="checkbox" class="invck" value="' + id + '" checked> <b>' + esc(nameOf(id)) + '</b></label>').join('') + '</div>' : '<p class="muted" style="margin:0">None of your friends are online right now. You can still start the server and they can join later from your profile.</p>'), [{label:'Cancel', cls:'neutral'}, {label:'Start', cls:'green', fn:() => {
+    const code = 'p' + Math.random().toString(36).slice(2, 8).padEnd(6, 'x'), ids = Array.prototype.map.call(document.querySelectorAll('.invck:checked'), c => c.value);
+    ids.forEach(id => { try{ ROOM.emit('invite', {to:id, g:gid, s:code}).catch(() => {}); }catch(e){} });
+    if(ids.length) toast('Invited ' + ids.length + ' friend' + (ids.length === 1 ? '' : 's') + '.'); playGame(gid, {server:code});
+  }}]);
+}
+let pendingInvite = null;
+function onInvite(by, g, code){
+  if(Engine.active()){ pendingInvite = {by, g, code}; toast(nameOf(by) + ' invited you to play ' + g.name + '. Leave this game to join.'); return; }
+  modal(nameOf(by) + ' invited you', '<p style="margin:0"><b>' + esc(nameOf(by)) + '</b> is playing <b>' + esc(g.name) + '</b> on a private server. Want to join?</p>', [{label:'No thanks', cls:'neutral'}, {label:'Join', cls:'green', fn:() => { playGame(g.id, {server:code}); }}]);
+}
+function buyEgg(kind){
+  const winter = kind === 'winter', cost = winter ? 60 : 40;
+  if(winter && !eventOn('winter')){ toast('The Winter Egg is not available right now.', true); return; }
+  if(U.tokens < cost){ toast('You do not have enough tokens.', true); return; }
+  const pool = PETS.filter(p => winter ? p.ev === 'winter' : !p.ev), w = pool.map(p => winter ? (p.r === 3 ? 25 : 75) : RARITY_W[p.r] / pool.filter(q => q.r === p.r).length);
+  let r = Math.random() * w.reduce((a, b) => a + b, 0), pick = pool[0]; for(let i = 0; i < pool.length; i++){ r -= w[i]; if(r <= 0){ pick = pool[i]; break; } }
+  U.tokens -= cost; const dup = U.pets.indexOf(pick.id) >= 0; if(dup) U.tokens += 10; else U.pets.push(pick.id); if(U.pets.length >= 5) giveBadge('petlover'); persist(); refreshChrome();
+  modal(dup ? 'Duplicate!' : 'You hatched a ' + pick.n + '!', '<div style="text-align:center"><div style="font-size:84px;line-height:1.2">' + pick.e + '</div><b>' + pick.n + '</b><div class="muted">' + RARITY[pick.r] + (dup ? ' &middot; You already had this one, so you got 10 tokens back.' : '') + '</div></div>', [{label:'Nice!', cls:'green', fn:() => { render(); }}]);
+}
+function renderPets(){
+  const tab = route().query.tab || 'pets', on = t => tab === t ? 'on' : '', ev = eventOn('winter');
+  const tabs = '<div class="box" style="padding-bottom:0"><div class="tabs"><a href="#/pets" class="' + on('pets') + '">My Pets</a><a href="#/pets?tab=shop" class="' + on('shop') + '">Egg Shop</a><a href="#/pets?tab=emotes" class="' + on('emotes') + '">Emotes</a></div></div>';
+  let body;
+  if(tab === 'shop') body = '<div class="box"><div class="sec-h"><span>Egg Shop</span></div><p class="muted" style="margin-top:0">Hatch a random pet. Your pet follows you in every game and other players can see it. Duplicates give 10 tokens back.</p><div class="lrow"><div class="grow"><b>Mystery Egg</b><div class="status">Common 60% &middot; Uncommon 28% &middot; Rare 10% &middot; Epic 2%</div></div><a class="btn green" data-act="buyEgg" data-k="basic">' + tokp(40) + ' Hatch</a></div>' + (ev ? '<div class="lrow"><div class="grow"><b>Winter Egg</b><div class="status">Snowman or Reindeer. Only during the Winter Wonderland event.</div></div><a class="btn green" data-act="buyEgg" data-k="winter">' + tokp(60) + ' Hatch</a></div>' : '') + '</div>';
+  else if(tab === 'emotes') body = '<div class="box"><div class="sec-h"><span>Emotes</span></div><p class="muted" style="margin-top:0">In a game, press the face button at the top left (or type /e name in chat) to pop an emote over your head.</p>' + EMOTES.filter(e => !e.ev || eventOn(e.ev) || U.emotes.indexOf(e.id) >= 0).map(e => '<div class="lrow"><div class="grow"><span style="font-size:28px;vertical-align:middle">' + e.e + '</span> <b>' + e.n + '</b> <span class="muted">/e ' + e.id + '</span></div>' + (U.emotes.indexOf(e.id) >= 0 ? '<span class="btn neutral small" style="cursor:default">Owned</span>' : '<a class="btn green small" data-act="buyEmote" data-e="' + e.id + '">' + tokp(e.price) + ' Buy</a>') + '</div>').join('') + '</div>';
+  else body = '<div class="box"><div class="sec-h"><span>My Pets (' + U.pets.length + ' of ' + PETS.filter(p => !p.ev).length + '+)</span></div>' + (U.pets.length ? '<div class="pets">' + PETS.filter(p => U.pets.indexOf(p.id) >= 0).map(p => '<div class="pet' + (U.pet === p.id ? ' on' : '') + '"><div class="em">' + p.e + '</div><b>' + p.n + '</b><div class="muted" style="font-size:12px">' + RARITY[p.r] + (p.ev ? ' &middot; Event' : '') + '</div><a class="btn small" style="margin-top:6px" data-act="equipPet" data-p="' + p.id + '">' + (U.pet === p.id ? 'Put Away' : 'Bring Along') + '</a></div>').join('') + '</div>' : '<p class="muted" style="margin:0">You do not have a pet yet. Visit the <a href="#/pets?tab=shop">Egg Shop</a>.</p>') + '</div>';
+  setApp('<h1 class="page-h">Pets &amp; Emotes</h1>' + tabs + body);
+}
+function eventBanner(){
+  if(!eventOn('winter')) return ''; const left = Math.max(0, Math.ceil((EVENTS.winter.to - Date.now()) / 86400000));
+  return '<div class="box evt"><div class="sec-h"><span>&#10052; Winter Wonderland is here!</span><span class="muted" style="font-size:13px">' + left + ' days left</span></div><p style="margin:0 0 8px">Play the limited-time <b>Frostbite Frenzy</b> obby, grab winter hats, sweaters and pants in the Catalog, and hatch the Snowman or Reindeer from the Winter Egg. Everything melts away on ' + EVENTS.winter.end + '.</p><a class="btn small" href="#/game/13">Play Frostbite Frenzy</a> <a class="btn neutral small" href="#/catalog">Winter items</a> <a class="btn neutral small" href="#/pets?tab=shop">Winter Egg</a></div>';
+}
+
+/* ---- leaderboards ---- */
+function lbType(g){ return g.kind === 'obby' || g.kind === 'tower' || g.custom || g.kind === 'drive' ? 'time' : (g.kind === 'studio' ? '' : 'score'); }
+const lbLabel = g => lbType(g) === 'time' ? 'Best time' : g.kind === 'tiledrop' ? 'Seconds survived' : g.kind === 'coaster' ? 'Rides in one visit' : g.kind === 'arena' ? 'Knockouts in one visit' : 'Tokens earned in one visit';
+function submitScore(g, type, val){
+  if(!U || !MYID || !g || !(val >= 0) || g.kind === 'studio') return; const gid = String(g.id); U.lb = U.lb || {}; const cur = U.lb[gid] || {};
+  if(type === 'time'){ val = Math.round(val * 10) / 10; if(val < 3 || (cur.t && cur.t <= val)) return; cur.t = val; } else { val = Math.floor(val); if(val <= 0 || (cur.s && cur.s >= val)) return; cur.s = val; }
+  U.lb[gid] = cur; persist();
+  DB.doc('scores/' + gid + '_' + MYID).set({gid, uid:MYID, name:U.name, t:cur.t || null, s:cur.s || null, u:Date.now()}).then(() => { giveBadge('toprank'); }).catch(() => {});
+}
+function finishScores(g, s, sm){
+  if(g.kind === 'drive' && sm.lap > 0) submitScore(g, 'time', sm.lap);
+  else if(g.kind === 'tiledrop'){ submitScore(g, 'score', sm.stage || 0); if((sm.stage || 0) >= 60) giveBadge('survivor'); }
+  else if(g.kind === 'coaster') submitScore(g, 'score', sm.rides || 0);
+  else if(g.kind === 'arena') submitScore(g, 'score', sm.kills || 0);
+  else if(lbType(g) === 'score') submitScore(g, 'score', s.earned || 0);
+  if(g.kind === 'restaurant' && s.earned >= 30) giveBadge('chef'); if(g.kind === 'coins' && (sm.coins || 0) >= 30) giveBadge('island'); if(g.kind === 'coaster' && (sm.rides || 0) >= 3) giveBadge('rider');
+  checkBadges();
+}
+function lbHtml(g){
+  const type = lbType(g); if(!type) return '<p class="muted">Builder Studio has no leaderboard.</p>'; loadScores(g.id);
+  const rows = (SCORES[g.id] || []).filter(r => type === 'time' ? r.t : r.s).sort((a, b) => type === 'time' ? a.t - b.t : b.s - a.s).slice(0, 15);
+  const f = r => type === 'time' ? fmtSecs(r.t) : r.s;
+  return '<p class="muted" style="margin-top:0">' + lbLabel(g) + '. Top 15 players.</p>' + (rows.length ? '<table class="lbt"><tr><th>#</th><th>Player</th><th>' + (type === 'time' ? 'Time' : 'Score') + '</th></tr>' + rows.map((r, i) => '<tr class="' + (r.uid === MYID ? 'me' : '') + '"><td>' + (i + 1) + '</td><td><a href="#/profile/' + encodeURIComponent(nameOf(r.uid) !== 'Unknown' ? nameOf(r.uid) : r.name) + '">' + esc(nameOf(r.uid) !== 'Unknown' ? nameOf(r.uid) : r.name) + '</a></td><td>' + f(r) + '</td></tr>').join('') + '</table>' : '<p class="muted">No scores yet. Be the first!</p>');
+}
+function fmtSecs(t){ const m = Math.floor(t / 60), s = (t % 60).toFixed(1); return m ? m + ':' + (s < 10 ? '0' : '') + s : s + 's'; }
+function topEarners(){
+  const rows = Object.keys(P).map(id => ({id, v:((P[id].stats || {}).earned) || 0})).filter(r => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 10);
+  return '<div class="box"><div class="sec-h"><span>Top Token Earners</span></div>' + (rows.length ? '<table class="lbt"><tr><th>#</th><th>Player</th><th>Earned from games</th></tr>' + rows.map((r, i) => '<tr class="' + (r.id === MYID ? 'me' : '') + '"><td>' + (i + 1) + '</td><td><a href="#/profile/' + encodeURIComponent(nameOf(r.id)) + '">' + esc(nameOf(r.id)) + '</a></td><td>' + tokp(r.v) + '</td></tr>').join('') + '</table>' : '<p class="muted" style="margin:0">Nobody has earned tokens yet.</p>') + '</div>';
 }
 
 /* ---- block and report ---- */
@@ -2490,6 +2670,11 @@ function editGameModal(id){
   bindPicker('egI', 'icon', 256, 256, 50000, 'egP'); $('#egR').onclick = e => { e.preventDefault(); PICK.icon = null; $('#egP').src = gameThumb(Object.assign(customGame(d), {icon:''}), 256, 256); };
 }
 
+function renderAdmin(){
+  if(!(window.__ME && window.__ME.admin)){ setApp('<div class="box"><h1 class="page-h">Not allowed</h1><p>This page is for site admins.</p></div>'); return; }
+  const rs = REPORTDOCS.slice().sort((a, b) => b.t - a.t), RN = {inappropriate:'Inappropriate content', harassment:'Harassment', scam:'Scamming', cheating:'Cheating', other:'Other'};
+  setApp('<h1 class="page-h">Reports</h1><div class="box"><div class="sec-h"><span>Open reports (' + rs.length + ')</span></div>' + (rs.length ? rs.map(r => '<div class="lrow" style="align-items:flex-start"><div class="grow"><b>' + esc(r.name || nameOf(r.who)) + '</b> <span class="muted">reported by ' + esc(r.me || nameOf(r.by)) + ' &middot; ' + fmtDate(r.t) + '</span><div class="status"><b>' + esc(RN[r.reason] || r.reason) + '</b> &middot; from ' + esc(r.ctx || 'profile') + '</div>' + (r.detail ? '<div style="margin-top:4px;white-space:pre-wrap">' + esc(r.detail) + '</div>' : '') + '</div><a class="btn small" href="#/profile/' + encodeURIComponent(r.name || nameOf(r.who)) + '">Profile</a><a class="btn red small" data-act="banUser" data-n="' + r.who + '">Ban</a><a class="btn neutral small" data-act="dismissReport" data-r="' + r.id + '">Dismiss</a></div>').join('') : '<p class="muted" style="margin:0">No open reports.</p>') + '</div><div class="box"><div class="sec-h"><span>Banned accounts (' + BANDOCS.length + ')</span></div>' + (BANDOCS.length ? BANDOCS.map(b => '<div class="lrow"><div class="grow"><b>' + esc(b.name || nameOf(b.id)) + '</b></div><a class="btn neutral small" data-act="unbanUser" data-n="' + b.id + '">Unban</a></div>').join('') : '<p class="muted" style="margin:0">Nobody is banned.</p>') + '</div>');
+}
 function renderSettings(){
   setApp('<h1 class="page-h">Settings</h1><div class="box"><div class="sec-h"><span>Account Info</span></div><div class="lrow"><div class="grow muted">Username</div><div style="flex:2"><b>' + esc(U.name) + '</b></div></div><div class="lrow"><div class="grow muted">Member since</div><div style="flex:2">' + fmtDate(U.created) + '</div></div><label class="f" for="descIn">Description</label><textarea id="descIn" maxlength="500">' + esc(U.desc) + '</textarea><p><a class="btn small" data-act="saveDesc">Save</a></p></div><div class="box"><div class="sec-h"><span>Blocked Players</span></div>' + (BLOCKDOCS.length ? BLOCKDOCS.map(b => '<div class="lrow"><div class="grow"><b>' + esc(nameOf(b.who)) + '</b></div><a class="btn neutral small" data-act="unblockUser" data-n="' + b.who + '">Unblock</a></div>').join('') : '<p class="muted" style="margin:0">You have not blocked anyone. Blocked players cannot message you, send friend requests or trades, and their chat is hidden from you.</p>') + '</div><div class="box"><div class="sec-h"><span>Account</span></div><p><a class="btn neutral" data-act="logout">Log Out</a></p><p class="muted" style="font-size:13px">Deleting your account removes your profile, items, tokens and username. Friends, messages and group posts you made stay behind.</p><p><a class="btn red" data-act="deleteAccount">Delete Account</a></p></div>');
 }
@@ -2533,12 +2718,12 @@ async function playGame(gid, opt){
   if(s.cancel){ if(nr) nr.leave().catch(() => {}); return; }
   U.stats.visits++; U.visits[gid] = (U.visits[gid] || 0) + 1; U.recent = [gid].concat(U.recent.filter(x => x !== gid)).slice(0, 6); persist();
   const leave = () => { if(nr) nr.leave().catch(() => {}); setLobby(null); };
-  const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar)), owned:U.owned.slice()}, seed:hashStr(roomName), serverName:solo ? '' : 'Server ' + server, place:place ? {bricks:place.bricks} : null,
+  const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar)), owned:U.owned.slice(), petEm:(PET_BY_ID[U.pet] || {}).e || '', emotes:(U.emotes || []).slice()}, seed:hashStr(roomName), serverName:solo ? '' : (typeof server === 'string' ? 'Private server' : 'Server ' + server), place:place ? {bricks:place.bricks} : null,
     net:nr ? {room:nr, myId:MYID, nameOf, isBlocked} : null,
-    onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; if(g.kind === 'town' || g.kind === 'coins') U.stats.coins += amt; save(); } },
-    onEvent:(name, v) => { if(name === 'win'){ if(!g.custom){ U.stats.wins++; giveBadge(g.kind === 'tower' ? 'tower' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
+    onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; U.stats.earned = (U.stats.earned || 0) + amt; if(g.kind === 'town' || g.kind === 'coins') U.stats.coins += amt; save(); } },
+    onEvent:(name, v) => { if(name === 'win'){ if(!g.custom){ U.stats.wins++; giveBadge(g.kind === 'tower' ? 'tower' : g.id === 7 ? 'candy' : g.id === 8 ? 'inferno' : g.kind === 'drive' ? 'racer' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; if(lbType(g) === 'time') submitScore(g, 'time', v); } else if(name === 'ride'){ if(v >= 3) giveBadge('rider'); } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
     onSave:bricks => { if(place && solo){ place.bricks = bricks.map(b => b.slice()); persist(); if(bricks.length >= 20) giveBadge('builder'); } },
-    onExit:() => { session = null; endLoad(); leave(); refreshChrome(); render(); toast(s.earned ? 'Thanks for playing! You earned ' + s.earned + ' tokens.' : 'Thanks for playing!'); }});
+    onExit:(sm) => { sm = sm || {}; try{ finishScores(g, s, sm); }catch(e){} session = null; endLoad(); leave(); refreshChrome(); render(); if(pendingInvite){ const pi = pendingInvite; pendingInvite = null; setTimeout(() => onInvite(pi.by, pi.g, pi.code), 600); } toast(s.earned ? 'Thanks for playing! You earned ' + s.earned + ' tokens.' : 'Thanks for playing!'); }});
   endLoad();
   if(!ok){ session = null; leave(); modal('Cannot Start Game', '<p style="margin:0">Your browser could not start the 3D view. Make sure WebGL and hardware acceleration are turned on.</p>', [{label:'OK'}]); }
   else if(!solo) setLobby({g:gid, s:server});
@@ -2546,7 +2731,7 @@ async function playGame(gid, opt){
 
 /* ===================== chat & party (live, friends who are online) ===================== */
 const CHATS = {}; let cpOpen = []; let cpMin = false;
-function receiveDM(from, text){ if(!text) return; (CHATS[from] = CHATS[from] || []).push({me:false, t:text}); if(cpOpen.indexOf(from) < 0){ cpOpen.push(from); if(cpOpen.length > 2) cpOpen.shift(); } if(U && !Engine.active()) renderCP(); }
+function receiveDM(from, text){ text = cleanText(text); if(!text) return; (CHATS[from] = CHATS[from] || []).push({me:false, t:text}); if(cpOpen.indexOf(from) < 0){ cpOpen.push(from); if(cpOpen.length > 2) cpOpen.shift(); } if(U && !Engine.active()) renderCP(); }
 function renderCP(){
   const el = $('#cp'); if(!U){ el.innerHTML = ''; return; }
   const fr = friendIds().sort((a, b) => isOnline(b) - isOnline(a));
@@ -2557,7 +2742,7 @@ function renderCP(){
   if(act){ const inp = $('[data-chat="' + act + '"]'); if(inp){ inp.value = actVal; inp.focus(); } }
 }
 document.addEventListener('keydown', e => {
-  const t = e.target; if(e.key === 'Enter' && t.dataset && t.dataset.chat){ const id = t.dataset.chat, v = t.value.trim(); if(!v) return; if(!isOnline(id) || !ROOM){ toast(nameOf(id) + ' is offline. Send a message instead.', true); return; } (CHATS[id] = CHATS[id] || []).push({me:true, t:v}); t.value = ''; ROOM.emit('dm', {to:id, t:v}).catch(() => {}); renderCP(); }
+  const t = e.target; if(e.key === 'Enter' && t.dataset && t.dataset.chat){ const id = t.dataset.chat, v = t.value.trim(); if(!v) return; if(badText(v)){ toast('That message has words that are not allowed.', true); return; } if(!isOnline(id) || !ROOM){ toast(nameOf(id) + ' is offline. Send a message instead.', true); return; } (CHATS[id] = CHATS[id] || []).push({me:true, t:v}); t.value = ''; ROOM.emit('dm', {to:id, t:v}).catch(() => {}); renderCP(); }
 });
 
 /* ===================== actions ===================== */
@@ -2569,10 +2754,17 @@ const ACTIONS = {
   logout:async () => { try{ await fetch('/api/logout', {method:'POST'}); }catch(e){} location.href = '/'; },
   closeModal, reloadPage:() => location.reload(), doOnboard,
   toggleBal:() => { const d = $('#balDrop'); const menu = $('#menuDrop'); if(menu) menu.hidden = true; d.hidden = !d.hidden; }, toggleMenu:() => { const d = $('#menuDrop'); const bal = $('#balDrop'); if(bal) bal.hidden = true; d.hidden = !d.hidden; },
-  claimDaily:() => { if(!dailyReady()) return; U.lastDaily = Date.now(); U.tokens += 25; U.tix += 10; save(); toast('Daily bonus claimed: +25 tokens and +10 tickets.'); refreshChrome(); render(); },
+  claimDaily:() => { if(!dailyReady()) return; const st = streakNext(), amt = dailyAmt(); U.lastDaily = Date.now(); U.lastDay = dayKey(new Date()); U.streak = st; U.tokens += amt; U.tix += 10; if(st >= 7) giveBadge('streak7'); persist(); toast('Daily reward claimed: +' + amt + ' tokens and +10 tickets. Streak: ' + st + '.'); refreshChrome(); render(); },
   postStatus,
   play:el => { if(el.dataset.p != null && el.dataset.g === '4') playGame(4, {place:+el.dataset.p}); else playGame(gidOf(el.dataset.g), {server:+(el.dataset.s || 0)}); },
+  privServer:el => privateModal(gidOf(el.dataset.g)),
+  buyEgg:el => buyEgg(el.dataset.k),
+  equipPet:el => { U.pet = U.pet === el.dataset.p ? '' : el.dataset.p; persist(); render(); },
+  buyEmote:el => { const em = EMO_BY_ID[el.dataset.e]; if(!em || U.emotes.indexOf(em.id) >= 0) return; if(U.tokens < em.price){ toast('You do not have enough tokens.', true); return; } U.tokens -= em.price; U.emotes.push(em.id); persist(); toast('You got the ' + em.n + ' emote! Press the face button in a game, or type /e ' + em.id + '.'); refreshChrome(); render(); },
   publishPlace:el => publishModal(+el.dataset.p),
+  dismissReport:el => { DB.doc('reports/' + el.dataset.r).delete().then(() => toast('Report dismissed.')).catch(() => toast('Could not dismiss.', true)); },
+  banUser:el => { const id = el.dataset.n; confirmBox('Ban account', 'Ban <b>' + esc(nameOf(id)) + '</b>? They will be logged out and cannot log in again.', 'Ban', () => { DB.doc('bans/' + id).set({name:nameOf(id), t:Date.now()}).then(() => { REPORTDOCS.filter(r => r.who === id).forEach(r => DB.doc('reports/' + r.id).delete().catch(() => {})); toast('Account banned.'); }).catch(() => toast('Could not ban.', true)); }, 'red'); },
+  unbanUser:el => { DB.doc('bans/' + el.dataset.n).delete().then(() => toast('Account unbanned.')).catch(() => toast('Could not unban.', true)); },
   blockUser:el => blockModal(el.dataset.n),
   unblockUser:el => { const id = el.dataset.n; DB.doc('blocks/' + MYID + '_' + id).delete().then(() => { toast(nameOf(id) + ' is unblocked.'); render(); }).catch(() => toast('Could not unblock.', true)); },
   reportUser:el => reportModal(el.dataset.n),
@@ -2656,7 +2848,7 @@ document.addEventListener('click', e => { if(!Engine.active() && e.target.closes
     if(STATUS === 'onboard'){ try{ const me = await USERCAP.me(); const n = String((me && me.name) || ''); window.__suggest = n; if(NAME_RE.test(n) && await finishOnboard(n)){} }catch(e){ console.warn(e); } }
     try{ if(ROOM && ROOM.onConnection) ROOM.onConnection(c => toast(c ? 'Reconnected.' : 'Connection lost. Reconnecting...', !c)); }catch(e){}
     if(STATUS === 'ready' && (!location.hash || location.hash === '#/')) location.hash = '#/home';
-    render();
+    render(); if(STATUS === 'ready') setTimeout(dailyModal, 1500);
   }catch(e){ clearTimeout(guard); console.warn(e); STATUS = 'gate'; render(); }
 })();
 

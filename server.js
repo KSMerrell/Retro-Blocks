@@ -62,7 +62,7 @@ const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 32).toString('hex');
 const newToken = () => crypto.randomBytes(24).toString('hex');
 function cookieOf(req, k){ const m = (req.headers.cookie || '').split(/;\s*/).find(c => c.startsWith(k + '=')); return m ? decodeURIComponent(m.slice(k.length + 1)) : null; }
-function userOf(req){ const t = cookieOf(req, 'bp3'); const s = t && S.sessions[t]; if(!s || s.exp < Date.now()) return null; return S.accounts[s.uid] || null; }
+function userOf(req){ const t = cookieOf(req, 'bp3'); const s = t && S.sessions[t]; if(!s || s.exp < Date.now()) return null; if(S.docs['bans/' + s.uid]) return null; return S.accounts[s.uid] || null; }
 function startSession(res, uid, req){
   const t = newToken(); S.sessions[t] = {uid, exp:Date.now() + 180 * 86400000}; markDirty();
   const secure = (req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
@@ -82,6 +82,21 @@ function allowRead(uid, collPath){ const s = segs(collPath); if(s[0] === 'data' 
 // write rules per collection: returns true when allowed
 const smallImg = v => v == null || (typeof v === 'string' && v.length < 60000 && (v === '' || v.startsWith('data:image/')));
 const validItem = d => ['shirt', 'pants'].includes(d.type) && typeof d.name === 'string' && d.name.length >= 2 && d.name.length <= 40 && Number.isInteger(d.price) && d.price >= 0 && d.price <= 1000 && smallImg(d.img);
+
+/* ---- word filter ---- */
+const BAD_WORDS = ['fuck','fucker','fucking','shit','shitty','bitch','bastard','asshole','dick','dickhead','cock','pussy','cunt','whore','slut','nigger','nigga','faggot','fag','retard','retarded','rape','rapist','nazi','hitler','porn','sex','sexy','nude','nudes','penis','vagina','boob','boobs','cum','kys'];
+const BAD_SUB = BAD_WORDS.filter(w => w.length >= 5);
+const LEET = {'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i','+':'t'};
+function badText(str){
+  const t = String(str || '').toLowerCase().replace(/[01345 7@$!+]/g, c => LEET[c] || c).replace(/(.)\1{2,}/g, '$1$1');
+  const words = t.split(/[^a-z]+/).filter(Boolean); if(words.some(w => BAD_WORDS.includes(w))) return true;
+  const packed = t.replace(/[^a-z]/g, ''); return BAD_SUB.some(w => packed.includes(w));
+}
+const SKIP_KEYS = new Set(['img', 'icon', 'bricks', 'state', 'c', 'ids']);
+function docHasBad(v, depth){ depth = depth || 0; if(depth > 3 || v == null) return false; if(typeof v === 'string') return v.length < 3000 && badText(v); if(Array.isArray(v)) return v.slice(0, 40).some(x => docHasBad(x, depth + 1)); if(typeof v === 'object') return Object.keys(v).some(k => !SKIP_KEYS.has(k) && docHasBad(v[k], depth + 1)); return false; }
+const FILTERED = new Set(['messages', 'wall', 'feed', 'groups', 'games', 'items', 'ads', 'profiles', 'names']);
+const ADMINS = new Set((process.env.ADMIN_USERS || '').toLowerCase().split(',').map(x => x.trim()).filter(Boolean));
+const isAdmin = uid => !!(S.accounts[uid] && ADMINS.has(S.accounts[uid].lower));
 const blockedPair = (a, b) => !!(S.docs['blocks/' + a + '_' + b] || S.docs['blocks/' + b + '_' + a]);
 const REPORT_REASONS = ['inappropriate', 'harassment', 'scam', 'cheating', 'other'];
 function allowWrite(uid, p, op, data, old){
@@ -95,7 +110,9 @@ function allowWrite(uid, p, op, data, old){
     case 'friends': { if(op === 'delete') return !!old && (old.ids || []).includes(uid); if(!(data && Array.isArray(data.ids) && data.ids.length === 2 && data.ids.includes(uid) && id === data.ids.slice().sort().join('__'))) return false; if(old) return true; const other = data.ids.find(x => x !== uid); return !!S.docs['requests/' + other + '_' + uid] && !blockedPair(uid, other); }
     case 'requests': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : data && mine(data.from) && id === data.from + '_' + data.to && !blockedPair(data.from, data.to);
     case 'blocks': return op === 'delete' ? !!old && old.by === uid : !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && id === uid + '_' + data.who;
-    case 'reports': return op === 'set' && !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && REPORT_REASONS.includes(data.reason) && String(data.detail || '').length <= 400 && String(data.ctx || '').length <= 80;
+    case 'bans': return isAdmin(uid);
+    case 'scores': { if(op === 'delete') return !!old && old.uid === uid; const n = (v, mx) => v == null || (typeof v === 'number' && isFinite(v) && v >= 0 && v <= mx); return !!data && mine(data.uid) && typeof data.gid === 'string' && data.gid.length < 30 && id === data.gid + '_' + uid && n(data.t, 36000) && n(data.s, 1000000) && typeof data.name === 'string'; }
+    case 'reports': return isAdmin(uid) ? true : op === 'set' && !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && REPORT_REASONS.includes(data.reason) && String(data.detail || '').length <= 400 && String(data.ctx || '').length <= 80;
     case 'messages': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : !old && data && mine(data.from) && typeof data.to === 'string' && !blockedPair(uid, data.to);
     case 'trades': return op === 'delete' ? false : old ? (old.from === uid || old.to === uid) && data && data.from === old.from && data.to === old.to : data && mine(data.from) && !blockedPair(data.from, data.to);
     case 'groups': return op === 'delete' ? !!old && old.owner === uid : old ? old.owner === uid : data && mine(data.owner);
@@ -113,7 +130,9 @@ function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'messages') return d.from === uid || d.to === uid;
   if(coll === 'trades' || coll === 'requests') return d.from === uid || d.to === uid;
   if(coll === 'sales') return d.seller === uid || d.buyer === uid;
-  if(coll === 'blocks' || coll === 'reports') return d.by === uid;
+  if(coll === 'blocks') return d.by === uid;
+  if(coll === 'reports') return d.by === uid || isAdmin(uid);
+  if(coll === 'bans') return isAdmin(uid);
   if(coll === 'friends') return (d.ids || []).includes(uid);
   return true;
 }
@@ -136,6 +155,7 @@ function notifyColl(coll){ subs.forEach(s => { if(s.coll === coll) pushSub(s); }
 function writeDoc(uid, op, p, data){
   if(!validPath(p)) return {code:'invalid_argument'};
   const e = S.docs[p], old = e ? e.d : null;
+  if(op !== 'delete' && FILTERED.has(p.split('/')[0]) && docHasBad(data)) return {code:'content_blocked'};
   if(op === 'delete'){ if(!e) return {ok:true}; if(!allowWrite(uid, p, 'delete', null, old)) return {code:'permission_denied'}; delete S.docs[p]; }
   else {
     if(!data || typeof data !== 'object' || Array.isArray(data)) return {code:'invalid_argument'};
@@ -235,6 +255,7 @@ const server = http.createServer((req, res) => {
     if(!b || throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});
     const name = String(b.username || '').trim(), pw = String(b.password || '');
     if(!NAME_RE.test(name)) return json(res, 400, {error:'Usernames are 3 to 20 characters: letters, numbers and underscores.'});
+    if(badText(name)) return json(res, 400, {error:'That username is not allowed. Please choose another.'});
     if(pw.length < 6 || pw.length > 100) return json(res, 400, {error:'Your password must be at least 6 characters.'});
     if(pw.toLowerCase() === name.toLowerCase()) return json(res, 400, {error:'Your password cannot be the same as your username.'});
     if(byLower[name.toLowerCase()]) return json(res, 409, {error:'That username is already taken.'});
@@ -245,6 +266,7 @@ const server = http.createServer((req, res) => {
     if(!b || throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});
     const a = S.accounts[byLower[String(b.username || '').trim().toLowerCase()]], pw = String(b.password || '');
     if(!a || !crypto.timingSafeEqual(Buffer.from(hashPw(pw, a.salt), 'hex'), Buffer.from(a.hash, 'hex'))) return json(res, 401, {error:'Incorrect username or password.'});
+    if(S.docs['bans/' + a.id]) return json(res, 403, {error:'This account has been banned.'});
     startSession(res, a.id, req); json(res, 200, {ok:true});
   }); }
   if(req.method === 'POST' && url === '/api/logout'){ const t = cookieOf(req, 'bp3'); if(t){ delete S.sessions[t]; markDirty(); } res.setHeader('Set-Cookie', 'bp3=; Path=/; Max-Age=0'); return json(res, 200, {ok:true}); }
@@ -255,7 +277,7 @@ const server = http.createServer((req, res) => {
   if(url === '/' || url === '/index.html'){
     const u = userOf(req);
     if(!u){ res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(fs.readFileSync(path.join(PUB, 'login.html'))); }
-    const me = JSON.stringify({id:u.id, name:u.name}).replace(/</g, '\\u003c');
+    const me = JSON.stringify({id:u.id, name:u.name, admin:isAdmin(u.id)}).replace(/</g, '\\u003c');
     res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(APP().replace('/*ME*/', me));
   }
   const f = path.join(PUB, path.normalize(url).replace(/^(\.\.[\/\\])+/, ''));

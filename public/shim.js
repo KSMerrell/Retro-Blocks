@@ -12,7 +12,7 @@
     ws.onclose = () => { const was = open; open = false; Object.keys(pending).forEach(i => { pending[i].rej({code:'unavailable'}); delete pending[i]; }); if(was) listeners.conn.forEach(f => f(false)); if(ws && ws.status === 401) return; setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 8000); };
   }
   function onMsg(m){
-    if(m.i != null && pending[m.i]){ const p = pending[m.i]; delete pending[m.i]; if(m.ok) p.res(m); else p.rej({code:m.code || 'error'}); return; }
+    if(m.i != null && pending[m.i]){ const p = pending[m.i]; delete pending[m.i]; if(m.ok) p.res(m); else { if(m.code === 'content_blocked' && window.onContentBlocked) try{ window.onContentBlocked(); }catch(e){} p.rej({code:m.code || 'error'}); } return; }
     if(m.t === 'snap'){ const s = subsAll[m.sid]; if(s) s.apply(m); }
     else if(m.t === 'peer' || m.t === 'left' || m.t === 'ev'){ const r = roomsAll[m.room]; if(r) r.onServer(m); }
   }

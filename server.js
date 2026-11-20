@@ -94,7 +94,9 @@ function badText(str){
 }
 const SKIP_KEYS = new Set(['img', 'icon', 'bricks', 'state', 'c', 'ids']);
 function docHasBad(v, depth){ depth = depth || 0; if(depth > 3 || v == null) return false; if(typeof v === 'string') return v.length < 3000 && badText(v); if(Array.isArray(v)) return v.slice(0, 40).some(x => docHasBad(x, depth + 1)); if(typeof v === 'object') return Object.keys(v).some(k => !SKIP_KEYS.has(k) && docHasBad(v[k], depth + 1)); return false; }
-const FILTERED = new Set(['messages', 'wall', 'feed', 'groups', 'games', 'items', 'ads', 'profiles', 'names']);
+const FILTERED = new Set(['messages', 'wall', 'feed', 'groups', 'games', 'items', 'ads', 'profiles', 'names', 'models', 'cplaces']);
+function bricksBad(str){ if(typeof str !== 'string') return false; const rows = str.split(';'); for(let i = 0; i < rows.length && i < 1200; i++){ const k = rows[i].indexOf('|'); if(k < 0) continue; let t = ''; try{ t = decodeURIComponent(rows[i].slice(k + 1)); }catch(e){ return true; } if(t.length > 80 || badText(t)) return true; } return false; }
+const validEnv = e => e == null || (typeof e === 'object' && !Array.isArray(e) && Object.keys(e).every(k => ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90]})[k] && typeof e[k] === 'number' && e[k] >= ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90]})[k][0] && e[k] <= ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90]})[k][1]));
 const ADMINS = new Set((process.env.ADMIN_USERS || '').toLowerCase().split(',').map(x => x.trim()).filter(Boolean));
 const isAdmin = uid => !!(S.accounts[uid] && ADMINS.has(S.accounts[uid].lower));
 const blockedPair = (a, b) => !!(S.docs['blocks/' + a + '_' + b] || S.docs['blocks/' + b + '_' + a]);
@@ -119,7 +121,9 @@ function allowWrite(uid, p, op, data, old){
     case 'members': return op === 'delete' ? !!old && old.uid === uid : data && mine(data.uid) && id === data.gid + '_' + uid;
     case 'wall': case 'feed': return op === 'delete' ? !!old && old.uid === uid : !old && data && mine(data.uid);
     case 'votes': return data ? mine(data.uid) && id.endsWith('_' + uid) : id.endsWith('_' + uid);
-    case 'games': return op === 'delete' ? !!old && old.owner === uid : data && smallImg(data.icon) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
+    case 'models': return op === 'delete' ? !!old && old.owner === uid : data && typeof data.name === 'string' && data.name.length >= 3 && data.name.length <= 40 && typeof data.bricks === 'string' && data.bricks.length < 30000 && Number.isInteger(data.n) && data.n >= 1 && data.n <= 200 && typeof data.by === 'string' && data.by.length <= 30 && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
+    case 'pvers': return op === 'delete' ? !!old && old.owner === uid : data && mine(data.owner) && id.startsWith(uid + '_') && Array.isArray(data.v) && data.v.length <= 10 && data.v.every(x => x && typeof x.b === 'string' && x.b.length < 60000 && Number.isFinite(x.t) && Number.isInteger(x.n));
+    case 'games': return op === 'delete' ? !!old && old.owner === uid : data && validEnv(data.env) && smallImg(data.icon) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
     case 'items': return op === 'delete' ? !!old && old.creator === uid : data && validItem(data) && (old ? old.creator === uid && data.creator === uid : mine(data.creator));
     case 'ads': return op === 'delete' ? !!old && old.owner === uid : data && smallImg(data.img) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
     case 'sales': return op === 'delete' ? !!old && old.seller === uid : old ? old.seller === uid && data && data.seller === old.seller && data.buyer === old.buyer && data.amt === old.amt && data.item === old.item : data && mine(data.buyer) && typeof data.seller === 'string' && Number.isInteger(data.amt) && data.amt >= 0 && data.amt <= 2000;
@@ -133,6 +137,7 @@ function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'blocks') return d.by === uid;
   if(coll === 'reports') return d.by === uid || isAdmin(uid);
   if(coll === 'bans') return isAdmin(uid);
+  if(coll === 'pvers') return d.owner === uid;
   if(coll === 'friends') return (d.ids || []).includes(uid);
   return true;
 }
@@ -155,7 +160,7 @@ function notifyColl(coll){ subs.forEach(s => { if(s.coll === coll) pushSub(s); }
 function writeDoc(uid, op, p, data){
   if(!validPath(p)) return {code:'invalid_argument'};
   const e = S.docs[p], old = e ? e.d : null;
-  if(op !== 'delete' && FILTERED.has(p.split('/')[0]) && docHasBad(data)) return {code:'content_blocked'};
+  if(op !== 'delete' && FILTERED.has(p.split('/')[0]) && data && (docHasBad(data) || bricksBad(data.bricks))) return {code:'content_blocked'};
   if(op === 'delete'){ if(!e) return {ok:true}; if(!allowWrite(uid, p, 'delete', null, old)) return {code:'permission_denied'}; delete S.docs[p]; }
   else {
     if(!data || typeof data !== 'object' || Array.isArray(data)) return {code:'invalid_argument'};

@@ -122,6 +122,10 @@ function allowWrite(uid, p, op, data, old){
     case 'wall': case 'feed': return op === 'delete' ? !!old && old.uid === uid : !old && data && mine(data.uid);
     case 'votes': return data ? mine(data.uid) && id.endsWith('_' + uid) : id.endsWith('_' + uid);
     case 'models': return op === 'delete' ? !!old && old.owner === uid : data && typeof data.name === 'string' && data.name.length >= 3 && data.name.length <= 40 && typeof data.bricks === 'string' && data.bricks.length < 30000 && Number.isInteger(data.n) && data.n >= 1 && data.n <= 200 && typeof data.by === 'string' && data.by.length <= 30 && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
+    case 'cplaces': { if(op === 'delete') return !!old && old.owner === uid; const okEds = x => Array.isArray(x) && x.length >= 1 && x.length <= 8 && x.every(i => typeof i === 'string' && S.accounts[i]) && x.includes(data.owner);
+      if(!data || typeof data.bricks !== 'string' || data.bricks.length > 150000 || typeof data.name !== 'string' || data.name.length > 40 || !validEnv(data.env) || !okEds(data.eds)) return false;
+      if(!old) return mine(data.owner) && data.eds.includes(uid);
+      if(data.owner !== old.owner) return false; if(old.owner === uid) return true; return old.eds.includes(uid) && JSON.stringify(data.eds) === JSON.stringify(old.eds); }
     case 'pvers': return op === 'delete' ? !!old && old.owner === uid : data && mine(data.owner) && id.startsWith(uid + '_') && Array.isArray(data.v) && data.v.length <= 10 && data.v.every(x => x && typeof x.b === 'string' && x.b.length < 60000 && Number.isFinite(x.t) && Number.isInteger(x.n));
     case 'games': return op === 'delete' ? !!old && old.owner === uid : data && validEnv(data.env) && smallImg(data.icon) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
     case 'items': return op === 'delete' ? !!old && old.creator === uid : data && validItem(data) && (old ? old.creator === uid && data.creator === uid : mine(data.creator));
@@ -138,6 +142,7 @@ function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'reports') return d.by === uid || isAdmin(uid);
   if(coll === 'bans') return isAdmin(uid);
   if(coll === 'pvers') return d.owner === uid;
+  if(coll === 'cplaces') return Array.isArray(d.eds) && d.eds.includes(uid);
   if(coll === 'friends') return (d.ids || []).includes(uid);
   return true;
 }

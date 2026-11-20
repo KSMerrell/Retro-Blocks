@@ -1392,6 +1392,7 @@ const Engine = (function(){
       if(G.opts.verWatch) G.stT.push(G.opts.verWatch(list => { G.vers = list || []; if(G.pop === 'ver') sPopRender(); }));
       if(G.opts.verSave && G.bricks.length) G.opts.verSave(G.lastSnap, G.bricks.length);
       if(G.opts.models && G.opts.models.watch) G.stT.push(G.opts.models.watch(list => { G.models = list || []; if(G.pop === 'models') sPopRender(); }));
+      if(G.opts.coWatch){ G.coPushed = sCoKey(); G.stT.push(G.opts.coWatch(sCoApply)); const ci = setInterval(() => { if(G && G.coWait) sCoApply(G.coWait); }, 1500); G.stT.push(() => clearInterval(ci)); }
       const iv = setInterval(() => { if(G && G.verDirty){ G.verDirty = false; sSnapshot(); } }, 180000); G.stT.push(() => clearInterval(iv));
     }
   }
@@ -1798,7 +1799,14 @@ const Engine = (function(){
   }
   function removeBrick(p){ sDrop(p); G.brickParts.splice(G.brickParts.indexOf(p), 1); G.bricks.splice(G.bricks.indexOf(p.brick), 1); sfx.del(); saveBricks(); }
   let saveT = 0;
-  function saveBricks(){ clearTimeout(saveT); saveT = setTimeout(() => { if(G && G.opts.onSave){ G.opts.onSave(G.bricks, G.env); G.saveMsg = 'Saved ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); sStatus(); } }, 400); const el = document.getElementById('studioCount'); if(el && G) el.textContent = G.bricks.length + ' bricks'; }
+  function sCoKey(){ return packBricks(G.bricks) + '|' + JSON.stringify(G.env); }
+  function sCoApply(d){
+    if(!G || !d || typeof d.bricks !== 'string' || G.game.kind !== 'studio') return; const key = d.bricks + '|' + JSON.stringify(cleanEnv(d.env));
+    if(key === G.coPushed || key === sCoKey()) return;
+    if(G.drag || G.paint || G.sMode !== 'edit' || saveT){ G.coWait = d; return; }
+    G.coWait = null; G.coPushed = key; if(d.env) applyEnv(d.env); sRestore(JSON.stringify(unpackBricks(d.bricks))); G.hist.push(JSON.stringify(G.bricks)); G.redo.length = 0; toast('Updated by ' + (d.by || 'a friend'), 'Co-building: the newest save wins.');
+  }
+  function saveBricks(){ clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; if(G && G.opts.coWatch){ const k = sCoKey(); if(k === G.coPushed) return; G.coPushed = k; } if(G && G.opts.onSave){ G.opts.onSave(G.bricks, G.env); G.saveMsg = 'Saved ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); sStatus(); } }, 400); const el = document.getElementById('studioCount'); if(el && G) el.textContent = G.bricks.length + ' bricks'; }
   function studioTarget(ev){
     G.ray.setFromCamera(sNdc(ev), G.camera); const objs = G.brickParts.map(p => p.mesh); objs.push(G.baseMesh);
     const hits = G.ray.intersectObjects(objs, false); return hits[0] || null;
@@ -2356,7 +2364,7 @@ const Engine = (function(){
 
 /* ===================== shared state: db + room + identity ===================== */
 let DB = null, ROOM = null, USERCAP = null, MYID = null, U = null, LOBBY_OK = false;
-let P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SCORES = {}, REPORTDOCS = [], BANDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
+let COPLACES = [], P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SCORES = {}, REPORTDOCS = [], BANDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
 const loadedOnce = {};
 function esc2(s){ return esc(s); }
 const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -2422,6 +2430,7 @@ function startSubs(){
   DB.collection('profiles').onSnapshot(snap => { const o = {}; snap.docs.forEach(d => { o[d.id] = Object.assign({id:d.id}, d.data()); }); P = o; registerUGC(); queueRender(); }, err);
   DB.collection('items').onSnapshot(snap => { ITEMDOCS = snapDocs(snap); registerUGC(); queueRender(); }, err);
   DB.collection('ads').onSnapshot(snap => { ADDOCS = snapDocs(snap); queueRender(); }, err);
+  DB.collection('cplaces').where('eds', 'array-contains', MYID).onSnapshot(snap => { COPLACES = snapDocs(snap); queueRender(); }, err);
   DB.collection('blocks').onSnapshot(snap => { BLOCKDOCS = snapDocs(snap).filter(b => b.by === MYID); queueRender(); }, err);
   if(window.__ME && window.__ME.admin){ DB.collection('reports').onSnapshot(snap => { REPORTDOCS = snapDocs(snap); queueRender(); }, err); DB.collection('bans').onSnapshot(snap => { BANDOCS = snapDocs(snap); queueRender(); }, err); }
   DB.collection('sales').onSnapshot(snap => { SALEDOCS = snapDocs(snap).filter(s => s.seller === MYID || s.buyer === MYID); applySales(); }, err);
@@ -2869,9 +2878,17 @@ function renderTokens(){
 /* ===================== CREATE / SETTINGS / SEARCH ===================== */
 function placeGame(p){ return p.pid ? GAMEDOCS.find(d => d.id === p.pid && d.owner === MYID) : null; }
 function createPlacesHtml(){
-  return '<div class="box"><div class="sec-h"><span>My Places</span><a class="btn small" data-act="newPlace">New Place</a></div>' + U.places.map((p, i) => { const pub = placeGame(p); return '<div class="lrow"><img class="s" src="' + gameThumb(GAMES[3], 120, 120) + '" alt="" width="60" height="60"><div class="grow"><b>' + esc(p.name) + '</b><div class="status">' + p.bricks.length + ' bricks' + (pub ? ' &middot; <b style="color:#02b757">Published</b> as <a href="#/game/' + pub.id + '">' + esc(pub.name) + '</a>' : '') + '</div></div><a class="btn green small" data-act="play" data-g="4" data-p="' + i + '">Edit</a><a class="btn small" data-act="publishPlace" data-p="' + i + '">' + (pub ? 'Update Game' : 'Publish') + '</a>' + (pub ? '<a class="btn neutral small" data-act="editGame" data-g="' + pub.id + '">Icon &amp; Info</a><a class="btn neutral small" data-act="unpublish" data-p="' + i + '">Unpublish</a>' : '') + '<a class="btn neutral small" data-act="renamePlace" data-p="' + i + '">Rename</a>' + (U.places.length > 1 ? '<a class="btn neutral small" data-act="delPlace" data-p="' + i + '">Delete</a>' : '') + '</div>'; }).join('') + '</div><div class="box"><div class="sec-h"><span>How building and publishing works</span></div><p style="margin:0 0 8px">Press <b>Edit</b> to open Builder Studio. Use <b>Select</b>, <b>Move</b> and <b>Scale</b> on the toolbar, add parts with <b>Insert</b>, change numbers in <b>Properties</b>, and press <b>Play Test</b> to try your game. Undo is Ctrl+Z. Your place saves automatically.</p><p style="margin:0 0 8px">In a published game, <b>red bricks are lava</b> that send players back to the start and <b>yellow bricks are the goal</b>. Every other color is solid.</p><p style="margin:0">Press <b>Publish</b> (at least 5 bricks) to put it under Community Games, where anyone can join a server and play it together. <b>Update Game</b> republishes your latest bricks.</p></div>';
+  return '<div class="box"><div class="sec-h"><span>My Places</span><a class="btn small" data-act="newPlace">New Place</a></div>' + U.places.map((p, i) => { const pub = placeGame(p); return '<div class="lrow"><img class="s" src="' + gameThumb(GAMES[3], 120, 120) + '" alt="" width="60" height="60"><div class="grow"><b>' + esc(p.name) + '</b><div class="status">' + p.bricks.length + ' bricks' + (pub ? ' &middot; <b style="color:#02b757">Published</b> as <a href="#/game/' + pub.id + '">' + esc(pub.name) + '</a>' : '') + '</div></div><a class="btn green small" data-act="play" data-g="4" data-p="' + i + '">Edit</a><a class="btn small" data-act="publishPlace" data-p="' + i + '">' + (pub ? 'Update Game' : 'Publish') + '</a>' + (pub ? '<a class="btn neutral small" data-act="editGame" data-g="' + pub.id + '">Icon &amp; Info</a><a class="btn neutral small" data-act="unpublish" data-p="' + i + '">Unpublish</a>' : '') + '<a class="btn neutral small" data-act="' + (p.co ? 'coManage' : 'coShare') + '" data-p="' + i + '">' + (p.co ? 'Co-building' : 'Co-build') + '</a><a class="btn neutral small" data-act="renamePlace" data-p="' + i + '">Rename</a>' + (U.places.length > 1 ? '<a class="btn neutral small" data-act="delPlace" data-p="' + i + '">Delete</a>' : '') + '</div>'; }).join('') + '</div>' + coSharedHtml() + '<div class="box"><div class="sec-h"><span>How building and publishing works</span></div><p style="margin:0 0 8px">Press <b>Edit</b> to open Builder Studio. Use <b>Select</b>, <b>Move</b> and <b>Scale</b> on the toolbar, add parts with <b>Insert</b>, change numbers in <b>Properties</b>, and press <b>Play Test</b> to try your game. Undo is Ctrl+Z. Your place saves automatically.</p><p style="margin:0 0 8px">In a published game, <b>red bricks are lava</b> that send players back to the start and <b>yellow bricks are the goal</b>. Every other color is solid.</p><p style="margin:0">Press <b>Publish</b> (at least 5 bricks) to put it under Community Games, where anyone can join a server and play it together. <b>Update Game</b> republishes your latest bricks.</p></div>';
 }
 
+
+/* ---- co-building (shared places; the newest save wins) ---- */
+function coSharedHtml(){
+  const mine = COPLACES.filter(c => c.owner !== MYID); if(!mine.length) return '';
+  return '<div class="box"><div class="sec-h"><span>Shared With Me</span></div>' + mine.map(c => '<div class="lrow"><div class="grow"><b>' + esc(c.name) + '</b><div class="status">By ' + esc(nameOf(c.owner)) + ' &middot; ' + (c.n || 0) + ' bricks &middot; last saved by ' + esc(c.by || '?') + '</div></div><a class="btn green small" data-act="coEdit" data-id="' + esc(c.id) + '">Build Together</a></div>').join('') + '</div>';
+}
+function coPicker(sel){ const fr = friendIds(); return fr.length ? '<div class="inv">' + fr.map(id => '<label class="lrow" style="cursor:pointer"><input type="checkbox" class="cock" value="' + esc(id) + '"' + (sel.indexOf(id) >= 0 ? ' checked' : '') + ' style="margin-right:8px"><span class="grow">' + esc(nameOf(id)) + '</span></label>').join('') + '</div>' : '<p class="muted">Add some friends first, then you can build together.</p>'; }
+function coWatchFor(id){ return cb => DB.collection('cplaces').where('eds', 'array-contains', MYID).onSnapshot(snap => { const d = snapDocs(snap).find(x => x.id === id); if(d) cb(d); }, () => {}); }
 /* ---- Studio templates, version history, shared models ---- */
 const TEMPLATES = [
   {id:'base', name:'Baseplate', desc:'A flat baseplate and a spawn point. Build anything.', icon:'🟩'},
@@ -3118,7 +3135,11 @@ async function playGame(gid, opt){
   if(!window.THREE){ modal('Cannot Start Game', '<p style="margin:0">The 3D engine could not load. Check your connection and reload the page.</p>', [{label:'OK'}]); return; }
   const solo = g.kind === 'studio';
   if(!solo && !ROOM){ modal('Cannot Start Game', '<p style="margin:0">Live multiplayer is not available right now. Reload the page and try again.</p>', [{label:'OK'}]); return; }
-  const server = solo ? 0 : (opt.server || pickServer(g)), place = solo ? U.places[opt.place || 0] : g.custom ? {bricks:unpackBricks(g.bricks), env:g.env} : null, roomName = 'g' + gid + 's' + server;
+  const ownPl = solo ? U.places[opt.place || 0] : null, coDoc = solo ? COPLACES.find(c => c.id === (opt.co || (ownPl && ownPl.co))) : null;
+  if(solo && opt.co && !coDoc){ toast('That shared place is not available.', true); return; }
+  const server = solo ? 0 : (opt.server || pickServer(g)), roomName = 'g' + gid + 's' + server;
+  let place = solo ? (opt.co ? {bricks:unpackBricks(coDoc.bricks), env:coDoc.env || undefined} : ownPl) : g.custom ? {bricks:unpackBricks(g.bricks), env:g.env} : null;
+  if(solo && !opt.co && coDoc){ place.bricks = unpackBricks(coDoc.bricks); if(coDoc.env) place.env = coDoc.env; }
   const L = $('#loading'); L.hidden = false;
   L.innerHTML = '<img class="gt" src="' + gameThumb(g, 400, 400) + '" alt=""><h2>' + esc(g.name) + '</h2><div class="muted" style="color:#bbb">By ' + esc(g.creator) + '</div><div class="lb"><i id="lbf"></i></div><div class="tip">' + esc(['Tip: press / to chat and type /e dance to show off.', 'Tip: Speed Coils and Gravity Coils work in every game.', 'Tip: you can change your look in Avatar at any time.', 'Tip: press Esc to open the menu.'][Math.floor(Math.random() * 4)]) + '</div><a class="btn neutral small cx" data-act="cancelLoad">Cancel</a>';
   requestAnimationFrame(() => requestAnimationFrame(() => { const f = $('#lbf'); if(f) f.style.width = '100%'; }));
@@ -3134,8 +3155,8 @@ async function playGame(gid, opt){
     net:nr ? {room:nr, myId:MYID, nameOf, isBlocked} : null,
     onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; U.stats.earned = (U.stats.earned || 0) + amt; if(g.kind === 'town' || g.kind === 'coins') U.stats.coins += amt; save(); } },
     onEvent:(name, v) => { if(name === 'win'){ if(!g.custom){ U.stats.wins++; giveBadge(g.kind === 'tower' ? 'tower' : g.id === 7 ? 'candy' : g.id === 8 ? 'inferno' : g.kind === 'drive' ? 'racer' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; if(lbType(g) === 'time') submitScore(g, 'time', v); } else if(name === 'ride'){ if(v >= 3) giveBadge('rider'); } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
-    verWatch:solo && place ? placeVersions(place).watch : null, verSave:solo && place ? placeVersions(place).save : null, models:solo ? modelsApi() : null,
-    onSave:(bricks, env) => { if(place && solo){ place.bricks = bricks.map(b => b.slice()); if(env) place.env = env; persist(); if(bricks.length >= 20) giveBadge('builder'); } },
+    coWatch:coDoc ? coWatchFor(coDoc.id) : null, verWatch:solo && place && !opt.co ? placeVersions(place).watch : null, verSave:solo && place && !opt.co ? placeVersions(place).save : null, models:solo ? modelsApi() : null,
+    onSave:(bricks, env) => { if(coDoc) DB.doc('cplaces/' + coDoc.id).update({bricks:packBricks(bricks), n:bricks.length, env:env || null, by:U.name, t:Date.now()}).catch(() => {}); if(place && solo && !opt.co){ place.bricks = bricks.map(b => b.slice()); if(env) place.env = env; persist(); if(bricks.length >= 20) giveBadge('builder'); } },
     onExit:(sm) => { sm = sm || {}; try{ finishScores(g, s, sm); }catch(e){} session = null; endLoad(); leave(); refreshChrome(); render(); if(pendingInvite){ const pi = pendingInvite; pendingInvite = null; setTimeout(() => onInvite(pi.by, pi.g, pi.code), 600); } toast(s.earned ? 'Thanks for playing! You earned ' + s.earned + ' tokens.' : 'Thanks for playing!'); }});
   endLoad();
   if(!ok){ session = null; leave(); modal('Cannot Start Game', '<p style="margin:0">Your browser could not start the 3D view. Make sure WebGL and hardware acceleration are turned on.</p>', [{label:'OK'}]); }
@@ -3236,6 +3257,14 @@ const ACTIONS = {
   }}]),
   exR:() => { const n = Math.floor(+$('#exR').value); if(!(n > 0) || n > U.tokens){ toast('Enter a valid amount of tokens.', true); return; } U.tokens -= n; U.tix += n * 10; save(); toast('Exchanged ' + n + ' tokens for ' + n * 10 + ' tickets.'); render(); },
   exT:() => { const n = Math.floor(+$('#exT').value); if(!(n >= 10) || n > U.tix){ toast('Enter at least 10 tickets (and no more than you have).', true); return; } const r = Math.floor(n / 10); U.tix -= r * 10; U.tokens += r; save(); toast('Exchanged ' + r * 10 + ' tickets for ' + r + ' tokens.'); render(); },
+  coShare:el => { const p = U.places[+el.dataset.p]; if(!p) return;
+    modal('Co-build ' + p.name, '<p style="margin:0 0 8px">Pick friends who can edit this place with you. Everyone sees changes as they are saved. If two people edit at once, the most recent save wins, so talk while you build.</p>' + coPicker([]), [{label:'Cancel', cls:'neutral'}, {label:'Start', fn:() => {
+      const ids = Array.prototype.map.call(document.querySelectorAll('.cock:checked'), c => c.value).slice(0, 7); if(!ids.length){ toast('Pick at least one friend.', true); return false; }
+      const id = 'co' + newId(); DB.doc('cplaces/' + id).set({owner:MYID, name:p.name, eds:[MYID].concat(ids), bricks:packBricks(p.bricks), n:p.bricks.length, env:p.env || null, by:U.name, t:Date.now()}).then(() => { p.co = id; persist(); toast('Co-building started.'); render(); }).catch(() => toast('Could not start co-building. Try again.', true));
+    }}]); },
+  coManage:el => { const p = U.places[+el.dataset.p], c = p && COPLACES.find(x => x.id === p.co); if(!c){ toast('Loading, try again in a moment.', true); return; }
+    modal('Co-building: ' + p.name, '<p style="margin:0 0 8px">Friends who can edit this place:</p>' + coPicker(c.eds), [{label:'Stop Co-building', cls:'neutral', fn:() => { DB.doc('cplaces/' + c.id).delete().catch(() => {}); delete p.co; persist(); render(); }}, {label:'Save', fn:() => { const ids = Array.prototype.map.call(document.querySelectorAll('.cock:checked'), x => x.value).slice(0, 7); DB.doc('cplaces/' + c.id).update({eds:[MYID].concat(ids)}).then(() => toast('Saved.')).catch(() => toast('Could not save.', true)); }}]); },
+  coEdit:el => playGame(4, {co:el.dataset.id}),
   newPlace:() => { if(U.places.length >= 4){ toast('You can have at most 4 places.', true); return; }
     modal('New Place', '<p style="margin:0 0 8px">Start from a template. You can change everything afterwards.</p><div class="tpls">' + TEMPLATES.map((t, i) => '<label class="tpl"><input type="radio" name="tpl" value="' + t.id + '"' + (i === 0 ? ' checked' : '') + '><span class="ti">' + t.icon + '</span><span><b>' + esc(t.name) + '</b><br><span class="muted">' + esc(t.desc) + '</span></span></label>').join('') + '</div>', [{label:'Cancel', cls:'neutral'}, {label:'Create', fn:() => {
       const el = document.querySelector('input[name=tpl]:checked'), id = el ? el.value : 'base', t = templateData(id), tn = TEMPLATES.find(x => x.id === id);

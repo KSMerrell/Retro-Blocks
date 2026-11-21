@@ -334,7 +334,7 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 .coarse #gChat{display:none}
 .coarse #gChat.open{display:flex;top:calc(8px + env(safe-area-inset-top,0px));width:min(420px,calc(100vw - 150px));z-index:5}
 #gChatBtn{display:none}
-.coarse #gChatBtn{display:block;position:absolute;left:max(60px,calc(env(safe-area-inset-left,0px) + 52px));top:calc(8px + env(safe-area-inset-top,0px));width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:rgba(20,22,28,.6);font-size:18px;padding:0;touch-action:manipulation}
+.coarse #gChatBtn{display:block;position:absolute;left:calc(104px + max(8px,env(safe-area-inset-left,0px)));top:calc(8px + env(safe-area-inset-top,0px));width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:rgba(20,22,28,.6);font-size:18px;padding:0;touch-action:manipulation}
 .coarse #gameRoot.studio #gChatBtn{display:none}
 #gStudio{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(30px + env(safe-area-inset-bottom,0px));background:rgba(20,22,28,.78);border:1px solid rgba(255,255,255,.3);padding:8px;display:flex;flex-direction:column;gap:6px;color:#fff;max-width:96vw}
 #gStudio .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center}
@@ -444,6 +444,26 @@ body:not(.in-game) #app{padding-bottom:56px}
 .vote .vn{font-size:13px;color:var(--muted);margin-left:-4px}
 .rate .pc{font-size:11px;white-space:nowrap}
 .gcards .fav-star{color:#f5b301}
+
+#gShotBtn{position:absolute;left:calc(104px + max(8px,env(safe-area-inset-left,0px)));top:calc(8px + env(safe-area-inset-top,0px));width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:rgba(20,22,28,.6);font-size:18px;padding:0;cursor:pointer}
+#gFlash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#gFlash.on{animation:gfl .35s ease-out}
+@keyframes gfl{from{opacity:.8}to{opacity:0}}
+#gSpec{position:absolute;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));background:rgba(20,22,28,.8);color:#fff;border:1px solid rgba(255,255,255,.4);padding:6px 10px;display:flex;gap:10px;align-items:center;font-weight:600;z-index:6}
+#gSpec[hidden]{display:none}
+#gSpec button{background:#00a2ff;border:0;color:#fff;padding:5px 10px;border-radius:3px;cursor:pointer;font-weight:700}
+.gm-body .pl{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.gm-body .pl .tb{background:#555a63;color:#fff;border:0;padding:3px 10px;border-radius:3px;cursor:pointer}
+.gm-body select{margin-left:8px}
+
+.coarse #gShotBtn{left:calc(156px + max(8px,env(safe-area-inset-left,0px)))}
+.coarse #gameRoot.studio #gShotBtn{left:calc(104px + max(8px,env(safe-area-inset-left,0px)))}
+
+.pass .pbar{height:12px;background:#c5c5c5;border:1px solid #9ab}.pass .pbar i{display:block;height:100%;background:#00a2ff}
+.ptiers{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
+.pt{border:1px solid #9fc4e0;background:#fff;padding:6px;display:flex;flex-direction:column;gap:3px;font-size:12px;min-height:84px}
+.pt b{font-size:13px}.pt span{flex:1}.pt em{font-style:normal;color:var(--muted)}
+.pt.ready{border-color:#02b757;background:#eafbf1}.pt.done{opacity:.6}
 
 </style></head><body>
 <div id="shell">
@@ -2148,7 +2168,7 @@ const Engine = (function(){
     for(let i = 0; i < 70; i++){ const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color:cols[i % 6]})); m.position.set(G.P.x, G.P.y + 4, G.P.z); G.scene.add(m); G.debris.push({m, vx:(Math.random() - .5) * 30, vy:25 + Math.random() * 30, vz:(Math.random() - .5) * 30, life:3.2, spin:8}); }
   }
   function simulate(dt){
-    G.T += dt; worldStep(dt); stepPlayer(dt);
+    G.T += dt; G.xpT = (G.xpT || 0) + dt; if(G.xpT >= 30){ G.xpT = 0; G.opts.onEvent && G.opts.onEvent('tick'); } worldStep(dt); stepPlayer(dt);
   }
   /* pets and emote icons */
   function setPet(e, emoji){
@@ -2205,7 +2225,7 @@ const Engine = (function(){
     const P = G.P, tv = G.titleView;
     let tx, ty, tz;
     if(G.state === 'intro'){ G.yaw += dt * .15; G.pitch = .3; G.camDist += (G.game.kind === 'town' ? 110 : 80 - G.camDist) * (1 - Math.exp(-3 * dt)); tx = tv[0]; ty = tv[1]; tz = tv[2]; }
-    else { if(G.car && G.state === 'play'){ let d = G.car.ang + Math.PI - G.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); G.yaw += d * (1 - Math.exp(-4 * dt)); G.pitch += (.3 - G.pitch) * (1 - Math.exp(-4 * dt)); } tx = P.x; ty = P.y + 3.4; tz = P.z; if(G.sMode === 'edit'){ tx = G.focus.x; ty = G.focus.y; tz = G.focus.z; } G.camDist += (G.zoom - G.camDist) * (1 - Math.exp(-6 * dt)); }
+    else { if(G.car && G.state === 'play'){ let d = G.car.ang + Math.PI - G.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); G.yaw += d * (1 - Math.exp(-4 * dt)); G.pitch += (.3 - G.pitch) * (1 - Math.exp(-4 * dt)); } tx = P.x; ty = P.y + 3.4; tz = P.z; if(G.spec){ if(!G.ents.includes(G.spec)) specStop(); else { tx = G.spec.x; ty = G.spec.y + 3.4; tz = G.spec.z; if(P.ff < 1) P.ff = 1; } } if(G.sMode === 'edit'){ tx = G.focus.x; ty = G.focus.y; tz = G.focus.z; } G.camDist += (G.zoom - G.camDist) * (1 - Math.exp(-6 * dt)); }
     G.cf.x += (tx - G.cf.x) * (1 - Math.exp(-(G.camBlend > 0 ? 3 : 20) * dt)); G.cf.y += (ty - G.cf.y) * (1 - Math.exp(-(G.camBlend > 0 ? 3 : 20) * dt)); G.cf.z += (tz - G.cf.z) * (1 - Math.exp(-(G.camBlend > 0 ? 3 : 20) * dt));
     if(G.camBlend > 0) G.camBlend -= dt;
     const cp = Math.cos(G.pitch);
@@ -2232,6 +2252,7 @@ const Engine = (function(){
     G.clouds.forEach(c => { c.position.x += dt * 3; if(c.position.x > 560) c.position.x = -560; });
     const hudT = document.getElementById('gTime'); if(hudT && G.state === 'play'){ const s = fmtT(G.T); if(hudT.textContent !== s) hudT.textContent = s; }
     G.bubbleBoard = (G.bubbleBoard || 0) + dt; if(G.bubbleBoard > 1.5){ G.bubbleBoard = 0; updateBoard(); }
+    perfWatch(dt);
     renderer.render(G.scene, G.camera);
   }
 
@@ -2259,7 +2280,7 @@ const Engine = (function(){
       + '<div id="gToast"><b></b><span></span></div>'
       + '<div id="gHotbar"></div>' + (kind === 'restaurant' ? '<div id="gPrompt"></div><div id="gTray"></div>' : '') + ((kind === 'drive' || kind === 'coaster') ? '<div id="gSpeed"></div>' : '')
       + (kind === 'studio' ? studioHud() : '')
-      + '<button id="gChatBtn" aria-label="Chat">💬</button><div id="gTouch"><div id="gJoy"><div id="gKnob"></div></div><button id="gJump">Jump</button></div>'
+      + '<button id="gChatBtn" aria-label="Chat">💬</button><button id="gShotBtn" aria-label="Screenshot" title="Screenshot (F2)">📷</button><div id="gFlash"></div><div id="gSpec" hidden><span></span><button id="gSpecStop">Stop watching</button></div><div id="gTouch"><div id="gJoy"><div id="gKnob"></div></div><button id="gJump">Jump</button></div>'
       + '<div id="gTimeBox">Time <b id="gTime">0:00</b></div>'
       + '</div>'
       + '<div id="gMenu" hidden><div class="gm-panel"><div class="gm-tabs"><button data-tab="players" class="on">Players</button><button data-tab="settings">Settings</button><button data-tab="help">Help</button></div>'
@@ -2268,14 +2289,45 @@ const Engine = (function(){
   function menuBody(tab){
     const b = document.getElementById('gmBody'); if(!b) return;
     document.querySelectorAll('.gm-tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === tab));
-    if(tab === 'players') b.innerHTML = G.ents.map(e => '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span></div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
-    else if(tab === 'settings') b.innerHTML = '<label class="set"><input type="checkbox" id="setSound"' + (G.sound ? ' checked' : '') + '> Sound effects</label><label class="set">Camera zoom <input type="range" id="setZoom" min="6" max="' + (G.game.kind === 'studio' ? 120 : 60) + '" value="' + Math.round(G.zoom) + '"></label>';
-    else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Emotes</b>: type /e dance, wave, cheer, bounce, point, salute or shrug</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
+    if(tab === 'players') b.innerHTML = G.ents.map((e, i) => '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span>' + (e.remote ? '<button class="tb" data-spec="' + i + '">Watch</button>' : '') + '</div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
+    else if(tab === 'settings') b.innerHTML = '<label class="set">Graphics <select id="setQual"><option value="low"' + (G.qual === 'low' ? ' selected' : '') + '>Low (fastest)</option><option value="med"' + (G.qual === 'med' ? ' selected' : '') + '>Medium</option><option value="high"' + (G.qual === 'high' ? ' selected' : '') + '>High (best looking)</option></select></label><label class="set"><input type="checkbox" id="setSound"' + (G.sound ? ' checked' : '') + '> Sound effects</label><label class="set">Camera zoom <input type="range" id="setZoom" min="6" max="' + (G.game.kind === 'studio' ? 120 : 60) + '" value="' + Math.round(G.zoom) + '"></label>';
+    else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Screenshot</b>: F2 or the camera button<br><b>Emotes</b>: type /e dance, wave, cheer, bounce, point, salute or shrug</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
+    b.onclick = ev => { const w = ev.target.closest('[data-spec]'); if(w){ const t = G.ents[+w.dataset.spec]; resume(); specStart(t); } };
+    const qs = document.getElementById('setQual'); if(qs) qs.onchange = () => setQual(qs.value);
     const s = document.getElementById('setSound'); if(s) s.onchange = () => G.sound = s.checked;
     const z = document.getElementById('setZoom'); if(z) z.oninput = () => G.zoom = +z.value;
   }
   function pause(){ if(!G || G.state !== 'play') return; G.keys.clear(); G.jumpBtn = false; G.joy.vx = G.joy.vy = 0; G.state = 'paused'; document.getElementById('gMenu').hidden = false; menuBody('players'); sfx.menu(true); }
   function resume(){ if(!G || G.state !== 'paused') return; G.state = 'play'; document.getElementById('gMenu').hidden = true; canvas.focus(); sfx.menu(false); }
+
+  /* ---------- graphics quality, screenshot, spectate, gpu report ---------- */
+  const QLV = ['low', 'med', 'high'];
+  function getQual(){ let q = ''; try{ q = localStorage.getItem('rbq') || ''; }catch(e){} return QLV.indexOf(q) >= 0 ? q : (isTouchDev() ? 'med' : 'high'); }
+  function setQual(q, keep){ if(QLV.indexOf(q) < 0) return; if(!keep){ try{ localStorage.setItem('rbq', q); }catch(e){} } G && (G.qual = q); applyQual(); }
+  function applyQual(){
+    if(!renderer || !G) return; const q = G.qual || getQual(), dpr = window.devicePixelRatio || 1;
+    renderer.setPixelRatio(q === 'low' ? 1 : q === 'med' ? Math.min(dpr, 1.5) : Math.min(dpr, 2));
+    const sh = q !== 'low', was = renderer.shadowMap.enabled; renderer.shadowMap.enabled = sh;
+    if(G.sun){ G.sun.castShadow = sh; const ms = q === 'high' ? 2048 : 1024; if(G.sun.shadow.mapSize.x !== ms){ G.sun.shadow.mapSize.set(ms, ms); if(G.sun.shadow.map){ G.sun.shadow.map.dispose(); G.sun.shadow.map = null; } } }
+    if(was !== sh && G.scene) G.scene.traverse(o => { if(o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
+    resize();
+  }
+  function screenshot(){
+    if(!G || !renderer) return; try{
+      renderer.render(G.scene, G.camera); const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'Retro-Blox-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.png'; document.body.appendChild(a); a.click(); a.remove();
+      const f = document.getElementById('gFlash'); if(f){ f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+      toast('Screenshot saved', 'Look in your Downloads folder.');
+    }catch(e){ toast('Screenshot failed', 'Your device would not let the game save a picture.'); }
+  }
+  function specStart(e){ if(!G || !e || !G.ents.includes(e) || e === G.P) return; G.spec = e; G.camBlend = .8; const b = document.getElementById('gSpec'); if(b){ b.hidden = false; b.querySelector('span').textContent = 'Watching ' + e.user.name; } }
+  function specStop(){ if(!G || !G.spec) return; G.spec = null; G.camBlend = .6; const b = document.getElementById('gSpec'); if(b) b.hidden = true; }
+  function gpuInfo(){ try{ const gl = renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return {gpu:x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)).slice(0, 80) : 'hidden', gl:String(gl.getParameter(gl.VERSION)).slice(0, 40), tex:gl.getParameter(gl.MAX_TEXTURE_SIZE)}; }catch(e){ return {gpu:'unknown'}; } }
+  function perfWatch(dt){
+    const w = G.perf || (G.perf = {t:0, n:0, done:false}); if(w.done || G.state !== 'play') return; w.t += dt; w.n++;
+    if(w.t < 8) return; w.done = true; const fps = Math.round(w.n / w.t), q = G.qual;
+    if(!window.__gpuSent){ window.__gpuSent = 1; try{ const i = gpuInfo(); if(typeof reportErr === 'function') reportErr('GPU ' + JSON.stringify({fps, q, gpu:i.gpu, gl:i.gl, tex:i.tex, dpr:window.devicePixelRatio, w:innerWidth, h:innerHeight, kind:G.game.kind})); }catch(e){} }
+    if(fps < 24 && q !== 'low'){ const nq = q === 'high' ? 'med' : 'low'; setQual(nq, true); toast('Graphics set to ' + (nq === 'med' ? 'Medium' : 'Low'), 'The game was running slowly, so it was made lighter. You can change this in Settings (Esc).'); }
+  }
 
   /* ---------- start / stop ---------- */
   function isTouchDev(){ const ua = navigator.userAgent || ''; if(/Electron|Windows NT|CrOS/i.test(ua) && !/Mobile|Tablet/i.test(ua)) return false; if(/Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(ua)) return true; if(/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true; return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches); }
@@ -2285,7 +2337,7 @@ const Engine = (function(){
     ensureAudio();
     envDefaultsReset(); const game = opts.game; abort = new AbortController(); const sig = {signal:abort.signal};
     G = {opts, game, state:'intro', T:0, tR:0, acc:0, lastSec:-1, colliders:[], killers:[], movers:[], vanishers:[], trigs:[], doors:[], npcs:[], waters:[], zones:[], doorT:{}, tpCool:0, zoneIdx:-2, bgm:-1, spinners:[], pads:[], debris:[], ents:[], bots:[], keys:new Set(), typing:false, jumpBtn:false, joy:{id:null, vx:0, vy:0, ox:0, oy:0}, look:{id:null, x:0, y:0, sx:0, sy:0}, yaw:0, pitch:.38, zoom:game.kind === 'studio' ? 40 : 16, camDist:80, cf:{x:0, y:8, z:-40}, camBlend:0, sound:true, music:-1, heard:-1, mt:0, won:false, checkpoint:null, ray:new THREE.Raycaster()};
-    makeScene();
+    makeScene(); G.qual = getQual(); applyQual();
     const builder = game.kind === 'obby' && game.gen ? (() => buildGenObby(game.gen)) : ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio, coins:buildCoinIsland, restaurant:buildRestaurant, drive:buildDrive, tiledrop:buildTileDrop, coaster:buildCoaster})[game.kind]; builder();
     const root = document.getElementById('gameRoot'); root.textContent = ''; root.appendChild(canvas); root.insertAdjacentHTML('beforeend', hudHtml(game.kind)); root.hidden = false; document.body.classList.add('in-game');
     if(isTouchDev()) root.classList.add('coarse'); else root.classList.remove('coarse');
@@ -2326,6 +2378,8 @@ const Engine = (function(){
       if(e.code === 'Tab'){ e.preventDefault(); const bd = document.getElementById('gBoard'); if(bd) bd.style.display = bd.style.display === 'none' ? '' : 'none'; return; }
       if(e.code === 'F11'){ e.preventDefault(); try{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); }catch(x){} return; }
       if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) >= 0) e.preventDefault();
+      if(e.code === 'F2'){ e.preventDefault(); screenshot(); return; }
+      if(G.spec && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) >= 0) specStop();
       G.keys.add(e.code);
       if(e.code === 'KeyI') G.zoom = Math.max(4, G.zoom - 3); if(e.code === 'KeyO') G.zoom = Math.min(G.game.kind === 'studio' ? 120 : 60, G.zoom + 3);
       if(/^Digit[1-9]$/.test(e.code)) equip(+e.code.slice(5) - 1);
@@ -2358,6 +2412,7 @@ const Engine = (function(){
       if(G.game.kind === 'studio' && G.sMode === 'edit' && e.button === 0 && G.tool === 'brush'){ G.paint = {id:e.pointerId, changed:false}; sBrush(e); return; }
       if(G.game.kind === 'studio' && G.sMode === 'edit' && e.button === 0 && selList().length){ const h = sHandleHit(e); if(h && sDragStart(h, e)) return; }
       if(e.pointerType === 'touch' && isTouchDev() && !root0().classList.contains('coarse')) root0().classList.add('coarse');
+      if(G.spec && e.pointerType === 'touch' && e.clientX < innerWidth * .45) specStop();
       if((G.game.kind !== 'studio' || G.sMode === 'test') && e.pointerType === 'touch' && e.clientX < innerWidth * .45 && e.clientY > innerHeight * .3 && G.joy.id === null){ G.joy.id = e.pointerId; G.joy.ox = e.clientX; G.joy.oy = e.clientY; joyBase.style.left = (e.clientX - 58) + 'px'; joyBase.style.top = (e.clientY - 58) + 'px'; joyBase.style.bottom = 'auto'; }
       else if(G.look.id === null){ G.look.id = e.pointerId; G.look.x = G.look.sx = e.clientX; G.look.y = G.look.sy = e.clientY; }
     }, sig);
@@ -2378,6 +2433,7 @@ const Engine = (function(){
     };
     canvas.addEventListener('pointerup', up, sig); canvas.addEventListener('pointercancel', up, sig);
     const gt = document.getElementById('gTouch'); if(gt && G.game.kind === 'studio'){ const sync = () => { if(!G){ clearInterval(iv); return; } gt.style.visibility = G.sMode === 'edit' ? 'hidden' : ''; }; const iv = setInterval(sync, 300); sync(); }
+    const sb = document.getElementById('gShotBtn'); if(sb) sb.onclick = screenshot; const ss = document.getElementById('gSpecStop'); if(ss) ss.onclick = specStop;
     const cb = document.getElementById('gChatBtn'), gch = document.getElementById('gChat'); if(cb && gch){ cb.onclick = () => { const on = gch.classList.toggle('open'); if(on){ const i = document.getElementById('gChatIn'); i.focus(); } }; const ci = document.getElementById('gChatIn'); ci.addEventListener('blur', () => setTimeout(() => gch.classList.remove('open'), 150)); }
     const jb = document.getElementById('gJump'); jb.addEventListener('pointerdown', e => { e.preventDefault(); G.jumpBtn = true; }); ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => jb.addEventListener(n, () => { if(G) G.jumpBtn = false; }));
   }
@@ -3019,9 +3075,19 @@ function renderPets(){
   else body = '<div class="box"><div class="sec-h"><span>My Pets (' + U.pets.length + ' of ' + PETS.filter(p => !p.ev).length + '+)</span></div>' + (U.pets.length ? '<div class="pets">' + PETS.filter(p => U.pets.indexOf(p.id) >= 0).map(p => '<div class="pet' + (U.pet === p.id ? ' on' : '') + '"><div class="em">' + p.e + '</div><b>' + p.n + '</b><div class="muted" style="font-size:12px">' + RARITY[p.r] + (p.ev ? ' &middot; Event' : '') + '</div><a class="btn small" style="margin-top:6px" data-act="equipPet" data-p="' + p.id + '">' + (U.pet === p.id ? 'Put Away' : 'Bring Along') + '</a></div>').join('') + '</div>' : '<p class="muted" style="margin:0">You do not have a pet yet. Visit the <a href="#/pets?tab=shop">Egg Shop</a>.</p>') + '</div>';
   setApp('<h1 class="page-h">Pets &amp; Emotes</h1>' + tabs + body);
 }
+const SEASON = [{a:25}, {emote:'snow'}, {a:50}, {item:'Frosty Beanie'}, {a:75}, {item:'Cozy Sweater'}, {pet:'snowman'}, {item:'Snow Pants'}, {a:100}, {item:'Frost Hoodie', pet:'reindeer', a:150}], SEASON_XP = 100, SEASON_DAY_CAP = 300;
+const seasonOf = () => U.season || (U.season = {xp:0, claimed:[], day:'', dxp:0});
+function addSeasonXp(n){ if(!U || !eventOn('winter')) return; const s = seasonOf(), k = dayKey(new Date()); if(s.day !== k){ s.day = k; s.dxp = 0; } n = Math.min(n, SEASON_DAY_CAP - s.dxp); if(n <= 0) return; s.dxp += n; s.xp += n; persist(); }
+function seasonRewardTxt(r){ const p = []; if(r.a) p.push(r.a + ' tokens'); if(r.emote) p.push((EMO_BY_ID[r.emote] || {}).n + ' emote'); if(r.item) p.push(r.item); if(r.pet) p.push(((PET_BY_ID[r.pet] || {}).n || r.pet) + ' pet'); return p.join(' + '); }
+function seasonHtml(){
+  const s = seasonOf(), tier = Math.min(SEASON.length, Math.floor(s.xp / SEASON_XP)), into = tier >= SEASON.length ? SEASON_XP : s.xp % SEASON_XP;
+  return '<div class="pass"><div class="sec-h" style="margin-top:12px"><span>Winter Pass</span><span class="muted" style="font-size:13px">Tier ' + tier + ' of ' + SEASON.length + '</span></div><div class="pbar"><i style="width:' + Math.round((tier >= SEASON.length ? 100 : into) ) + '%"></i></div><div class="muted" style="font-size:12px;margin:3px 0 8px">' + (tier >= SEASON.length ? 'Pass complete!' : into + ' / ' + SEASON_XP + ' XP to Tier ' + (tier + 1)) + '</div><div class="ptiers">'
+    + SEASON.map((r, i) => { const done = s.claimed.indexOf(i) >= 0, ready = !done && s.xp >= (i + 1) * SEASON_XP; return '<div class="pt' + (done ? ' done' : ready ? ' ready' : '') + '"><b>' + (i + 1) + '</b><span>' + esc(seasonRewardTxt(r)) + '</span>' + (done ? '<em>Claimed</em>' : ready ? '<a class="btn green small" data-act="claimSeason" data-t="' + i + '">Claim</a>' : '<em>' + ((i + 1) * SEASON_XP - s.xp) + ' XP</em>') + '</div>'; }).join('')
+    + '</div><p class="muted" style="font-size:12px;margin:8px 0 0">Earn XP by playing (5 every 30 seconds), winning games (+30) and your daily reward (+50). Up to ' + SEASON_DAY_CAP + ' XP a day.</p></div>';
+}
 function eventBanner(){
   if(!eventOn('winter')) return ''; const left = Math.max(0, Math.ceil((EVENTS.winter.to - Date.now()) / 86400000));
-  return '<div class="box evt"><div class="sec-h"><span>&#10052; Winter Wonderland is here!</span><span class="muted" style="font-size:13px">' + left + ' days left</span></div><p style="margin:0 0 8px">Play the limited-time <b>Frostbite Frenzy</b> obby, grab winter hats, sweaters and pants in the Catalog, and hatch the Snowman or Reindeer from the Winter Egg. Everything melts away on ' + EVENTS.winter.end + '.</p><a class="btn small" href="#/game/13">Play Frostbite Frenzy</a> <a class="btn neutral small" href="#/catalog">Winter items</a> <a class="btn neutral small" href="#/pets?tab=shop">Winter Egg</a></div>';
+  return '<div class="box evt"><div class="sec-h"><span>&#10052; Winter Wonderland is here!</span><span class="muted" style="font-size:13px">' + left + ' days left</span></div><p style="margin:0 0 8px">Play the limited-time <b>Frostbite Frenzy</b> obby, grab winter hats, sweaters and pants in the Catalog, and hatch the Snowman or Reindeer from the Winter Egg. Everything melts away on ' + EVENTS.winter.end + '.</p><a class="btn small" href="#/game/13">Play Frostbite Frenzy</a> <a class="btn neutral small" href="#/catalog">Winter items</a> <a class="btn neutral small" href="#/pets?tab=shop">Winter Egg</a>' + seasonHtml() + '</div>';
 }
 
 /* ---- leaderboards ---- */
@@ -3187,7 +3253,7 @@ async function playGame(gid, opt){
   const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar)), owned:U.owned.slice(), petEm:(PET_BY_ID[U.pet] || {}).e || '', emotes:(U.emotes || []).slice()}, seed:hashStr(roomName), serverName:solo ? '' : (typeof server === 'string' ? 'Private server' : 'Server ' + server), place:place ? {bricks:place.bricks, env:place.env} : null,
     net:nr ? {room:nr, myId:MYID, nameOf, isBlocked} : null,
     onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; U.stats.earned = (U.stats.earned || 0) + amt; if(g.kind === 'town' || g.kind === 'coins') U.stats.coins += amt; save(); } },
-    onEvent:(name, v) => { if(name === 'win'){ if(!g.custom){ U.stats.wins++; giveBadge(g.kind === 'tower' ? 'tower' : g.id === 7 ? 'candy' : g.id === 8 ? 'inferno' : g.kind === 'drive' ? 'racer' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; if(lbType(g) === 'time') submitScore(g, 'time', v); } else if(name === 'ride'){ if(v >= 3) giveBadge('rider'); } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
+    onEvent:(name, v) => { if(name === 'tick') addSeasonXp(5); if(name === 'win'){ addSeasonXp(30); if(!g.custom){ U.stats.wins++; giveBadge(g.kind === 'tower' ? 'tower' : g.id === 7 ? 'candy' : g.id === 8 ? 'inferno' : g.kind === 'drive' ? 'racer' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; if(lbType(g) === 'time') submitScore(g, 'time', v); } else if(name === 'ride'){ if(v >= 3) giveBadge('rider'); } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
     coWatch:coDoc ? coWatchFor(coDoc.id) : null, verWatch:solo && place && !opt.co ? placeVersions(place).watch : null, verSave:solo && place && !opt.co ? placeVersions(place).save : null, models:solo ? modelsApi() : null,
     onSave:(bricks, env) => { if(coDoc) DB.doc('cplaces/' + coDoc.id).update({bricks:packBricks(bricks), n:bricks.length, env:env || null, by:U.name, t:Date.now()}).catch(() => {}); if(place && solo && !opt.co){ place.bricks = bricks.map(b => b.slice()); if(env) place.env = env; persist(); if(bricks.length >= 20) giveBadge('builder'); } },
     onExit:(sm) => { sm = sm || {}; try{ finishScores(g, s, sm); }catch(e){} session = null; endLoad(); leave(); refreshChrome(); render(); if(pendingInvite){ const pi = pendingInvite; pendingInvite = null; setTimeout(() => onInvite(pi.by, pi.g, pi.code), 600); } toast(s.earned ? 'Thanks for playing! You earned ' + s.earned + ' tokens.' : 'Thanks for playing!'); }});
@@ -3221,7 +3287,12 @@ const ACTIONS = {
   logout:async () => { try{ await fetch('/api/logout', {method:'POST'}); }catch(e){} location.href = '/'; },
   closeModal, reloadPage:() => location.reload(), doOnboard,
   toggleBal:() => { const d = $('#balDrop'); const menu = $('#menuDrop'); if(menu) menu.hidden = true; d.hidden = !d.hidden; }, toggleMenu:() => { const d = $('#menuDrop'); const bal = $('#balDrop'); if(bal) bal.hidden = true; d.hidden = !d.hidden; },
-  claimDaily:() => { if(!dailyReady()) return; const st = streakNext(), amt = dailyAmt(); U.lastDaily = Date.now(); U.lastDay = dayKey(new Date()); U.streak = st; U.tokens += amt; U.tix += 10; if(st >= 7) giveBadge('streak7'); persist(); toast('Daily reward claimed: +' + amt + ' tokens and +10 tickets. Streak: ' + st + '.'); refreshChrome(); render(); },
+  claimSeason:el => { const i = +el.dataset.t, s = seasonOf(), r = SEASON[i]; if(!r || s.claimed.indexOf(i) >= 0 || s.xp < (i + 1) * SEASON_XP || !eventOn('winter')) return;
+    if(r.a) U.tokens += r.a; if(r.emote && U.emotes.indexOf(r.emote) < 0) U.emotes.push(r.emote);
+    if(r.item){ const it = ITEMS.find(x => x.name === r.item); if(it && U.owned.indexOf(it.id) < 0) U.owned.push(it.id); }
+    if(r.pet && U.pets.indexOf(r.pet) < 0) U.pets.push(r.pet);
+    s.claimed.push(i); persist(); toast('Winter Pass Tier ' + (i + 1) + ': ' + seasonRewardTxt(r) + '!'); refreshChrome(); render(); },
+  claimDaily:() => { addSeasonXp(50); if(!dailyReady()) return; const st = streakNext(), amt = dailyAmt(); U.lastDaily = Date.now(); U.lastDay = dayKey(new Date()); U.streak = st; U.tokens += amt; U.tix += 10; if(st >= 7) giveBadge('streak7'); persist(); toast('Daily reward claimed: +' + amt + ' tokens and +10 tickets. Streak: ' + st + '.'); refreshChrome(); render(); },
   postStatus,
   play:el => { if(el.dataset.p != null && el.dataset.g === '4') playGame(4, {place:+el.dataset.p}); else playGame(gidOf(el.dataset.g), {server:+(el.dataset.s || 0)}); },
   privServer:el => privateModal(gidOf(el.dataset.g)),

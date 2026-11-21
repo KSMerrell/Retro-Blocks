@@ -468,6 +468,27 @@ body:not(.in-game) #app{padding-bottom:56px}
 #gSLdot{display:none;position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:0 0 0 2px rgba(0,0,0,.45);pointer-events:none}
 #gSLdot.on{display:block}
 
+/* ---- classic top bar ---- */
+#gTopBar{position:absolute;left:0;right:0;top:0;height:calc(40px + env(safe-area-inset-top,0px));background:linear-gradient(rgba(0,0,0,.66),rgba(0,0,0,.42));pointer-events:none!important}
+#gTopName{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));color:#fff;font-weight:700;font-size:15px;text-shadow:0 1px 2px #000;pointer-events:none!important;max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#gChatBtn,#gBackBtn{display:block}
+#gChat.hide{display:none}
+#gHotbar.hide{display:none!important}
+#gameRoot:not(.studio) #gMenuBtn,#gameRoot:not(.studio) #gChatBtn,#gameRoot:not(.studio) #gBackBtn,#gameRoot:not(.studio) #gEmoBtn,#gameRoot:not(.studio) #gShotBtn{position:absolute;top:calc(2px + env(safe-area-inset-top,0px));width:36px;height:36px;border:0;background:transparent;border-radius:6px;font-size:19px;padding:0;display:grid;place-items:center;cursor:pointer}
+#gameRoot:not(.studio) #gMenuBtn:hover,#gameRoot:not(.studio) #gChatBtn:hover,#gameRoot:not(.studio) #gBackBtn:hover,#gameRoot:not(.studio) #gEmoBtn:hover,#gameRoot:not(.studio) #gShotBtn:hover{background:rgba(255,255,255,.18)}
+#gameRoot:not(.studio) #gMenuBtn{left:calc(6px + max(0px,env(safe-area-inset-left,0px)))}
+#gameRoot:not(.studio) #gChatBtn{left:calc(48px + max(0px,env(safe-area-inset-left,0px)))}
+#gameRoot:not(.studio) #gBackBtn{left:calc(90px + max(0px,env(safe-area-inset-left,0px)))}
+#gameRoot:not(.studio) #gEmoBtn{left:calc(140px + max(0px,env(safe-area-inset-left,0px)))}
+#gameRoot:not(.studio) #gShotBtn{left:calc(182px + max(0px,env(safe-area-inset-left,0px)))}
+#gameRoot:not(.studio) #gEmoPanel{left:calc(140px + max(0px,env(safe-area-inset-left,0px)));top:calc(44px + env(safe-area-inset-top,0px))}
+#gameRoot:not(.studio) #gRight{top:calc(46px + env(safe-area-inset-top,0px))}
+#gameRoot:not(.studio) #gChat{top:calc(48px + env(safe-area-inset-top,0px))}
+#gameRoot:not(.studio) #gSpec{top:calc(46px + env(safe-area-inset-top,0px))}
+#gameRoot.studio #gTopBar,#gameRoot.studio #gTopName,#gameRoot.studio #gChatBtn,#gameRoot.studio #gBackBtn{display:none!important}
+.coarse #gameRoot:not(.studio) #gChatBtn{left:calc(48px + max(0px,env(safe-area-inset-left,0px)))}
+.coarse #gameRoot:not(.studio) #gShotBtn{left:calc(182px + max(0px,env(safe-area-inset-left,0px)))}
+
 </style></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
@@ -2277,14 +2298,14 @@ const Engine = (function(){
   /* ---------- HUD ---------- */
   function hudHtml(kind){
     return '<div id="gHud">'
-      + '<button id="gEmoBtn" aria-label="Emotes" title="Emotes">😀</button><div id="gEmoPanel" hidden></div><button id="gMenuBtn" aria-label="Menu"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 6h16M4 12h16M4 18h16" stroke="#fff" stroke-width="2.6" stroke-linecap="square"/></svg></button>'
+      + '<div id="gTopBar"></div><div id="gTopName"></div><button id="gEmoBtn" aria-label="Emotes" title="Emotes">😀</button><div id="gEmoPanel" hidden></div><button id="gMenuBtn" aria-label="Menu" title="Menu (Esc)"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><button id="gChatBtn" aria-label="Chat" title="Chat"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 5h16v11H11l-5 4v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></button><button id="gBackBtn" aria-label="Backpack" title="Backpack"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M7 9a5 5 0 0 1 10 0"/><rect x="5" y="9" width="14" height="12" rx="2.5"/><path d="M9 14h6"/></svg></button>'
       + '<div id="gChat"><div id="gChatLog"></div><input id="gChatIn" maxlength="120" placeholder="To chat click here or press the &quot;/&quot; key" autocomplete="off" aria-label="Chat"></div>'
       + '<div id="gRight"><div id="gHp"><span>Health</span><div class="bar"><div id="gHpFill"></div></div><b id="gHpNum">100</b></div>'
       + '<div id="gBoard"><div class="bh">Players</div><div class="gr cols" id="gBoardCols"></div><div id="gBoardRows"></div></div></div>'
       + '<div id="gToast"><b></b><span></span></div>'
       + '<div id="gHotbar"></div>' + (kind === 'restaurant' ? '<div id="gPrompt"></div><div id="gTray"></div>' : '') + ((kind === 'drive' || kind === 'coaster') ? '<div id="gSpeed"></div>' : '')
       + (kind === 'studio' ? studioHud() : '')
-      + '<button id="gChatBtn" aria-label="Chat">💬</button><button id="gShotBtn" aria-label="Screenshot" title="Screenshot (F2)">📷</button><div id="gFlash"></div><div id="gSLdot"></div><div id="gSpec" hidden><span></span><button id="gSpecStop">Stop watching</button></div><div id="gTouch"><div id="gJoy"><div id="gKnob"></div></div><button id="gJump">Jump</button></div>'
+      + '<button id="gShotBtn" aria-label="Screenshot" title="Screenshot (F2)">📷</button><div id="gFlash"></div><div id="gSLdot"></div><div id="gSpec" hidden><span></span><button id="gSpecStop">Stop watching</button></div><div id="gTouch"><div id="gJoy"><div id="gKnob"></div></div><button id="gJump">Jump</button></div>'
       + '<div id="gTimeBox">Time <b id="gTime">0:00</b></div>'
       + '</div>'
       + '<div id="gMenu" hidden><div class="gm-panel"><div class="gm-tabs"><button data-tab="players" class="on">Players</button><button data-tab="settings">Settings</button><button data-tab="help">Help</button></div>'
@@ -2349,7 +2370,7 @@ const Engine = (function(){
     G = {opts, game, state:'intro', T:0, tR:0, acc:0, lastSec:-1, colliders:[], killers:[], movers:[], vanishers:[], trigs:[], doors:[], npcs:[], waters:[], zones:[], doorT:{}, tpCool:0, zoneIdx:-2, bgm:-1, spinners:[], pads:[], debris:[], ents:[], bots:[], keys:new Set(), typing:false, jumpBtn:false, joy:{id:null, vx:0, vy:0, ox:0, oy:0}, look:{id:null, x:0, y:0, sx:0, sy:0}, yaw:0, pitch:.38, zoom:game.kind === 'studio' ? 40 : 16, camDist:80, cf:{x:0, y:8, z:-40}, camBlend:0, sound:true, music:-1, heard:-1, mt:0, won:false, checkpoint:null, ray:new THREE.Raycaster()};
     makeScene(); G.qual = getQual(); applyQual();
     const builder = game.kind === 'obby' && game.gen ? (() => buildGenObby(game.gen)) : ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio, coins:buildCoinIsland, restaurant:buildRestaurant, drive:buildDrive, tiledrop:buildTileDrop, coaster:buildCoaster})[game.kind]; builder();
-    const root = document.getElementById('gameRoot'); root.textContent = ''; root.appendChild(canvas); root.insertAdjacentHTML('beforeend', hudHtml(game.kind)); root.hidden = false; document.body.classList.add('in-game');
+    const root = document.getElementById('gameRoot'); root.textContent = ''; root.appendChild(canvas); root.insertAdjacentHTML('beforeend', hudHtml(game.kind)); { const tn = document.getElementById('gTopName'); if(tn) tn.textContent = opts.user.name; chatMsg('sys', 'Please type / for a list of commands'); } root.hidden = false; document.body.classList.add('in-game');
     if(isTouchDev()) root.classList.add('coarse'); else root.classList.remove('coarse');
     // player
     const sp = G.pvp ? G.arenaSpawns() : G.spawn;
@@ -2385,7 +2406,7 @@ const Engine = (function(){
       if(!G || e.target === chatIn || (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName))) return;
       if(e.code === 'Escape'){ if(G.state === 'play') pause(); else if(G.state === 'paused') resume(); return; }
       if(G.state !== 'play') return;
-      if(e.key === '/'){ e.preventDefault(); chatIn.focus(); return; }
+      if(e.key === '/'){ e.preventDefault(); const gc = document.getElementById('gChat'); if(gc) gc.classList.remove('hide'); chatIn.focus(); return; }
       if(e.code === 'Tab'){ e.preventDefault(); const bd = document.getElementById('gBoard'); if(bd) bd.style.display = bd.style.display === 'none' ? '' : 'none'; return; }
       if(e.code === 'F11'){ e.preventDefault(); try{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); }catch(x){} return; }
       if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) >= 0) e.preventDefault();
@@ -2404,7 +2425,7 @@ const Engine = (function(){
     document.addEventListener('visibilitychange', () => { if(G && document.hidden && G.state === 'play') pause(); }, sig);
     chatIn.addEventListener('focus', () => { G.typing = true; G.keys.clear(); }); chatIn.addEventListener('blur', () => { if(G) G.typing = false; });
     chatIn.addEventListener('keydown', e => {
-      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(t){ const m = /^\/e\s+(dance|wave|cheer|bounce|point|salute|shrug)\b/i.exec(t), m2 = /^\/e\s+(\w+)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else if(m2 && EMO_BY_ID[m2[1].toLowerCase()]){ if(!playEmo(m2[1].toLowerCase())) chatMsg('info', 'You do not own that emote yet.'); } else if(typeof badText === 'function' && badText(t)){ chatMsg('info', 'Your message was not sent because it has words that are not allowed.'); } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
+      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(t === '/' || /^\/(help|\?)$/i.test(t)){ chatMsg('sys', 'Commands: /e dance, /e wave, /e cheer, /e bounce, /e point, /e salute, /e shrug, or /e and the name of an emote you own.'); chatIn.value = ''; chatIn.blur(); canvas.focus(); return; } if(t){ const m = /^\/e\s+(dance|wave|cheer|bounce|point|salute|shrug)\b/i.exec(t), m2 = /^\/e\s+(\w+)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else if(m2 && EMO_BY_ID[m2[1].toLowerCase()]){ if(!playEmo(m2[1].toLowerCase())) chatMsg('info', 'You do not own that emote yet.'); } else if(typeof badText === 'function' && badText(t)){ chatMsg('info', 'Your message was not sent because it has words that are not allowed.'); } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       else if(e.key === 'Escape'){ chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       e.stopPropagation();
     });
@@ -2447,8 +2468,9 @@ const Engine = (function(){
     const gt = document.getElementById('gTouch'); if(gt && G.game.kind === 'studio'){ const sync = () => { if(!G){ clearInterval(iv); return; } gt.style.visibility = G.sMode === 'edit' ? 'hidden' : ''; }; const iv = setInterval(sync, 300); sync(); }
     document.addEventListener('mousemove', e => { if(!G || !G.sl || document.pointerLockElement !== canvas || G.state !== 'play') return; G.yaw -= e.movementX * .0042; G.pitch = Math.max(-.15, Math.min(1.35, G.pitch + e.movementY * .0036)); }, sig);
     canvas.addEventListener('pointerdown', () => { if(G && G.sl && G.state === 'play' && document.pointerLockElement !== canvas){ try{ canvas.requestPointerLock(); }catch(e){} } }, sig);
+    const bk = document.getElementById('gBackBtn'), hbx = document.getElementById('gHotbar'); if(bk && hbx) bk.onclick = () => hbx.classList.toggle('hide');
     const sb = document.getElementById('gShotBtn'); if(sb) sb.onclick = screenshot; const ss = document.getElementById('gSpecStop'); if(ss) ss.onclick = specStop;
-    const cb = document.getElementById('gChatBtn'), gch = document.getElementById('gChat'); if(cb && gch){ cb.onclick = () => { const on = gch.classList.toggle('open'); if(on){ const i = document.getElementById('gChatIn'); i.focus(); } }; const ci = document.getElementById('gChatIn'); ci.addEventListener('blur', () => setTimeout(() => gch.classList.remove('open'), 150)); }
+    const cb = document.getElementById('gChatBtn'), gch = document.getElementById('gChat'); if(cb && gch){ cb.onclick = () => { if(isTouchDev()){ const on = gch.classList.toggle('open'); if(on) document.getElementById('gChatIn').focus(); } else { const h = gch.classList.toggle('hide'); if(!h) document.getElementById('gChatIn').focus(); } }; const ci = document.getElementById('gChatIn'); ci.addEventListener('blur', () => setTimeout(() => gch.classList.remove('open'), 150)); }
     const jb = document.getElementById('gJump'); jb.addEventListener('pointerdown', e => { e.preventDefault(); G.jumpBtn = true; }); ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => jb.addEventListener(n, () => { if(G) G.jumpBtn = false; }));
   }
   window.__bbDebug = () => G;

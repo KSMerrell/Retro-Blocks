@@ -332,6 +332,10 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 #gJump{position:absolute;right:max(28px,env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:96px;height:96px;border-radius:50%;border:3px solid rgba(255,255,255,.7);background:rgba(0,162,255,.7);color:#fff;font:700 18px var(--ui);touch-action:none;box-shadow:0 0 0 2px rgba(0,0,0,.25);-webkit-tap-highlight-color:transparent}
 #gJump:active{background:rgba(0,120,220,.95)}
 .coarse #gChat{display:none}
+.coarse #gChat.open{display:flex;top:calc(8px + env(safe-area-inset-top,0px));width:min(420px,calc(100vw - 150px));z-index:5}
+#gChatBtn{display:none}
+.coarse #gChatBtn{display:block;position:absolute;left:max(60px,calc(env(safe-area-inset-left,0px) + 52px));top:calc(8px + env(safe-area-inset-top,0px));width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:rgba(20,22,28,.6);font-size:18px;padding:0;touch-action:manipulation}
+.coarse #gameRoot.studio #gChatBtn{display:none}
 #gStudio{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(30px + env(safe-area-inset-bottom,0px));background:rgba(20,22,28,.78);border:1px solid rgba(255,255,255,.3);padding:8px;display:flex;flex-direction:column;gap:6px;color:#fff;max-width:96vw}
 #gStudio .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center}
 #gStudio .tb{background:#555a63;color:#fff;border:0;padding:5px 12px;border-radius:3px;cursor:pointer;font-weight:600;font-size:14px}
@@ -436,6 +440,10 @@ body:not(.in-game) #app{padding-bottom:56px}
 @media (max-width:760px){#sPop{width:220px}}
 
 @media (max-width:760px){.logo{flex:none;margin-right:4px}.hmark{height:26px;width:auto;max-width:none}.logo .hword{display:none}#hdr nav a{padding:0 6px}}
+
+.vote .vn{font-size:13px;color:var(--muted);margin-left:-4px}
+.rate .pc{font-size:11px;white-space:nowrap}
+.gcards .fav-star{color:#f5b301}
 
 </style></head><body>
 <div id="shell">
@@ -2175,6 +2183,10 @@ const Engine = (function(){
     if(e.emote === 'dance'){ const s = Math.sin(G.tR * 9); t = [-2.7 + s, -2.7 - s, s * .5, -s * .5]; A.group.position.y += Math.abs(Math.sin(G.tR * 9)) * .5; }
     else if(e.emote === 'wave'){ t[1] = -3 + Math.sin(G.tR * 10) * .5; }
     else if(e.emote === 'cheer'){ t = [-3.1, -3.1, 0, 0]; A.group.position.y += Math.abs(Math.sin(G.tR * 8)) * .7; }
+    else if(e.emote === 'bounce'){ const h = Math.sin(G.tR * 16); t = [-.7 + h * .5, -.7 - h * .5, 0, 0]; A.group.position.y += Math.abs(h) * .3; }
+    else if(e.emote === 'point'){ t[1] = -1.57; }
+    else if(e.emote === 'salute'){ t[1] = -2.3 + Math.sin(G.tR * 3) * .03; }
+    else if(e.emote === 'shrug'){ const h = Math.abs(Math.sin(G.tR * 4)); t = [-.5 - h * .5, -.5 - h * .5, 0, 0]; }
     if(e.swing > 0){ e.swing -= dt; const p = 1 - e.swing / .4; if(e.tool === 'sword' || e.bot) t[1] = -1.5 + Math.sin(Math.min(1, p) * Math.PI) * 1.5 * (p < .5 ? 1 : 1) - .0; else t[1] = -1.6 + Math.sin(p * 3.1) * 1.2; }
     A.armL.rotation.x += (t[0] - A.armL.rotation.x) * kk; A.armR.rotation.x += (t[1] - A.armR.rotation.x) * (e.swing > 0 ? 1 : kk);
     A.legL.rotation.x += (t[2] - A.legL.rotation.x) * kk; A.legR.rotation.x += (t[3] - A.legR.rotation.x) * kk;
@@ -2247,7 +2259,7 @@ const Engine = (function(){
       + '<div id="gToast"><b></b><span></span></div>'
       + '<div id="gHotbar"></div>' + (kind === 'restaurant' ? '<div id="gPrompt"></div><div id="gTray"></div>' : '') + ((kind === 'drive' || kind === 'coaster') ? '<div id="gSpeed"></div>' : '')
       + (kind === 'studio' ? studioHud() : '')
-      + '<div id="gTouch"><div id="gJoy"><div id="gKnob"></div></div><button id="gJump">Jump</button></div>'
+      + '<button id="gChatBtn" aria-label="Chat">💬</button><div id="gTouch"><div id="gJoy"><div id="gKnob"></div></div><button id="gJump">Jump</button></div>'
       + '<div id="gTimeBox">Time <b id="gTime">0:00</b></div>'
       + '</div>'
       + '<div id="gMenu" hidden><div class="gm-panel"><div class="gm-tabs"><button data-tab="players" class="on">Players</button><button data-tab="settings">Settings</button><button data-tab="help">Help</button></div>'
@@ -2258,7 +2270,7 @@ const Engine = (function(){
     document.querySelectorAll('.gm-tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === tab));
     if(tab === 'players') b.innerHTML = G.ents.map(e => '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span></div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
     else if(tab === 'settings') b.innerHTML = '<label class="set"><input type="checkbox" id="setSound"' + (G.sound ? ' checked' : '') + '> Sound effects</label><label class="set">Camera zoom <input type="range" id="setZoom" min="6" max="' + (G.game.kind === 'studio' ? 120 : 60) + '" value="' + Math.round(G.zoom) + '"></label>';
-    else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Emotes</b>: type /e dance, /e wave or /e cheer</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
+    else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Emotes</b>: type /e dance, wave, cheer, bounce, point, salute or shrug</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
     const s = document.getElementById('setSound'); if(s) s.onchange = () => G.sound = s.checked;
     const z = document.getElementById('setZoom'); if(z) z.oninput = () => G.zoom = +z.value;
   }
@@ -2326,7 +2338,7 @@ const Engine = (function(){
     document.addEventListener('visibilitychange', () => { if(G && document.hidden && G.state === 'play') pause(); }, sig);
     chatIn.addEventListener('focus', () => { G.typing = true; G.keys.clear(); }); chatIn.addEventListener('blur', () => { if(G) G.typing = false; });
     chatIn.addEventListener('keydown', e => {
-      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(t){ const m = /^\/e\s+(dance|wave|cheer)/i.exec(t), m2 = /^\/e\s+(\w+)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else if(m2 && EMO_BY_ID[m2[1].toLowerCase()]){ if(!playEmo(m2[1].toLowerCase())) chatMsg('info', 'You do not own that emote yet.'); } else if(typeof badText === 'function' && badText(t)){ chatMsg('info', 'Your message was not sent because it has words that are not allowed.'); } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
+      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(t){ const m = /^\/e\s+(dance|wave|cheer|bounce|point|salute|shrug)\b/i.exec(t), m2 = /^\/e\s+(\w+)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else if(m2 && EMO_BY_ID[m2[1].toLowerCase()]){ if(!playEmo(m2[1].toLowerCase())) chatMsg('info', 'You do not own that emote yet.'); } else if(typeof badText === 'function' && badText(t)){ chatMsg('info', 'Your message was not sent because it has words that are not allowed.'); } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       else if(e.key === 'Escape'){ chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       e.stopPropagation();
     });
@@ -2366,6 +2378,7 @@ const Engine = (function(){
     };
     canvas.addEventListener('pointerup', up, sig); canvas.addEventListener('pointercancel', up, sig);
     const gt = document.getElementById('gTouch'); if(gt && G.game.kind === 'studio'){ const sync = () => { if(!G){ clearInterval(iv); return; } gt.style.visibility = G.sMode === 'edit' ? 'hidden' : ''; }; const iv = setInterval(sync, 300); sync(); }
+    const cb = document.getElementById('gChatBtn'), gch = document.getElementById('gChat'); if(cb && gch){ cb.onclick = () => { const on = gch.classList.toggle('open'); if(on){ const i = document.getElementById('gChatIn'); i.focus(); } }; const ci = document.getElementById('gChatIn'); ci.addEventListener('blur', () => setTimeout(() => gch.classList.remove('open'), 150)); }
     const jb = document.getElementById('gJump'); jb.addEventListener('pointerdown', e => { e.preventDefault(); G.jumpBtn = true; }); ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => jb.addEventListener(n, () => { if(G) G.jumpBtn = false; }));
   }
   window.__bbDebug = () => G;
@@ -2650,7 +2663,7 @@ async function doOnboard(){
 /* ===================== reusable pieces ===================== */
 function gcard(g){
   const v = voteOf(g.id), n = playingCount(g.id);
-  return '<a class="gcard" href="#/game/' + g.id + '"><div class="im"><img src="' + gameThumb(g, 300, 300) + '" alt="" width="150" height="150"></div><b>' + esc(g.name) + '</b><div class="rate"><div class="bar"><i style="width:' + (v.pct || 0) + '%"></i></div></div><div class="status">' + n + ' Playing</div></a>';
+  return '<a class="gcard" href="#/game/' + g.id + '"><div class="im"><img src="' + gameThumb(g, 300, 300) + '" alt="" width="150" height="150"></div><b>' + esc(g.name) + '</b><div class="rate"><div class="bar"><i style="width:' + (v.pct || 0) + '%"></i></div><span class="pc">' + (v.pct == null ? '' : v.pct + '%') + '</span></div><div class="status">' + n + ' Playing</div></a>';
 }
 function pcard(id, extra){
   const pg = playingOf(id), st = pg ? '<i class="dot play"></i>' : isOnline(id) ? '<i class="dot"></i>' : '';
@@ -2696,8 +2709,9 @@ function postStatus(){ const i = $('#statusIn'), t = i.value.trim(); if(!t) retu
 
 /* ===================== GAMES ===================== */
 function renderGames(){
-  const cg = customGames().sort((a, b) => playingCount(b.id) - playingCount(a.id) || b.t - a.t), byPop = GAMES.slice().sort((a, b) => playingCount(b.id) - playingCount(a.id)), byRate = allGames().sort((a, b) => (voteOf(b.id).pct || 0) - (voteOf(a.id).pct || 0)).slice(0, 8), fp = friendIds().filter(id => playingOf(id));
+  const cg = customGames().sort((a, b) => playingCount(b.id) - playingCount(a.id) || b.t - a.t), byPop = GAMES.slice().sort((a, b) => playingCount(b.id) - playingCount(a.id)), byRate = allGames().sort((a, b) => (voteOf(b.id).pct || 0) - (voteOf(a.id).pct || 0)).slice(0, 8), fp = friendIds().filter(id => playingOf(id)), favGames = U.favs.map(x => gameById(x)).filter(Boolean);
   setAppAds('<h1 class="page-h">Games</h1>' + eventBanner()
+    + (favGames.length ? '<div class="box"><div class="sec-h"><span>My Favorites</span></div><div class="gcards">' + favGames.map(gcard).join('') + '</div></div>' : '<div class="box"><div class="sec-h"><span>My Favorites</span></div><p class="muted" style="margin:0">Tap the star on a game page to save it here.</p></div>')
     + (fp.length ? '<div class="box"><div class="sec-h"><span>Friend Activity</span></div><div class="pcards">' + fp.slice(0, 6).map(id => pcard(id)).join('') + '</div></div>' : '')
     + '<div class="box"><div class="sec-h"><span>Community Games</span><a class="btn small" href="#/create">Make Your Own</a></div>' + (cg.length ? '<div class="gcards">' + cg.map(gcard).join('') + '</div>' : '<p class="muted" style="margin:0">No community games yet. Build one in <a href="#/create">Create</a> and be the first to publish.</p>') + '</div>'
     + '<div class="box"><div class="sec-h"><span>Popular</span></div><div class="gcards">' + byPop.map(gcard).join('') + '</div></div>'
@@ -2717,7 +2731,7 @@ function renderGame(id){
   else if(tab === 'store') body = '<p class="muted">This game has nothing for sale. Everything you need is in the <a href="#/catalog?cat=gear">Catalog</a>' + (g.kind === 'arena' ? '. Try the Linked Sword and Speed Coil.' : '.') + '</p>';
   else body = '<p style="white-space:pre-wrap;margin:0">' + esc(g.desc) + '</p>' + (g.custom && g.owner === MYID ? '<p style="margin:12px 0 0"><a class="btn small" data-act="editGame" data-g="' + g.id + '">Edit Name, Icon &amp; Info</a> <a class="btn neutral small" href="#/create?tab=ads">Advertise</a> <a class="btn neutral small" href="#/create">Unpublish in Create</a></p>' : '') + (g.custom ? '<p class="muted" style="font-size:13px;margin:10px 0 0">Community game: red bricks are lava, yellow bricks are the goal.</p>' : '') + (frp.length ? '<h3 style="margin:16px 0 8px">Friends Playing</h3><div class="pcards">' + frp.map(f => pcard(f)).join('') + '</div>' : '');
   const more = allGames().filter(x => x.id !== g.id), firstSrv = g.kind === 'studio' ? 0 : pickServer(g);
-  setAppAds('<div class="box"><div class="gp"><div class="shot"><img src="' + gameThumb(g, 640, 400) + '" alt=""></div><div class="info"><h1>' + esc(g.name) + '</h1><div class="muted">By ' + (g.custom ? '<a href="#/profile/' + encodeURIComponent(g.creator) + '">' + esc(g.creator) + '</a>' : esc(g.creator)) + '</div><div style="margin-top:12px"><a class="btn green big" data-act="play" data-g="' + g.id + '" data-s="' + firstSrv + '"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M6 3l15 9-15 9z"/></svg> Play</a></div><div class="vote"><button data-act="fav" data-g="' + g.id + '" class="' + (fav ? 'on' : '') + '" aria-label="Favorite" title="Favorite"><svg viewBox="0 0 24 24"><path d="M12 2l3 7 7 .6-5.3 4.7 1.7 7.2L12 17.8 5.6 21.5l1.7-7.2L2 9.6 9 9z"/></svg></button><button data-act="vote" data-g="' + g.id + '" data-v="1" class="' + (mine === 1 ? 'on' : '') + '" aria-label="Like"><svg viewBox="0 0 24 24"><path d="M2 10h4v11H2zM8 10l4-8c1.6 0 2.6 1.2 2.2 2.8L13.5 8H20c1.2 0 2 1 1.8 2.2l-1.6 9c-.2 1-1 1.8-2 1.8H8z"/></svg></button><button data-act="vote" data-g="' + g.id + '" data-v="-1" class="' + (mine === -1 ? 'on' : '') + '" aria-label="Dislike"><svg viewBox="0 0 24 24" style="transform:rotate(180deg)"><path d="M2 10h4v11H2zM8 10l4-8c1.6 0 2.6 1.2 2.2 2.8L13.5 8H20c1.2 0 2 1 1.8 2.2l-1.6 9c-.2 1-1 1.8-2 1.8H8z"/></svg></button><div class="bar"><i style="width:' + (v.pct || 0) + '%"></i></div><span class="muted" style="font-size:13px">' + (v.pct == null ? 'No votes yet' : v.pct + '% (' + (v.up + v.dn) + ')') + '</span></div><div class="statline"><div><b>' + playingCount(g.id) + '</b><span>Playing</span></div><div><b>' + fmtNum(visitsOf(g.id)) + '</b><span>Visits</span></div><div><b>' + g.max + '</b><span>Max Players</span></div></div></div></div></div>'
+  setAppAds('<div class="box"><div class="gp"><div class="shot"><img src="' + gameThumb(g, 640, 400) + '" alt=""></div><div class="info"><h1>' + esc(g.name) + '</h1><div class="muted">By ' + (g.custom ? '<a href="#/profile/' + encodeURIComponent(g.creator) + '">' + esc(g.creator) + '</a>' : esc(g.creator)) + '</div><div style="margin-top:12px"><a class="btn green big" data-act="play" data-g="' + g.id + '" data-s="' + firstSrv + '"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M6 3l15 9-15 9z"/></svg> Play</a></div><div class="vote"><button data-act="fav" data-g="' + g.id + '" class="' + (fav ? 'on' : '') + '" aria-label="Favorite" title="Favorite"><svg viewBox="0 0 24 24"><path d="M12 2l3 7 7 .6-5.3 4.7 1.7 7.2L12 17.8 5.6 21.5l1.7-7.2L2 9.6 9 9z"/></svg></button><button data-act="vote" data-g="' + g.id + '" data-v="1" class="' + (mine === 1 ? 'on' : '') + '" aria-label="Like"><svg viewBox="0 0 24 24"><path d="M2 10h4v11H2zM8 10l4-8c1.6 0 2.6 1.2 2.2 2.8L13.5 8H20c1.2 0 2 1 1.8 2.2l-1.6 9c-.2 1-1 1.8-2 1.8H8z"/></svg></button><span class="vn">' + v.up + '</span><button data-act="vote" data-g="' + g.id + '" data-v="-1" class="' + (mine === -1 ? 'on' : '') + '" aria-label="Dislike"><svg viewBox="0 0 24 24" style="transform:rotate(180deg)"><path d="M2 10h4v11H2zM8 10l4-8c1.6 0 2.6 1.2 2.2 2.8L13.5 8H20c1.2 0 2 1 1.8 2.2l-1.6 9c-.2 1-1 1.8-2 1.8H8z"/></svg></button><span class="vn">' + v.dn + '</span><div class="bar"><i style="width:' + (v.pct || 0) + '%"></i></div><span class="muted" style="font-size:13px">' + (v.pct == null ? 'No votes yet' : v.pct + '% (' + (v.up + v.dn) + ')') + '</span></div><div class="statline"><div><b>' + playingCount(g.id) + '</b><span>Playing</span></div><div><b>' + fmtNum(visitsOf(g.id)) + '</b><span>Visits</span></div><div><b>' + g.max + '</b><span>Max Players</span></div></div></div></div></div>'
     + '<div class="box"><div class="tabs"><a href="#/game/' + g.id + '" class="' + (tab === 'about' ? 'on' : '') + '">About</a><a href="#/game/' + g.id + '?tab=store" class="' + (tab === 'store' ? 'on' : '') + '">Store</a><a href="#/game/' + g.id + '?tab=servers" class="' + (tab === 'servers' ? 'on' : '') + '">Servers</a><a href="#/game/' + g.id + '?tab=top" class="' + (tab === 'top' ? 'on' : '') + '">Leaderboard</a></div>' + body + '</div>'
     + '<div class="box"><div class="sec-h"><span>More Games</span></div><div class="gcards">' + more.slice(0, 10).map(gcard).join('') + '</div></div>');
 }
@@ -3001,7 +3015,7 @@ function renderPets(){
   const tabs = '<div class="box" style="padding:0"><div class="tabs" style="margin:0;border-bottom:0"><a href="#/pets" class="' + on('pets') + '">My Pets</a><a href="#/pets?tab=shop" class="' + on('shop') + '">Egg Shop</a><a href="#/pets?tab=emotes" class="' + on('emotes') + '">Emotes</a></div></div>';
   let body;
   if(tab === 'shop') body = '<div class="box"><div class="sec-h"><span>Egg Shop</span></div><p class="muted" style="margin-top:0">Hatch a random pet. Your pet follows you in every game and other players can see it. Duplicates give 10 tokens back.</p><div class="lrow"><div class="grow"><b>Mystery Egg</b><div class="status">Common 60% &middot; Uncommon 28% &middot; Rare 10% &middot; Epic 2%</div></div><a class="btn green" data-act="buyEgg" data-k="basic">' + tokp(40) + ' Hatch</a></div>' + (ev ? '<div class="lrow"><div class="grow"><b>Winter Egg</b><div class="status">Snowman or Reindeer. Only during the Winter Wonderland event.</div></div><a class="btn green" data-act="buyEgg" data-k="winter">' + tokp(60) + ' Hatch</a></div>' : '') + '</div>';
-  else if(tab === 'emotes') body = '<div class="box"><div class="sec-h"><span>Emotes</span></div><p class="muted" style="margin-top:0">In a game, press the face button at the top left (or type /e name in chat) to pop an emote over your head.</p>' + EMOTES.filter(e => !e.ev || eventOn(e.ev) || U.emotes.indexOf(e.id) >= 0).map(e => '<div class="lrow"><div class="grow"><span style="font-size:28px;vertical-align:middle">' + e.e + '</span> <b>' + e.n + '</b> <span class="muted">/e ' + e.id + '</span></div>' + (U.emotes.indexOf(e.id) >= 0 ? '<span class="btn neutral small" style="cursor:default">Owned</span>' : '<a class="btn green small" data-act="buyEmote" data-e="' + e.id + '">' + tokp(e.price) + ' Buy</a>') + '</div>').join('') + '</div>';
+  else if(tab === 'emotes') body = '<div class="box"><div class="sec-h"><span>Emotes</span></div><p class="muted" style="margin-top:0">In a game, press the face button at the top left (or type /e name in chat; free ones: dance, wave, cheer, bounce, point, salute, shrug) to pop an emote over your head.</p>' + EMOTES.filter(e => !e.ev || eventOn(e.ev) || U.emotes.indexOf(e.id) >= 0).map(e => '<div class="lrow"><div class="grow"><span style="font-size:28px;vertical-align:middle">' + e.e + '</span> <b>' + e.n + '</b> <span class="muted">/e ' + e.id + '</span></div>' + (U.emotes.indexOf(e.id) >= 0 ? '<span class="btn neutral small" style="cursor:default">Owned</span>' : '<a class="btn green small" data-act="buyEmote" data-e="' + e.id + '">' + tokp(e.price) + ' Buy</a>') + '</div>').join('') + '</div>';
   else body = '<div class="box"><div class="sec-h"><span>My Pets (' + U.pets.length + ' of ' + PETS.filter(p => !p.ev).length + '+)</span></div>' + (U.pets.length ? '<div class="pets">' + PETS.filter(p => U.pets.indexOf(p.id) >= 0).map(p => '<div class="pet' + (U.pet === p.id ? ' on' : '') + '"><div class="em">' + p.e + '</div><b>' + p.n + '</b><div class="muted" style="font-size:12px">' + RARITY[p.r] + (p.ev ? ' &middot; Event' : '') + '</div><a class="btn small" style="margin-top:6px" data-act="equipPet" data-p="' + p.id + '">' + (U.pet === p.id ? 'Put Away' : 'Bring Along') + '</a></div>').join('') + '</div>' : '<p class="muted" style="margin:0">You do not have a pet yet. Visit the <a href="#/pets?tab=shop">Egg Shop</a>.</p>') + '</div>';
   setApp('<h1 class="page-h">Pets &amp; Emotes</h1>' + tabs + body);
 }

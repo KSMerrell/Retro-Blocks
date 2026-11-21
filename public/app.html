@@ -2612,6 +2612,9 @@ function render(){
 let _errN = 0;
 function reportErr(m){ if(_errN++ > 8) return; try{ fetch('/api/clienterr', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({m:String(m).slice(0, 1500), u:location.hash, ua:navigator.userAgent.slice(0, 100)})}).catch(() => {}); }catch(e){} }
 window.addEventListener('error', e => reportErr('onerror ' + (e.message || '') + ' ' + (e.filename || '') + ':' + (e.lineno || '') + ':' + (e.colno || '')));
+window.addEventListener('error', e => { const t = e.target; if(t && t !== window && (t.src || t.href)) reportErr('resource failed ' + (t.src || t.href)); }, true);
+function diag(tag){ try{ const a = document.getElementById('app'); reportErr('DIAG ' + tag + ' app=' + (a ? a.innerHTML.length : -1) + ' engine=' + Engine.active() + ' hash=' + location.hash + ' U=' + !!U + ' wrap=' + (document.getElementById('wrap') || {style:{}}).style.display + ' three=' + (typeof THREE) + ' body=' + document.body.className); }catch(e){ reportErr('DIAG fail ' + e); } }
+setTimeout(() => diag('1.5s'), 1500); setTimeout(() => diag('5s'), 5000); setTimeout(() => diag('12s'), 12000);
 window.addEventListener('unhandledrejection', e => reportErr('rejection ' + ((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
 window.addEventListener('hashchange', render);
 function setApp(html){ $('#app').innerHTML = html; }

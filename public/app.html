@@ -327,9 +327,10 @@ label.f{display:block;font-weight:600;margin:10px 0 4px}
 #gHotbar .slot span{position:absolute;left:0;right:0;bottom:0;font-size:10px;background:rgba(0,0,0,.6);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 2px}
 #gTouch{display:none}
 .coarse #gTouch{display:block}
-#gJoy{position:absolute;left:max(24px,env(safe-area-inset-left,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));width:116px;height:116px;border-radius:50%;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.35);pointer-events:none!important}
-#gKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.55)}
-#gJump{position:absolute;right:max(24px,env(safe-area-inset-right,0px));bottom:calc(36px + env(safe-area-inset-bottom,0px));width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(0,162,255,.55);color:#fff;font:700 18px var(--ui);touch-action:none}
+#gJoy{position:absolute;left:max(28px,env(safe-area-inset-left,0px));bottom:calc(34px + env(safe-area-inset-bottom,0px));width:124px;height:124px;border-radius:50%;background:rgba(255,255,255,.2);border:3px solid rgba(255,255,255,.6);box-shadow:0 0 0 2px rgba(0,0,0,.25),inset 0 0 18px rgba(0,0,0,.25);pointer-events:none!important}
+#gKnob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(255,255,255,.8);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+#gJump{position:absolute;right:max(28px,env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:96px;height:96px;border-radius:50%;border:3px solid rgba(255,255,255,.7);background:rgba(0,162,255,.7);color:#fff;font:700 18px var(--ui);touch-action:none;box-shadow:0 0 0 2px rgba(0,0,0,.25);-webkit-tap-highlight-color:transparent}
+#gJump:active{background:rgba(0,120,220,.95)}
 .coarse #gChat{display:none}
 #gStudio{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(30px + env(safe-area-inset-bottom,0px));background:rgba(20,22,28,.78);border:1px solid rgba(255,255,255,.3);padding:8px;display:flex;flex-direction:column;gap:6px;color:#fff;max-width:96vw}
 #gStudio .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center}
@@ -2274,7 +2275,7 @@ const Engine = (function(){
     makeScene();
     const builder = game.kind === 'obby' && game.gen ? (() => buildGenObby(game.gen)) : ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio, coins:buildCoinIsland, restaurant:buildRestaurant, drive:buildDrive, tiledrop:buildTileDrop, coaster:buildCoaster})[game.kind]; builder();
     const root = document.getElementById('gameRoot'); root.textContent = ''; root.appendChild(canvas); root.insertAdjacentHTML('beforeend', hudHtml(game.kind)); root.hidden = false; document.body.classList.add('in-game');
-    if(window.matchMedia && matchMedia('(pointer: coarse)').matches) root.classList.add('coarse'); else root.classList.remove('coarse');
+    if((window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(any-pointer: coarse)').matches || matchMedia('(hover: none)').matches)) || navigator.maxTouchPoints > 0 || 'ontouchstart' in window) root.classList.add('coarse'); else root.classList.remove('coarse');
     // player
     const sp = G.pvp ? G.arenaSpawns() : G.spawn;
     G.P = mkEnt({name:opts.user.name, avatar:opts.user.avatar}, sp.x, sp.y, sp.z, false); G.ents.push(G.P); G.P.ff = 2.4; G.P.boost = 0; G.P.hitDone = true; G.P.stats.stage = 0;
@@ -2337,12 +2338,14 @@ const Engine = (function(){
     const tray = document.getElementById('gTray'); if(tray) tray.onclick = dropTray;
     canvas.addEventListener('contextmenu', e => e.preventDefault(), sig);
     canvas.addEventListener('wheel', e => { if(!G || G.state !== 'play') return; e.preventDefault(); G.zoom = Math.max(4, Math.min(G.game.kind === 'studio' ? 120 : 60, G.zoom * (1 + Math.sign(e.deltaY) * .1))); }, {passive:false, signal:sig.signal});
+    const root0 = () => document.getElementById('gameRoot');
     const joyBase = document.getElementById('gJoy'), knob = document.getElementById('gKnob');
     canvas.addEventListener('pointerdown', e => {
       if(!G || G.state !== 'play') return; try{ canvas.setPointerCapture(e.pointerId); }catch(er){}
       if(G.game.kind === 'studio' && G.sMode === 'edit' && e.button === 0 && G.tool === 'brush'){ G.paint = {id:e.pointerId, changed:false}; sBrush(e); return; }
       if(G.game.kind === 'studio' && G.sMode === 'edit' && e.button === 0 && selList().length){ const h = sHandleHit(e); if(h && sDragStart(h, e)) return; }
-      if(G.game.kind !== 'studio' && e.pointerType === 'touch' && e.clientX < innerWidth * .4 && G.joy.id === null){ G.joy.id = e.pointerId; G.joy.ox = e.clientX; G.joy.oy = e.clientY; joyBase.style.left = (e.clientX - 58) + 'px'; joyBase.style.top = (e.clientY - 58) + 'px'; joyBase.style.bottom = 'auto'; }
+      if(e.pointerType === 'touch' && !root0().classList.contains('coarse')) root0().classList.add('coarse');
+      if((G.game.kind !== 'studio' || G.sMode === 'test') && e.pointerType === 'touch' && e.clientX < innerWidth * .45 && e.clientY > innerHeight * .3 && G.joy.id === null){ G.joy.id = e.pointerId; G.joy.ox = e.clientX; G.joy.oy = e.clientY; joyBase.style.left = (e.clientX - 58) + 'px'; joyBase.style.top = (e.clientY - 58) + 'px'; joyBase.style.bottom = 'auto'; }
       else if(G.look.id === null){ G.look.id = e.pointerId; G.look.x = G.look.sx = e.clientX; G.look.y = G.look.sy = e.clientY; }
     }, sig);
     canvas.addEventListener('pointermove', e => {
@@ -2361,6 +2364,7 @@ const Engine = (function(){
       if(e.pointerId === G.look.id){ const moved = Math.hypot(e.clientX - G.look.sx, e.clientY - G.look.sy); G.look.id = null; if(moved < 6 && e.type === 'pointerup' && G.state === 'play' && !G.P.dead){ if(G.game.kind === 'studio') studioClick(e); else toolUse(); } }
     };
     canvas.addEventListener('pointerup', up, sig); canvas.addEventListener('pointercancel', up, sig);
+    const gt = document.getElementById('gTouch'); if(gt && G.game.kind === 'studio'){ const sync = () => { if(!G){ clearInterval(iv); return; } gt.style.visibility = G.sMode === 'edit' ? 'hidden' : ''; }; const iv = setInterval(sync, 300); sync(); }
     const jb = document.getElementById('gJump'); jb.addEventListener('pointerdown', e => { e.preventDefault(); G.jumpBtn = true; }); ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => jb.addEventListener(n, () => { if(G) G.jumpBtn = false; }));
   }
   window.__bbDebug = () => G;

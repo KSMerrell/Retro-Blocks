@@ -2605,8 +2605,14 @@ function render(){
   const pages = {'':renderHome, home:renderHome, games:renderGames, game:() => renderGame(gidOf(parts[1])), catalog:() => renderCatalog(query), item:() => renderItem(+parts[1]), avatar:renderAvatar, inventory:() => renderInventory(query), profile:() => renderProfile(dec(parts[1]) || U.name), friends:() => renderFriends(query), messages:() => renderMessages(query), trade:() => renderTrade(query), groups:() => renderGroups(query), group:() => renderGroup(dec(parts[1])), feed:renderFeed, blog:renderBlog, tokens:renderTokens, robux:renderTokens, create:renderCreate, settings:renderSettings, pets:renderPets, admin:renderAdmin, search:() => renderSearch(query)};
   const fn = pages[p] || renderHome;
   $('#wrap').style.display = ''; $('#landingRoot').innerHTML = '';
-  fn(); refreshChrome(); checkBadges(); window.scrollTo(0, 0);
+  try{ fn(); }catch(e){ console.error(e); reportErr((e && e.stack) || e); setApp('<div class="box"><h2>This page hit a problem</h2><p class="muted">' + esc(String((e && e.message) || e)) + '</p><p><a class="btn" href="#/games">Go to Games</a> <a class="btn neutral" href="javascript:location.reload()">Reload</a></p></div>'); }
+  try{ refreshChrome(); checkBadges(); }catch(e){ console.error(e); reportErr((e && e.stack) || e); }
+  window.scrollTo(0, 0);
 }
+let _errN = 0;
+function reportErr(m){ if(_errN++ > 8) return; try{ fetch('/api/clienterr', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({m:String(m).slice(0, 1500), u:location.hash, ua:navigator.userAgent.slice(0, 100)})}).catch(() => {}); }catch(e){} }
+window.addEventListener('error', e => reportErr('onerror ' + (e.message || '') + ' ' + (e.filename || '') + ':' + (e.lineno || '') + ':' + (e.colno || '')));
+window.addEventListener('unhandledrejection', e => reportErr('rejection ' + ((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
 window.addEventListener('hashchange', render);
 function setApp(html){ $('#app').innerHTML = html; }
 

@@ -272,6 +272,7 @@ const server = http.createServer((req, res) => {
     const salt = crypto.randomBytes(16).toString('hex'), a = {id:newId(), name, lower:name.toLowerCase(), salt, hash:hashPw(pw, salt), created:Date.now()};
     S.accounts[a.id] = a; byLower[a.lower] = a.id; markDirty(); startSession(res, a.id, req); json(res, 200, {ok:true});
   }); }
+  if(req.method === 'POST' && url === '/api/clienterr'){ return body(req, b => { global.__errN = (global.__errN || 0) + 1; if(global.__errN < 200) console.log('CLIENTERR', JSON.stringify(b || {}).slice(0, 1800)); json(res, 200, {}); }); }
   if(req.method === 'POST' && url === '/api/login'){ return body(req, b => {
     if(!b || throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});
     const a = S.accounts[byLower[String(b.username || '').trim().toLowerCase()]], pw = String(b.password || '');

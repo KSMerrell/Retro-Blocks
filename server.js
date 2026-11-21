@@ -280,6 +280,15 @@ const server = http.createServer((req, res) => {
     if(S.docs['bans/' + a.id]) return json(res, 403, {error:'This account has been banned.'});
     startSession(res, a.id, req); json(res, 200, {ok:true});
   }); }
+  if(req.method === 'POST' && url === '/api/acct/save'){ const a = userOf(req); if(!a) return json(res, 401, {}); const t = newToken(); S.sessions[t] = {uid:a.id, exp:Date.now() + 180 * 86400000}; markDirty(); return json(res, 200, {name:a.name, token:t}); }
+  if(req.method === 'POST' && url === '/api/acct/switch'){ return body(req, b => {
+    const t = String((b && b.token) || ''), ss = S.sessions[t], a = ss && ss.exp > Date.now() && !S.docs['bans/' + ss.uid] && S.accounts[ss.uid];
+    if(!a) return json(res, 401, {error:'That saved login expired. Please log in again.'});
+    const secure = (req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
+    res.setHeader('Set-Cookie', 'bp3=' + t + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + 180 * 86400 + secure); json(res, 200, {ok:true, name:a.name});
+  }); }
+  if(req.method === 'POST' && url === '/api/acct/leave'){ res.setHeader('Set-Cookie', 'bp3=; Path=/; Max-Age=0'); return json(res, 200, {ok:true}); }
+  if(req.method === 'POST' && url === '/api/acct/revoke'){ return body(req, b => { const t = String((b && b.token) || ''); if(S.sessions[t]){ delete S.sessions[t]; markDirty(); } json(res, 200, {ok:true}); }); }
   if(req.method === 'POST' && url === '/api/logout'){ const t = cookieOf(req, 'bp3'); if(t){ delete S.sessions[t]; markDirty(); } res.setHeader('Set-Cookie', 'bp3=; Path=/; Max-Age=0'); return json(res, 200, {ok:true}); }
   if(req.method === 'POST' && url === '/api/delete'){ const a = userOf(req); if(!a) return json(res, 401, {}); deleteAccount(a); res.setHeader('Set-Cookie', 'bp3=; Path=/; Max-Age=0'); return json(res, 200, {ok:true}); }
   if(req.method === 'POST' && url === '/api/profiles'){ const a = userOf(req); if(!a) return json(res, 401, {}); return body(req, b => { const o = {}; ((b && b.ids) || []).slice(0, 64).forEach(i => { const x = S.accounts[i]; if(x) o[i] = {name:x.name}; }); json(res, 200, o); }); }

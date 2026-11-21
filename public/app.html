@@ -2700,7 +2700,7 @@ function refreshChrome(){
   $('#hright').innerHTML = '<a class="hbtn" href="#/friends?tab=requests" title="Friend requests">' + ico('friends').replace('<svg', '<svg width="20" height="20" fill="#fff"') + (reqN ? '<span class="badge-n">' + reqN + '</span>' : '') + '</a>'
     + '<a class="hbtn" href="#/messages" title="Messages">' + ico('messages').replace('<svg', '<svg width="20" height="20" fill="#fff"') + (un ? '<span class="badge-n">' + un + '</span>' : '') + '</a>'
     + '<div style="position:relative;height:100%"><button class="hbtn" data-act="toggleBal" aria-haspopup="true"><i class="tok"></i>' + U.tokens + '</button><div class="drop" id="balDrop" hidden><div><i class="tok"></i> <b>' + U.tokens + '</b> Tokens</div><div><i class="tix"></i> <b>' + U.tix + '</b> Tickets</div><a href="#/tokens">Get Tokens</a></div></div>'
-    + '<div style="position:relative;height:100%"><button class="hbtn" data-act="toggleMenu" aria-haspopup="true" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/></svg> <span style="font-size:13px">' + esc(U.name) + '</span></button><div class="drop" id="menuDrop" hidden><a href="#/pets">Pets &amp; Emotes</a><a href="#/settings">Settings</a>' + (window.__ME && window.__ME.admin ? '<a href="#/admin">Reports (Admin)</a>' : '') + '<a href="#/profile/' + encodeURIComponent(U.name) + '">My Profile</a><a data-act="logout">Log Out</a>' + (isStandalone() ? '' : '<a data-act="installApp">Install App</a>') + '</div></div>';
+    + '<div style="position:relative;height:100%"><button class="hbtn" data-act="toggleMenu" aria-haspopup="true" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/></svg> <span style="font-size:13px">' + esc(U.name) + '</span></button><div class="drop" id="menuDrop" hidden><a href="#/pets">Pets &amp; Emotes</a><a href="#/settings">Settings</a>' + (window.__ME && window.__ME.admin ? '<a href="#/admin">Reports (Admin)</a>' : '') + '<a href="#/profile/' + encodeURIComponent(U.name) + '">My Profile</a><a data-act="openSwitch">Switch Account</a><a data-act="logout">Log Out</a>' + (isStandalone() ? '' : '<a data-act="installApp">Install App</a>') + '</div></div>';
   const items = [['home', 'Home'], ['profile', 'Profile'], ['messages', 'Messages', un], ['friends', 'Friends', reqN], ['avatar', 'Avatar'], ['inventory', 'Inventory'], ['trade', 'Trade', trN], ['groups', 'Groups'], ['feed', 'My Feed'], ['blog', 'Blog'], ['tokens', 'Shop']];
   $('#side').innerHTML = items.map(i => { const target = i[0] === 'profile' ? 'profile/' + encodeURIComponent(U.name) : i[0]; const on = cur === i[0] || (i[0] === 'groups' && cur === 'group'); return '<a href="#/' + target + '" class="' + (on ? 'on' : '') + '">' + ico(i[0] === 'tokens' ? 'shop' : i[0]) + i[1] + (i[2] ? '<span class="cnt">' + i[2] + '</span>' : '') + '</a>'; }).join('');
   renderCP();
@@ -3267,6 +3267,14 @@ function cursorBox(){
   const cur = getCursorMode();
   return '<div class="box"><div class="sec-h"><span>Mouse Cursor</span></div><p class="muted" style="margin:0 0 10px">Use the classic arrow cursor, in white or black.</p><div style="display:flex;gap:10px;flex-wrap:wrap">' + [['white', 'White'], ['black', 'Black'], ['system', 'Default']].map(k => '<a class="btn small' + (cur === k[0] ? '' : ' neutral') + '" data-act="setCursor" data-c="' + k[0] + '">' + (k[0] !== 'system' ? '<img src="' + curImg(k[0], 2) + '" alt="" style="vertical-align:middle;margin-right:6px;height:22px;width:auto;background:' + (k[0] === 'white' ? '#555' : '#ddd') + '">' : '') + k[1] + '</a>').join('') + '</div></div>';
 }
+/* ---------- switch accounts (saved on this device) ---------- */
+function acctList(){ try{ const l = JSON.parse(localStorage.getItem('rbaccts') || '[]'); return Array.isArray(l) ? l.filter(a => a && a.name && a.token) : []; }catch(e){ return []; } }
+function acctStore(l){ try{ localStorage.setItem('rbaccts', JSON.stringify(l)); }catch(e){} }
+async function acctRememberSelf(){ try{ if(!U) return; const l = acctList(); if(l.some(a => a.name.toLowerCase() === U.name.toLowerCase())) return; const r = await fetch('/api/acct/save', {method:'POST'}); if(!r.ok) return; const j = await r.json(); l.push({name:j.name, token:j.token}); acctStore(l); }catch(e){} }
+function switchAcctModal(){
+  const l = acctList(), me = (U.name || '').toLowerCase();
+  modal('Switch Account', (l.length ? l.map(a => { const cur = a.name.toLowerCase() === me; return '<div class="lrow"><div class="grow"><b>' + esc(a.name) + '</b>' + (cur ? ' <span class="muted">(current)</span>' : '') + '</div>' + (cur ? '' : '<a class="btn small green" data-act="switchTo" data-n="' + esc(a.name) + '">Switch</a> <a class="btn small neutral" data-act="forgetAcct" data-n="' + esc(a.name) + '">Remove</a>') + '</div>'; }).join('') : '<p class="muted">No saved accounts yet.</p>') + '<p class="muted" style="font-size:12px;margin:10px 0 0">Accounts you log in to on this device show up here. Tap Add Account to log in to another one.</p>', [{label:'Add Account', cls:'green', fn:() => { ACTIONS.addAcct(); return false; }, keep:true}, {label:'Close', cls:'neutral'}]);
+}
 function renderSearch(q){
   const kw = (q.q || '').trim().toLowerCase();
   const gm = GAMES.filter(g => g.name.toLowerCase().indexOf(kw) >= 0), it = ITEMS.filter(i => i.name.toLowerCase().indexOf(kw) >= 0 || i.type.indexOf(kw) >= 0), us = Object.keys(P).filter(id => nameOf(id).toLowerCase().indexOf(kw) >= 0).slice(0, 12);
@@ -3345,7 +3353,11 @@ const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: stan
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; });
 const ACTIONS = {
   installApp:async () => { if(deferredInstall){ deferredInstall.prompt(); try{ await deferredInstall.userChoice; }catch(e){} deferredInstall = null; return; } const ios = /iphone|ipad|ipod/i.test(navigator.userAgent); modal('Install Retro Blox', '<p style="margin:0">' + (ios ? 'Tap the <b>Share</b> button in Safari, then <b>Add to Home Screen</b>.' : 'Open your browser menu and choose <b>Install app</b> (or <b>Add to Home screen</b>).') + '</p>', [{label:'OK'}]); },
-  logout:async () => { try{ await fetch('/api/logout', {method:'POST'}); }catch(e){} location.href = '/'; },
+  openSwitch:() => { const d = $('#menuDrop'); if(d) d.hidden = true; switchAcctModal(); },
+  switchTo:async el => { const l = acctList(), a = l.find(x => x.name === el.dataset.n); if(!a) return; try{ const r = await fetch('/api/acct/switch', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:a.token})}); if(r.ok){ location.href = '/'; return; } }catch(e){} acctStore(l.filter(x => x !== a)); toast('That saved login expired. Please log in again.', true); switchAcctModal(); },
+  forgetAcct:async el => { const l = acctList(), a = l.find(x => x.name === el.dataset.n); if(a){ try{ fetch('/api/acct/revoke', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:a.token})}); }catch(e){} acctStore(l.filter(x => x !== a)); } switchAcctModal(); },
+  addAcct:async () => { await acctRememberSelf(); try{ await fetch('/api/acct/leave', {method:'POST'}); }catch(e){} location.href = '/'; },
+  logout:async () => { try{ const l = acctList(), a = U && l.find(x => x.name.toLowerCase() === U.name.toLowerCase()); if(a){ fetch('/api/acct/revoke', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:a.token})}); acctStore(l.filter(x => x !== a)); } }catch(e){} try{ await fetch('/api/logout', {method:'POST'}); }catch(e){} location.href = '/'; },
   closeModal, reloadPage:() => location.reload(), doOnboard,
   toggleBal:() => { const d = $('#balDrop'); const menu = $('#menuDrop'); if(menu) menu.hidden = true; d.hidden = !d.hidden; }, toggleMenu:() => { const d = $('#menuDrop'); const bal = $('#balDrop'); if(bal) bal.hidden = true; d.hidden = !d.hidden; },
   setCursor:el => { setCursorMode(el.dataset.c); render(); },
@@ -3460,7 +3472,7 @@ document.addEventListener('click', e => { if(!Engine.active() && e.target.closes
     if(STATUS === 'onboard'){ try{ const me = await USERCAP.me(); const n = String((me && me.name) || ''); window.__suggest = n; if(NAME_RE.test(n) && await finishOnboard(n)){} }catch(e){ console.warn(e); } }
     try{ if(ROOM && ROOM.onConnection) ROOM.onConnection(c => toast(c ? 'Reconnected.' : 'Connection lost. Reconnecting...', !c)); }catch(e){}
     if(STATUS === 'ready' && (!location.hash || location.hash === '#/')) location.hash = '#/home';
-    render(); if(STATUS === 'ready') setTimeout(dailyModal, 1500);
+    render(); if(STATUS === 'ready'){ setTimeout(dailyModal, 1500); acctRememberSelf(); }
   }catch(e){ clearTimeout(guard); console.warn(e); STATUS = 'gate'; render(); }
 })();
 

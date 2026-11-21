@@ -103,6 +103,7 @@ const blockedPair = (a, b) => !!(S.docs['blocks/' + a + '_' + b] || S.docs['bloc
 const REPORT_REASONS = ['inappropriate', 'harassment', 'scam', 'cheating', 'other'];
 function allowWrite(uid, p, op, data, old){
   const s = segs(p), col = s[0], id = s[s.length - 1];
+  { const st = S.docs['site/status']; if(st && st.d && st.d.mode === 'down' && !isAdmin(uid)) return false; } // maintenance: only admins can change anything
   if(col === 'data'){ return s[1] === 'users' && s[2] === uid; }
   if(s.length !== 2) return false;
   if(isAdmin(uid)) return true; // admins can edit or delete any shared document
@@ -114,6 +115,7 @@ function allowWrite(uid, p, op, data, old){
     case 'requests': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : data && mine(data.from) && id === data.from + '_' + data.to && !blockedPair(data.from, data.to);
     case 'blocks': return op === 'delete' ? !!old && old.by === uid : !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && id === uid + '_' + data.who;
     case 'bans': return isAdmin(uid);
+    case 'gifts': return op !== 'delete' && !!old && !old.claimed && old.to === uid && !!data && data.claimed === true && data.to === old.to && data.from === old.from && data.amt === old.amt && data.item === old.item;
     case 'scores': { if(op === 'delete') return !!old && old.uid === uid; const n = (v, mx) => v == null || (typeof v === 'number' && isFinite(v) && v >= 0 && v <= mx); return !!data && mine(data.uid) && typeof data.gid === 'string' && data.gid.length < 30 && id === data.gid + '_' + uid && n(data.t, 36000) && n(data.s, 1000000) && typeof data.name === 'string'; }
     case 'reports': return isAdmin(uid) ? true : op === 'set' && !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && REPORT_REASONS.includes(data.reason) && String(data.detail || '').length <= 400 && String(data.ctx || '').length <= 80;
     case 'messages': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : !old && data && mine(data.from) && typeof data.to === 'string' && !blockedPair(uid, data.to);
@@ -136,6 +138,7 @@ function allowWrite(uid, p, op, data, old){
   }
 }
 function visible(uid, coll, id, d){ // per-doc read privacy
+  if(coll === 'gifts') return d.to === uid || d.from === uid || isAdmin(uid);
   if(coll === 'messages') return d.from === uid || d.to === uid;
   if(coll === 'trades' || coll === 'requests') return d.from === uid || d.to === uid;
   if(coll === 'sales') return d.seller === uid || d.buyer === uid;
@@ -191,7 +194,7 @@ const conns = new Set();
 const rooms = {}; // name -> Map peer -> {conn, by, p}
 let peerSeq = 0;
 function leaveRoom(conn, name, peer){
-  const r = rooms[name]; if(!r || !r.has(peer)) return; r.delete(peer); conn.peers.delete(peer);
+  const r = rooms[name]; if(!r || !r.has(peer)) return; r.delete(peer); conn.peers.delete(name + '\u0000' + peer);
   r.forEach(m => send(m.conn, {t:'left', room:name, peer})); if(!r.size) delete rooms[name];
 }
 function cleanup(conn){
@@ -214,6 +217,8 @@ function handle(conn, m){
     case 'unsub': { subs.forEach(s => { if(s.conn === conn && s.sid === m.sid){ subs.delete(s); conn.nsub--; } }); return; }
     case 'join': {
       const name = String(m.room || ''); if(!ROOM_RE.test(name) || conn.peers.size > 6) return reply(false, {code:'invalid_argument'});
+      { const st = S.docs['site/status']; if(st && st.d && st.d.mode === 'down' && !isAdmin(uid)) return reply(false, {code:'maintenance'}); }
+      if(name.charAt(0) === 'g'){ for(const c of conns){ if(c !== conn && c.uid === uid && !c.dead && c.socket && !c.socket.destroyed && [...c.peers].some(k => k.charAt(0) === 'g')) return reply(false, {code:'already_in_game'}); } }
       const peer = 'p' + (++peerSeq).toString(36), r = rooms[name] = rooms[name] || new Map();
       const existing = []; r.forEach((mm, k) => existing.push({peer:k, by:mm.by, p:mm.p}));
       r.set(peer, {conn, by:uid, p:{}}); conn.peers.add(name + '\u0000' + peer);

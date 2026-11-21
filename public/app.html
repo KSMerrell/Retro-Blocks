@@ -504,6 +504,11 @@ html.dark .box.evt{background:linear-gradient(#1b3347,#26282b)!important;border-
 html.dark .hello .avs,html.dark .itm .big img,html.dark .av-stage{background:linear-gradient(#2c4358,#26282b);border-color:#464a50}
 html.dark .sec-h{color:var(--ink)}
 
+.sitebar{background:#f2b705;color:#222;padding:10px 14px;margin-bottom:12px;border:1px solid #c79a00;font-size:15px}
+.sitebar.red{background:#e2231a;color:#fff;border-color:#a8160f}
+#siteDown{position:fixed;inset:0;z-index:2147483000;background:#1b2a34;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:14px;cursor:auto}
+#siteDown h1{font-size:34px}#siteDown p{margin:0;max-width:520px;font-size:18px;color:#cfd6e4;white-space:pre-wrap}
+
 </style><script>try{if(localStorage.rbtheme==="dark")document.documentElement.classList.add("dark")}catch(e){}</script></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
@@ -545,10 +550,10 @@ const ITEM_DEFS = [
  ['hat','Pointy Wizard Hat',120,'R',{k:'wiz',c:'#6b327c'},'Spells not included.'],
  ['hat','Horned Helmet',90,'R',{k:'viking',c:'#a3a2a5'},'Fit for a long boat voyage across the baseplate.'],
  ['hat','Propeller Beanie',60,'R',{k:'prop',c:'#c4281c'},'Spins when you feel silly.'],
- ['hat','Crown of Bricks',450,'R',{k:'crown',c:'#f5cd30'},'Only the finest studs for the royal head. Limited item.',900],
+ ['hat','Crown of Bricks',450,'R',{k:'crown',c:'#f5cd30'},'Only the finest studs for the royal head. Limited item. For sale for one week only.',900,'',Date.UTC(2026, 10, 21)],
  ['hat','Big Headphones',150,'R',{k:'phones',c:'#1b2a34'},'Music makes the obby bearable.'],
  ['hat','Traffic Cone',50,'T',{k:'cone',c:'#da8541'},'Safety first. Head second.'],
- ['hat','Golden Halo',600,'R',{k:'halo',c:'#f5cd30'},'Floats just above your head. Limited item.',1100],
+ ['hat','Golden Halo',600,'R',{k:'halo',c:'#f5cd30'},'Floats just above your head. Limited item. For sale for one week only.',1100,'',Date.UTC(2026, 10, 28)],
  ['hat','Sparkle Fedora',80,'R',{k:'fedora',c:'#635f62'},'A fedora with a bright pink band.'],
  ['hat','Winter Beanie',30,'R',{k:'bean',c:'#0fa3d4'},'Warm, soft, and slightly lumpy.'],
  ['face','Smile',0,'R',{k:'smile'},'The classic. Free for everyone.'],
@@ -590,7 +595,11 @@ const ITEM_DEFS = [
  ['pants','Snow Pants',30,'R',{c:'#e8f6ff',s:'#9fc4e0'},'Winter event item. Built for snowball fights.',0,'winter']
 ];
 const ITEMS = ITEM_DEFS.map((d, i) => ({id:i+1, type:d[0], name:d[1], price:d[2], cur:d[3], s:d[4], desc:d[5], val:d[6] || 0, ltd:!!d[6],
-  creator:'Retro Blox', updated:Date.now() - i*86400000*3, ev:d[7] || ''}));
+  creator:'Retro Blox', updated:Date.now() - i*86400000*3, ev:d[7] || '', rel:d[8] || 0}));
+const WEEK_MS = 7 * 86400000;
+/* event items stay in the shop until their event ends; weekly limited items leave a week after they release */
+const itemOnSale = it => { if(it.ev) return eventOn(it.ev); if(it.rel){ const t = Date.now(); return t >= it.rel && t < it.rel + WEEK_MS; } return true; };
+const itemDaysLeft = it => it.rel ? Math.max(0, Math.ceil((it.rel + WEEK_MS - Date.now()) / 86400000)) : 0;
 const ITEM_BY_ID = {}; ITEMS.forEach(it => ITEM_BY_ID[it.id] = it);
 const itemValue = it => it.val || (it.cur === 'R' ? it.price : Math.round(it.price / 10)) || 1;
 const TYPE_NAMES = {hat:'Hats', face:'Faces', shirt:'Shirts', pants:'Pants', gear:'Gear'};
@@ -2292,6 +2301,7 @@ const Engine = (function(){
     G.clouds.forEach(c => { c.position.x += dt * 3; if(c.position.x > 560) c.position.x = -560; });
     const hudT = document.getElementById('gTime'); if(hudT && G.state === 'play'){ const s = fmtT(G.T); if(hudT.textContent !== s) hudT.textContent = s; }
     G.bubbleBoard = (G.bubbleBoard || 0) + dt; if(G.bubbleBoard > 1.5){ G.bubbleBoard = 0; updateBoard(); }
+    if(G.god && G.P) G.P.ff = Math.max(G.P.ff || 0, 2);
     perfWatch(dt);
     renderer.render(G.scene, G.camera);
   }
@@ -2365,6 +2375,13 @@ const Engine = (function(){
     const d = document.getElementById('gSLdot'); if(d) d.classList.toggle('on', on);
     try{ if(on) canvas.requestPointerLock && canvas.requestPointerLock(); else if(document.pointerLockElement) document.exitPointerLock(); }catch(e){}
     toast(on ? 'Shift Lock on' : 'Shift Lock off', on ? 'Your character follows the camera. Press Shift to turn it off.' : '');
+  }
+  function adminCmd(t){
+    const a = t.split(/\s+/), c = a[0].toLowerCase(), n = parseFloat(a[1]);
+    if(c === '/speed'){ if(isFinite(n)){ WALK = Math.max(4, Math.min(200, n)); chatMsg('sys', 'Walk speed set to ' + WALK + '.'); } else chatMsg('sys', 'Use /speed 16 (default is 16).'); }
+    else if(c === '/jump'){ if(isFinite(n)){ JUMP = Math.max(30, Math.min(300, n)); chatMsg('sys', 'Jump power set to ' + JUMP + '.'); } else chatMsg('sys', 'Use /jump 50.'); }
+    else if(c === '/god'){ G.god = !G.god; chatMsg('sys', G.god ? 'God mode on. Nothing can hurt you.' : 'God mode off.'); }
+    else if(c === '/tp'){ const nm = (a[1] || '').toLowerCase(), e = G.ents.find(x => x !== G.P && x.user && x.user.name.toLowerCase() === nm); if(e){ G.P.x = e.x + 2; G.P.y = e.y + 1; G.P.z = e.z; G.P.vy = 0; chatMsg('sys', 'Teleported to ' + e.user.name + '.'); } else chatMsg('sys', 'Use /tp username (they must be in this game).'); }
   }
   function specStart(e){ if(!G || !e || !G.ents.includes(e) || e === G.P) return; G.spec = e; G.camBlend = .8; const b = document.getElementById('gSpec'); if(b){ b.hidden = false; b.querySelector('span').textContent = 'Watching ' + e.user.name; } }
   function specStop(){ if(!G || !G.spec) return; G.spec = null; G.camBlend = .6; const b = document.getElementById('gSpec'); if(b) b.hidden = true; }
@@ -2441,7 +2458,7 @@ const Engine = (function(){
     document.addEventListener('visibilitychange', () => { if(G && document.hidden && G.state === 'play') pause(); }, sig);
     chatIn.addEventListener('focus', () => { G.typing = true; G.keys.clear(); }); chatIn.addEventListener('blur', () => { if(G) G.typing = false; });
     chatIn.addEventListener('keydown', e => {
-      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(t === '/' || /^\/(help|\?)$/i.test(t)){ chatMsg('sys', 'Commands: /e dance, /e wave, /e cheer, /e bounce, /e point, /e salute, /e shrug, or /e and the name of an emote you own.'); chatIn.value = ''; chatIn.blur(); canvas.focus(); return; } if(t){ const m = /^\/e\s+(dance|wave|cheer|bounce|point|salute|shrug)\b/i.exec(t), m2 = /^\/e\s+(\w+)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else if(m2 && EMO_BY_ID[m2[1].toLowerCase()]){ if(!playEmo(m2[1].toLowerCase())) chatMsg('info', 'You do not own that emote yet.'); } else if(typeof badText === 'function' && badText(t)){ chatMsg('info', 'Your message was not sent because it has words that are not allowed.'); } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
+      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(window.__ME && window.__ME.admin && /^\/(speed|jump|god|tp)\b/i.test(t)){ adminCmd(t); chatIn.value = ''; chatIn.blur(); canvas.focus(); return; } if(t === '/' || /^\/(help|\?)$/i.test(t)){ chatMsg('sys', 'Commands: /e dance, /e wave, /e cheer, /e bounce, /e point, /e salute, /e shrug, or /e and the name of an emote you own.'); chatIn.value = ''; chatIn.blur(); canvas.focus(); return; } if(t){ const m = /^\/e\s+(dance|wave|cheer|bounce|point|salute|shrug)\b/i.exec(t), m2 = /^\/e\s+(\w+)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else if(m2 && EMO_BY_ID[m2[1].toLowerCase()]){ if(!playEmo(m2[1].toLowerCase())) chatMsg('info', 'You do not own that emote yet.'); } else if(typeof badText === 'function' && badText(t)){ chatMsg('info', 'Your message was not sent because it has words that are not allowed.'); } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       else if(e.key === 'Escape'){ chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       e.stopPropagation();
     });
@@ -2495,7 +2512,7 @@ const Engine = (function(){
 
 /* ===================== shared state: db + room + identity ===================== */
 let DB = null, ROOM = null, USERCAP = null, MYID = null, U = null, LOBBY_OK = false;
-let COPLACES = [], P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SCORES = {}, REPORTDOCS = [], BANDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
+let GIFTSEEN = {}, SITEDOC = null, COPLACES = [], P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SCORES = {}, REPORTDOCS = [], BANDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
 const loadedOnce = {};
 function esc2(s){ return esc(s); }
 const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -2561,6 +2578,8 @@ function startSubs(){
   DB.collection('profiles').onSnapshot(snap => { const o = {}; snap.docs.forEach(d => { o[d.id] = Object.assign({id:d.id}, d.data()); }); P = o; registerUGC(); queueRender(); }, err);
   DB.collection('items').onSnapshot(snap => { ITEMDOCS = snapDocs(snap); registerUGC(); queueRender(); }, err);
   DB.collection('ads').onSnapshot(snap => { ADDOCS = snapDocs(snap); queueRender(); }, err);
+  DB.collection('gifts').where('to', '==', MYID).onSnapshot(snap => { snapDocs(snap).forEach(claimGift); }, err);
+  DB.collection('site').onSnapshot(snap => { SITEDOC = snapDocs(snap).find(x => x.id === 'status') || null; applySite(); }, err);
   DB.collection('cplaces').where('eds', 'array-contains', MYID).onSnapshot(snap => { COPLACES = snapDocs(snap); queueRender(); }, err);
   DB.collection('blocks').onSnapshot(snap => { BLOCKDOCS = snapDocs(snap).filter(b => b.by === MYID); queueRender(); }, err);
   if(window.__ME && window.__ME.admin){ DB.collection('reports').onSnapshot(snap => { REPORTDOCS = snapDocs(snap); queueRender(); }, err); DB.collection('bans').onSnapshot(snap => { BANDOCS = snapDocs(snap); queueRender(); }, err); }
@@ -2743,7 +2762,27 @@ function diag(tag){ try{ const a = document.getElementById('app'); reportErr('DI
 setTimeout(() => diag('1.5s'), 1500); setTimeout(() => diag('5s'), 5000); setTimeout(() => diag('12s'), 12000);
 window.addEventListener('unhandledrejection', e => reportErr('rejection ' + ((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
 window.addEventListener('hashchange', render);
-function setApp(html){ $('#app').innerHTML = html; }
+function setApp(html){ $('#app').innerHTML = siteBarHtml() + html; }
+const isAdminMe = () => !!(window.__ME && window.__ME.admin);
+function siteBarHtml(){
+  const d = SITEDOC; if(!d || !d.mode || d.mode === 'off') return '';
+  if(d.mode === 'down') return isAdminMe() ? '<div class="sitebar red"><b>Maintenance mode is ON.</b> Players are locked out and see: "' + esc(d.msg || '') + '". You can still use the site. <a data-act="siteSet" data-m="off" style="color:#fff;text-decoration:underline">Turn it off</a></div>' : '';
+  return '<div class="sitebar"><b>Notice:</b> ' + esc(d.msg || '') + '</div>';
+}
+function applySite(){
+  const d = SITEDOC, down = !!(d && d.mode === 'down' && !isAdminMe()); let ov = document.getElementById('siteDown');
+  if(down){
+    if(!ov){ ov = document.createElement('div'); ov.id = 'siteDown'; document.body.appendChild(ov); }
+    ov.innerHTML = '<img src="/word.png" alt="Retro Blox" style="height:34px;width:auto;filter:brightness(0) invert(1)"><h1>We will be right back</h1><p></p><a data-act="logout" class="btn neutral small">Log Out</a>'; ov.querySelector('p').textContent = d.msg || 'Retro Blox is down for maintenance right now. Please check back soon.';
+    try{ if(Engine.active()) Engine.stop(); }catch(e){}
+  } else if(ov) ov.remove();
+  if(d && d.mode === 'banner' && d.t && applySite.last !== d.t){ applySite.last = d.t; if(U) toast('Notice: ' + (d.msg || '')); }
+  try{ if(!Engine.active() && U) queueRender(); }catch(e){}
+}
+function noticeBox(){
+  const d = SITEDOC || {}, st = d.mode === 'down' ? 'Maintenance mode is ON' : d.mode === 'banner' ? 'Announcement is showing' : 'Everything is normal';
+  return '<div class="box"><div class="sec-h"><span>Site Notice</span><span class="muted" style="font-size:13px">' + st + '</span></div><label class="f" for="siteMsg" style="margin-top:0">Message players will see</label><textarea id="siteMsg" maxlength="300" placeholder="Retro Blox is down for maintenance right now. Please check back soon.">' + esc(d.msg || '') + '</textarea><p style="margin:6px 0 10px"><a class="btn neutral small" data-act="sitePreset" data-t="Retro Blox is down for maintenance right now. Please check back soon.">Down for maintenance</a> <a class="btn neutral small" data-act="sitePreset" data-t="We are installing an update. Games will be back in a few minutes.">Update in progress</a> <a class="btn neutral small" data-act="sitePreset" data-t="New stuff is coming soon. Thanks for playing!">New stuff soon</a></p><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn small" data-act="siteSet" data-m="banner">Show as announcement</a><a class="btn red small" data-act="siteSet" data-m="down">Turn maintenance ON (lock players out)</a><a class="btn green small" data-act="siteSet" data-m="off">Back online</a></div></div>';
+}
 
 /* ===================== landing: loading / gate / onboarding ===================== */
 function renderLanding(){
@@ -2779,7 +2818,7 @@ function pcard(id, extra){
 }
 function icard(it){
   const owned = U.owned.indexOf(it.id) >= 0, worn = isWorn(it.id);
-  return '<a class="gcard item" href="#/item/' + it.id + '"><div class="im">' + itemImg(it) + (it.ltd ? '<span class="ltd">LIMITED</span>' : '') + (worn ? '<span class="worn">WORN</span>' : owned ? '<span class="owned">OWNED</span>' : '') + '</div><b>' + esc(it.name) + '</b><div>' + priceOf(it) + '</div></a>';
+  return '<a class="gcard item" href="#/item/' + it.id + '"><div class="im">' + itemImg(it) + (it.ltd ? '<span class="ltd">LIMITED</span>' : '') + (it.rel && itemOnSale(it) ? '<span class="ltd" style="top:auto;bottom:4px;background:#c4281c">Leaves in ' + itemDaysLeft(it) + 'd</span>' : '') + (worn ? '<span class="worn">WORN</span>' : owned ? '<span class="owned">OWNED</span>' : '') + '</div><b>' + esc(it.name) + '</b><div>' + priceOf(it) + '</div></a>';
 }
 function isWorn(id){ const it = ITEM_BY_ID[id], a = U.avatar; return it.type === 'hat' ? a.hats.indexOf(id) >= 0 : a[it.type] === id; }
 function wear(id){
@@ -2847,7 +2886,7 @@ function renderGame(id){
 /* ===================== CATALOG ===================== */
 function renderCatalog(q){
   const cat = q.cat || 'all', sort = q.sort || 'rel', kw = (q.q || '').toLowerCase(), ltd = q.ltd === '1';
-  let list = ITEMS.filter(i => (!i.ev || eventOn(i.ev)) && (cat === 'all' || i.type === cat || (cat === 'ugc' && i.ugc)) && (!kw || i.name.toLowerCase().indexOf(kw) >= 0 || i.type.indexOf(kw) >= 0) && (!ltd || i.ltd));
+  let list = ITEMS.filter(i => itemOnSale(i) && (cat === 'all' || i.type === cat || (cat === 'ugc' && i.ugc)) && (!kw || i.name.toLowerCase().indexOf(kw) >= 0 || i.type.indexOf(kw) >= 0) && (!ltd || i.ltd));
   const cost = i => i.cur === 'R' ? i.price : i.price / 10;
   if(sort === 'lo') list.sort((a, b) => cost(a) - cost(b)); else if(sort === 'hi') list.sort((a, b) => cost(b) - cost(a)); else if(sort === 'new') list.sort((a, b) => b.updated - a.updated); else if(sort === 'sold') list.sort((a, b) => ownersCount(b.id) - ownersCount(a.id));
   const cats = [['all', 'All Items'], ['hat', 'Hats'], ['face', 'Faces'], ['shirt', 'Shirts'], ['pants', 'Pants'], ['gear', 'Gear'], ['ugc', 'Community Made']];
@@ -2862,11 +2901,12 @@ function renderItem(id){
   const owned = U.owned.indexOf(it.id) >= 0, worn = isWorn(it.id), same = ITEMS.filter(x => x.type === it.type && x.id !== it.id).slice(0, 6);
   const cant = !owned && (it.cur === 'R' ? U.tokens < it.price : U.tix < it.price);
   setApp('<div class="box"><div class="itm"><div class="big">' + itemImg(it) + (it.ltd ? '<span class="ltd">LIMITED</span>' : '') + '</div><div class="det"><h1>' + esc(it.name) + '</h1><div class="muted">By <b>' + esc(it.creator) + '</b>' + (it.ugc ? ' <span class="muted">(Community Made)</span>' : '') + '</div><div class="bigprice">' + (owned ? '<span class="owned" style="position:static;padding:3px 10px;font-size:14px">OWNED</span>' : priceOf(it)) + '</div>'
-    + (owned ? '<a class="btn big" data-act="wearItem" data-i="' + it.id + '">' + (worn ? 'Take Off' : 'Wear') + '</a> <a class="btn neutral" href="#/avatar">Open Avatar</a>' : '<a class="btn green big" data-act="buy" data-i="' + it.id + '"' + (cant ? ' style="opacity:.55"' : '') + '>Buy</a>' + (cant ? '<div class="err">You need more ' + (it.cur === 'R' ? 'tokens. <a href="#/tokens">Earn Tokens</a>' : 'tickets. <a href="#/tokens">Exchange for Tickets</a>') + '</div>' : ''))
-    + '<dl><dt>Type</dt><dd>' + TYPE_NAMES[it.type].replace(/s$/, '') + '</dd><dt>Owners</dt><dd>' + ownersCount(it.id) + '</dd>' + (it.ltd ? '<dt>Trade value</dt><dd>' + tokp(it.val) + '</dd>' : '') + '<dt>Description</dt><dd style="font-weight:400">' + esc(it.desc) + '</dd></dl></div></div></div><div class="box"><div class="sec-h"><span>Recommended</span></div><div class="gcards">' + same.map(i => icard(i)).join('') + '</div></div>');
+    + (owned ? '<a class="btn big" data-act="wearItem" data-i="' + it.id + '">' + (worn ? 'Take Off' : 'Wear') + '</a> <a class="btn neutral" href="#/avatar">Open Avatar</a>' : !itemOnSale(it) ? '<div class="err">' + (it.rel && Date.now() < it.rel ? 'Coming ' + new Date(it.rel).toLocaleDateString(undefined, {month:'long', day:'numeric', timeZone:'UTC'}) + '.' : it.ev ? 'This event item is not for sale right now.' : 'This item has left the shop.') + '</div>' : '<a class="btn green big" data-act="buy" data-i="' + it.id + '"' + (cant ? ' style="opacity:.55"' : '') + '>Buy</a>' + (cant ? '<div class="err">You need more ' + (it.cur === 'R' ? 'tokens. <a href="#/tokens">Earn Tokens</a>' : 'tickets. <a href="#/tokens">Exchange for Tickets</a>') + '</div>' : ''))
+    + '<dl><dt>Type</dt><dd>' + TYPE_NAMES[it.type].replace(/s$/, '') + '</dd>' + (it.rel && itemOnSale(it) ? '<dt>Leaves the shop</dt><dd>in ' + itemDaysLeft(it) + ' day' + (itemDaysLeft(it) === 1 ? '' : 's') + '</dd>' : it.ev && eventOn(it.ev) ? '<dt>Available until</dt><dd>' + EVENTS[it.ev].end + '</dd>' : '') + '<dt>Owners</dt><dd>' + ownersCount(it.id) + '</dd>' + (it.ltd ? '<dt>Trade value</dt><dd>' + tokp(it.val) + '</dd>' : '') + '<dt>Description</dt><dd style="font-weight:400">' + esc(it.desc) + '</dd></dl></div></div></div><div class="box"><div class="sec-h"><span>Recommended</span></div><div class="gcards">' + same.map(i => icard(i)).join('') + '</div></div>');
 }
 function buyItem(id){
   const it = ITEM_BY_ID[id]; if(U.owned.indexOf(id) >= 0) return;
+  if(!itemOnSale(it)){ toast('This item is not for sale right now.', true); return; }
   confirmBox('Buy Item', 'Would you like to buy <b>' + esc(it.name) + '</b> for ' + priceOf(it) + '?<br><span class="muted">Your balance after purchase: ' + ((it.cur === 'R' ? U.tokens : U.tix) - it.price) + ' ' + (it.cur === 'R' ? 'tokens' : 'tickets') + '</span>', 'Buy Now', () => {
     if(it.cur === 'R'){ if(U.tokens < it.price){ toast('You do not have enough tokens.', true); return; } U.tokens -= it.price; } else { if(U.tix < it.price){ toast('You do not have enough tickets.', true); return; } U.tix -= it.price; }
     U.owned.push(id); persist(); giveBadge('shopper'); if(it.ugc && it.creatorId && it.creatorId !== MYID && it.price > 0) DB.collection('sales').add({seller:it.creatorId, buyer:MYID, item:it.id, amt:Math.floor(it.price * .7), t:Date.now(), claimed:false}).catch(() => {}); toast('You bought ' + it.name + '!'); render();
@@ -3250,9 +3290,27 @@ function editGameModal(id){
   bindPicker('egI', 'icon', 256, 256, 50000, 'egP'); $('#egR').onclick = e => { e.preventDefault(); PICK.icon = null; $('#egP').src = gameThumb(Object.assign(customGame(d), {icon:''}), 256, 256); };
 }
 
+function adminUnlockAll(){
+  if(!isAdminMe() || !U) return false; let ch = false; const add = (arr, v) => { if(arr.indexOf(v) < 0){ arr.push(v); ch = true; } };
+  ITEMS.forEach(i => add(U.owned, i.id)); EMOTES.forEach(e => add(U.emotes, e.id)); PETS.forEach(q => add(U.pets, q.id)); Object.keys(badgeDefs()).forEach(b => add(U.badges, b));
+  if(U.tokens < 999999){ U.tokens = 999999; ch = true; } if(U.tix < 999999){ U.tix = 999999; ch = true; }
+  const s = seasonOf(); if(s.xp < SEASON.length * SEASON_XP){ s.xp = SEASON.length * SEASON_XP; ch = true; }
+  if(ch) persist(); return ch;
+}
+function claimGift(d){
+  if(!d || d.claimed || GIFTSEEN[d.id] || !U) return; GIFTSEEN[d.id] = 1;
+  DB.doc('gifts/' + d.id).update({claimed:true}).then(() => {
+    const bits = []; if(d.amt){ U.tokens += d.amt; bits.push(d.amt.toLocaleString() + ' tokens'); }
+    const it = d.item && ITEM_BY_ID[d.item]; if(it){ if(U.owned.indexOf(it.id) < 0) U.owned.push(it.id); bits.push(it.name); }
+    persist(); refreshChrome(); toast((nameOf(d.from) || 'An admin') + ' sent you ' + bits.join(' and ') + '!' + (d.note ? ' "' + d.note + '"' : ''));
+  }).catch(() => { delete GIFTSEEN[d.id]; });
+}
+function giftBox(){
+  return '<div class="box"><div class="sec-h"><span>Give a player tokens or an item</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"><div><label class="f" for="giftName" style="margin-top:0">Username</label><input id="giftName" maxlength="20" placeholder="Username"></div><div><label class="f" for="giftAmt" style="margin-top:0">Tokens (0 to 1,000,000)</label><input id="giftAmt" type="number" min="0" max="1000000" placeholder="500"></div><div><label class="f" for="giftItem" style="margin-top:0">Item (optional)</label><select id="giftItem"><option value="0">No item</option>' + ITEMS.filter(i => !i.ugc).map(i => '<option value="' + i.id + '">' + esc(i.name) + '</option>').join('') + '</select></div></div><label class="f" for="giftNote">Note (optional)</label><input id="giftNote" maxlength="80" placeholder="Happy holidays!"><p style="margin:10px 0 0"><a class="btn green small" data-act="adminGift">Send gift</a></p></div>';
+}
 function adminTools(){
   const gs = customGames();
-  return '<div class="box"><div class="sec-h"><span>Admin Tools</span></div><p style="margin:0 0 4px"><a class="btn green small" data-act="adminUnlock">Unlock everything for me</a></p><p class="muted" style="font-size:12px;margin:0 0 14px">Gives this account every catalog item, emote and pet, plus 999,999 tokens.</p><label class="f" for="banName" style="margin-top:0">Ban a player by username</label><div style="display:flex;gap:8px"><input id="banName" maxlength="20" placeholder="Username"><a class="btn red small" data-act="banByName">Ban</a></div></div>'
+  return noticeBox() + giftBox() + '<div class="box"><div class="sec-h"><span>Admin Tools</span></div><p style="margin:0 0 4px"><a class="btn green small" data-act="adminUnlock">Unlock everything for me</a></p><p class="muted" style="font-size:12px;margin:0 0 14px">Gives this account every catalog item, emote and pet, plus 999,999 tokens.</p><label class="f" for="banName" style="margin-top:0">Ban a player by username</label><div style="display:flex;gap:8px"><input id="banName" maxlength="20" placeholder="Username"><a class="btn red small" data-act="banByName">Ban</a></div></div>'
     + '<div class="box"><div class="sec-h"><span>Community games (' + gs.length + ')</span></div>' + (gs.length ? gs.map(g => '<div class="lrow"><div class="grow"><b>' + esc(g.name) + '</b> <span class="muted">by ' + esc(g.creator) + '</span></div><a class="btn small" href="#/game/' + esc(g.id) + '">Open</a> <a class="btn red small" data-act="adminDelGame" data-id="' + esc(g.id) + '">Delete</a></div>').join('') : '<p class="muted" style="margin:0">No community games yet.</p>') + '</div>'
     + '<div class="box"><div class="sec-h"><span>Community items (' + ITEMDOCS.length + ')</span></div>' + (ITEMDOCS.length ? ITEMDOCS.slice(0, 60).map(d => '<div class="lrow"><div class="grow"><b>' + esc(d.name || d.id) + '</b> <span class="muted">by ' + esc(nameOf(d.creator)) + '</span></div><a class="btn red small" data-act="adminDelItem" data-id="' + esc(d.id) + '">Delete</a></div>').join('') : '<p class="muted" style="margin:0">No community items yet.</p>') + '</div>';
 }
@@ -3347,7 +3405,7 @@ async function playGame(gid, opt){
   requestAnimationFrame(() => requestAnimationFrame(() => { const f = $('#lbf'); if(f) f.style.width = '100%'; }));
   const s = session = {earned:0, cancel:false, nr:null};
   let nr = null;
-  if(!solo){ try{ nr = await ROOM.join(roomName); }catch(e){ session = null; endLoad(); modal('Cannot Join Server', '<p style="margin:0">Could not join this server. Try again in a moment.</p>', [{label:'OK'}]); return; } }
+  if(!solo){ try{ nr = await ROOM.join(roomName); }catch(e){ session = null; endLoad(); const c = e && e.code; modal(c === 'already_in_game' ? 'Already In A Game' : 'Cannot Join Server', '<p style="margin:0">' + (c === 'already_in_game' ? 'This account is already playing a game on another device or window. Leave that game first, then try again.' : c === 'maintenance' ? 'Retro Blox is down for maintenance right now. Please check back soon.' : 'Could not join this server. Try again in a moment.') + '</p>', [{label:'OK'}]); return; } }
   s.nr = nr;
   await new Promise(r => setTimeout(r, 1200));
   if(s.cancel){ if(nr) nr.leave().catch(() => {}); return; }
@@ -3410,7 +3468,14 @@ const ACTIONS = {
   buyEmote:el => { const em = EMO_BY_ID[el.dataset.e]; if(!em || U.emotes.indexOf(em.id) >= 0) return; if(U.tokens < em.price){ toast('You do not have enough tokens.', true); return; } U.tokens -= em.price; U.emotes.push(em.id); persist(); toast('You got the ' + em.n + ' emote! Press the face button in a game, or type /e ' + em.id + '.'); refreshChrome(); render(); },
   publishPlace:el => publishModal(+el.dataset.p),
   dismissReport:el => { DB.doc('reports/' + el.dataset.r).delete().then(() => toast('Report dismissed.')).catch(() => toast('Could not dismiss.', true)); },
-  adminUnlock:() => { if(!(window.__ME && window.__ME.admin)) return; ITEMS.forEach(i => { if(U.owned.indexOf(i.id) < 0) U.owned.push(i.id); }); EMOTES.forEach(e => { if(U.emotes.indexOf(e.id) < 0) U.emotes.push(e.id); }); PETS.forEach(q => { if(U.pets.indexOf(q.id) < 0) U.pets.push(q.id); }); U.tokens = Math.max(U.tokens, 999999); persist(); toast('Everything unlocked.'); refreshChrome(); },
+  sitePreset:el => { $('#siteMsg').value = el.dataset.t; },
+  siteSet:el => { if(!isAdminMe()) return; const m = el.dataset.m, ta = $('#siteMsg'), msg = ta ? ta.value.trim() : ((SITEDOC && SITEDOC.msg) || ''); if(m !== 'off' && !msg) return toast('Type a message first.', true);
+    const go = () => DB.doc('site/status').set({mode:m, msg:msg || (SITEDOC && SITEDOC.msg) || '', t:Date.now()}).then(() => toast(m === 'off' ? 'Back online.' : m === 'down' ? 'Maintenance mode is ON.' : 'Announcement posted.')).catch(() => toast('Could not save.', true));
+    if(m === 'down') confirmBox('Turn maintenance on', 'Everyone except admins will be locked out and any games in progress will close. Continue?', 'Turn on', go, 'red'); else go(); },
+  adminUnlock:() => { if(adminUnlockAll()) toast('Everything unlocked.'); else toast('You already have everything.'); refreshChrome(); },
+  adminGift:() => { if(!isAdminMe()) return; const nm = ($('#giftName').value || '').trim().toLowerCase(), id = nm && Object.keys(P).find(k => nameOf(k).toLowerCase() === nm), amt = Math.floor(+($('#giftAmt').value || 0)), item = +($('#giftItem').value || 0), note = ($('#giftNote').value || '').trim().slice(0, 80);
+    if(!id) return toast('No player with that username.', true); if(!(amt >= 0 && amt <= 1000000)) return toast('Amount must be 0 to 1,000,000.', true); if(!amt && !item) return toast('Enter an amount or pick an item.', true);
+    DB.collection('gifts').add({to:id, from:MYID, amt, item, note, t:Date.now(), claimed:false}).then(() => { toast('Sent to ' + nameOf(id) + '.'); $('#giftAmt').value = ''; }).catch(() => toast('Could not send the gift.', true)); },
   banByName:() => { const v = ($('#banName').value || '').trim().toLowerCase(); const id = v && Object.keys(P).find(k => nameOf(k).toLowerCase() === v); if(!id) return toast('No player with that username.', true); if(id === MYID) return toast('You cannot ban yourself.', true); ACTIONS.banUser({dataset:{n:id}}); },
   adminDelItem:el => { const d = ITEMDOCS.find(x => x.id === el.dataset.id); if(!d) return; confirmBox('Delete item', 'Permanently delete <b>' + esc(d.name || d.id) + '</b>?', 'Delete', () => { DB.doc('items/' + d.id).delete().then(() => toast('Item deleted.')).catch(() => toast('Could not delete.', true)); }, 'red'); },
   adminDelGame:el => { const g = gameById(el.dataset.id); if(!g) return; confirmBox('Delete game', 'Permanently delete <b>' + esc(g.name) + '</b> by ' + esc(g.creator) + '?', 'Delete', () => { DB.doc('games/' + g.id).delete().then(() => toast('Game deleted.')).catch(() => toast('Could not delete.', true)); }, 'red'); },
@@ -3511,7 +3576,7 @@ document.addEventListener('click', e => { if(!Engine.active() && e.target.closes
     if(STATUS === 'onboard'){ try{ const me = await USERCAP.me(); const n = String((me && me.name) || ''); window.__suggest = n; if(NAME_RE.test(n) && await finishOnboard(n)){} }catch(e){ console.warn(e); } }
     try{ if(ROOM && ROOM.onConnection) ROOM.onConnection(c => toast(c ? 'Reconnected.' : 'Connection lost. Reconnecting...', !c)); }catch(e){}
     if(STATUS === 'ready' && (!location.hash || location.hash === '#/')) location.hash = '#/home';
-    render(); if(STATUS === 'ready'){ setTimeout(dailyModal, 1500); acctRememberSelf(); }
+    render(); if(STATUS === 'ready'){ setTimeout(dailyModal, 1500); acctRememberSelf(); try{ if(adminUnlockAll()) refreshChrome(); }catch(e){} }
   }catch(e){ clearTimeout(guard); console.warn(e); STATUS = 'gate'; render(); }
 })();
 

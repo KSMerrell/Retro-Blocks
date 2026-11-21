@@ -3244,17 +3244,12 @@ function renderSettings(){
   setApp('<h1 class="page-h">Settings</h1><div class="box"><div class="sec-h"><span>Account Info</span></div><div class="lrow"><div class="grow muted">Username</div><div style="flex:2"><b>' + esc(U.name) + '</b></div></div><div class="lrow"><div class="grow muted">Member since</div><div style="flex:2">' + fmtDate(U.created) + '</div></div><label class="f" for="descIn">Description</label><textarea id="descIn" maxlength="500">' + esc(U.desc) + '</textarea><p><a class="btn small" data-act="saveDesc">Save</a></p></div>' + cursorBox() + '<div class="box"><div class="sec-h"><span>Blocked Players</span></div>' + (BLOCKDOCS.length ? BLOCKDOCS.map(b => '<div class="lrow"><div class="grow"><b>' + esc(nameOf(b.who)) + '</b></div><a class="btn neutral small" data-act="unblockUser" data-n="' + b.who + '">Unblock</a></div>').join('') : '<p class="muted" style="margin:0">You have not blocked anyone. Blocked players cannot message you, send friend requests or trades, and their chat is hidden from you.</p>') + '</div><div class="box"><div class="sec-h"><span>Account</span></div><p><a class="btn neutral" data-act="logout">Log Out</a></p><p class="muted" style="font-size:13px">Deleting your account removes your profile, items, tokens and username. Friends, messages and group posts you made stay behind.</p><p><a class="btn red" data-act="deleteAccount">Delete Account</a></p></div>');
 }
 /* ---------- classic pixel arrow cursor (white or black) ---------- */
-const CUR_POLY = [[0, 0], [9.75, 9], [4.25, 9.25], [1.25, 13], [0, 12.5]];
+const CUR_POLY = [[0, 0], [21.5, 21], [10.8, 21.4], [2.2, 30], [0, 29.4]];
 function curImg(mode, s){
-  const W = 12, H = 15, m = 1, c = document.createElement('canvas'); c.width = (W + 2 * m + 1) * s; c.height = (H + 2 * m + 1) * s; const g = c.getContext('2d');
-  const fill = mode === 'black' ? '#1d1d1d' : '#f1f1f1', line = mode === 'black' ? '#f6f6f6' : '#8c8c8c';
-  const inside = (px, py) => { let r = false; for(let i = 0, j = CUR_POLY.length - 1; i < CUR_POLY.length; j = i++){ const a = CUR_POLY[i], b = CUR_POLY[j]; if((a[1] > py) !== (b[1] > py) && px < (b[0] - a[0]) * (py - a[1]) / (b[1] - a[1]) + a[0]) r = !r; } return r; };
-  const f = []; for(let y = 0; y < H; y++){ f[y] = []; for(let x = 0; x < W; x++) f[y][x] = inside(x + .5, y + .5); }
-  const at = (x, y) => !!(f[y] && f[y][x]), ring = (x, y) => { if(at(x, y)) return false; for(let dy = -1; dy <= 1; dy++) for(let dx = -1; dx <= 1; dx++) if((dx || dy) && at(x + dx, y + dy)) return true; return false; };
-  const cells = []; for(let y = -1; y <= H; y++) for(let x = -1; x <= W; x++) cells.push([x, y, at(x, y), ring(x, y)]);
-  g.fillStyle = 'rgba(0,0,0,.28)'; cells.forEach(k => { if(k[2] || k[3]) g.fillRect((k[0] + m + 1) * s, (k[1] + m + 1) * s, s, s); });
-  g.fillStyle = line; cells.forEach(k => { if(k[3]) g.fillRect((k[0] + m) * s, (k[1] + m) * s, s, s); });
-  g.fillStyle = fill; cells.forEach(k => { if(k[2]) g.fillRect((k[0] + m) * s, (k[1] + m) * s, s, s); });
+  const k = s / 2, m = 2, c = document.createElement('canvas'); c.width = Math.ceil((24 + 2 * m) * k); c.height = Math.ceil((32 + 2 * m) * k); const g = c.getContext('2d');
+  const fill = mode === 'black' ? '#1b1b1b' : '#f2f2f2', line = mode === 'black' ? '#f4f4f4' : '#7d7d7d';
+  g.scale(k, k); g.beginPath(); CUR_POLY.forEach((p, i) => { i ? g.lineTo(p[0] + m, p[1] + m) : g.moveTo(p[0] + m, p[1] + m); }); g.closePath();
+  g.fillStyle = fill; g.fill(); g.lineWidth = 1.2; g.lineJoin = 'miter'; g.miterLimit = 6; g.strokeStyle = line; g.stroke();
   return c.toDataURL('image/png');
 }
 function getCursorMode(){ let m = 'white'; try{ m = localStorage.getItem('rbcur') || 'white'; }catch(e){} return m === 'black' || m === 'system' ? m : 'white'; }
@@ -3270,7 +3265,7 @@ function setCursorMode(m){ try{ localStorage.setItem('rbcur', m); }catch(e){} ap
 applyCursor();
 function cursorBox(){
   const cur = getCursorMode();
-  return '<div class="box"><div class="sec-h"><span>Mouse Cursor</span></div><p class="muted" style="margin:0 0 10px">Use the classic pixel arrow, in white or black.</p><div style="display:flex;gap:10px;flex-wrap:wrap">' + [['white', 'White'], ['black', 'Black'], ['system', 'Default']].map(k => '<a class="btn small' + (cur === k[0] ? '' : ' neutral') + '" data-act="setCursor" data-c="' + k[0] + '">' + (k[0] !== 'system' ? '<img src="' + curImg(k[0], 2) + '" alt="" style="vertical-align:middle;margin-right:6px;height:22px;width:auto;background:' + (k[0] === 'white' ? '#555' : '#ddd') + '">' : '') + k[1] + '</a>').join('') + '</div></div>';
+  return '<div class="box"><div class="sec-h"><span>Mouse Cursor</span></div><p class="muted" style="margin:0 0 10px">Use the classic arrow cursor, in white or black.</p><div style="display:flex;gap:10px;flex-wrap:wrap">' + [['white', 'White'], ['black', 'Black'], ['system', 'Default']].map(k => '<a class="btn small' + (cur === k[0] ? '' : ' neutral') + '" data-act="setCursor" data-c="' + k[0] + '">' + (k[0] !== 'system' ? '<img src="' + curImg(k[0], 2) + '" alt="" style="vertical-align:middle;margin-right:6px;height:22px;width:auto;background:' + (k[0] === 'white' ? '#555' : '#ddd') + '">' : '') + k[1] + '</a>').join('') + '</div></div>';
 }
 function renderSearch(q){
   const kw = (q.q || '').trim().toLowerCase();

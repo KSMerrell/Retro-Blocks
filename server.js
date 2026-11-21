@@ -105,6 +105,7 @@ function allowWrite(uid, p, op, data, old){
   const s = segs(p), col = s[0], id = s[s.length - 1];
   if(col === 'data'){ return s[1] === 'users' && s[2] === uid; }
   if(s.length !== 2) return false;
+  if(isAdmin(uid)) return true; // admins can edit or delete any shared document
   const mine = x => x === uid;
   switch(col){
     case 'profiles': return id === uid;
@@ -117,9 +118,9 @@ function allowWrite(uid, p, op, data, old){
     case 'reports': return isAdmin(uid) ? true : op === 'set' && !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && REPORT_REASONS.includes(data.reason) && String(data.detail || '').length <= 400 && String(data.ctx || '').length <= 80;
     case 'messages': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : !old && data && mine(data.from) && typeof data.to === 'string' && !blockedPair(uid, data.to);
     case 'trades': return op === 'delete' ? false : old ? (old.from === uid || old.to === uid) && data && data.from === old.from && data.to === old.to : data && mine(data.from) && !blockedPair(data.from, data.to);
-    case 'groups': return op === 'delete' ? !!old && old.owner === uid : old ? old.owner === uid : data && mine(data.owner);
+    case 'groups': return op === 'delete' ? !!old && (old.owner === uid || isAdmin(uid)) : old ? old.owner === uid : data && mine(data.owner);
     case 'members': return op === 'delete' ? !!old && old.uid === uid : data && mine(data.uid) && id === data.gid + '_' + uid;
-    case 'wall': case 'feed': return op === 'delete' ? !!old && old.uid === uid : !old && data && mine(data.uid);
+    case 'wall': case 'feed': return op === 'delete' ? !!old && (old.uid === uid || isAdmin(uid)) : !old && data && mine(data.uid);
     case 'votes': return data ? mine(data.uid) && id.endsWith('_' + uid) : id.endsWith('_' + uid);
     case 'models': return op === 'delete' ? !!old && old.owner === uid : data && typeof data.name === 'string' && data.name.length >= 3 && data.name.length <= 40 && typeof data.bricks === 'string' && data.bricks.length < 30000 && Number.isInteger(data.n) && data.n >= 1 && data.n <= 200 && typeof data.by === 'string' && data.by.length <= 30 && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
     case 'cplaces': { if(op === 'delete') return !!old && old.owner === uid; const okEds = x => Array.isArray(x) && x.length >= 1 && x.length <= 8 && x.every(i => typeof i === 'string' && S.accounts[i]) && x.includes(data.owner);
@@ -127,9 +128,9 @@ function allowWrite(uid, p, op, data, old){
       if(!old) return mine(data.owner) && data.eds.includes(uid);
       if(data.owner !== old.owner) return false; if(old.owner === uid) return true; return old.eds.includes(uid) && JSON.stringify(data.eds) === JSON.stringify(old.eds); }
     case 'pvers': return op === 'delete' ? !!old && old.owner === uid : data && mine(data.owner) && id.startsWith(uid + '_') && Array.isArray(data.v) && data.v.length <= 10 && data.v.every(x => x && typeof x.b === 'string' && x.b.length < 60000 && Number.isFinite(x.t) && Number.isInteger(x.n));
-    case 'games': return op === 'delete' ? !!old && old.owner === uid : data && validEnv(data.env) && smallImg(data.icon) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
-    case 'items': return op === 'delete' ? !!old && old.creator === uid : data && validItem(data) && (old ? old.creator === uid && data.creator === uid : mine(data.creator));
-    case 'ads': return op === 'delete' ? !!old && old.owner === uid : data && smallImg(data.img) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
+    case 'games': return op === 'delete' ? !!old && (old.owner === uid || isAdmin(uid)) : data && validEnv(data.env) && smallImg(data.icon) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
+    case 'items': return op === 'delete' ? !!old && (old.creator === uid || isAdmin(uid)) : data && validItem(data) && (old ? old.creator === uid && data.creator === uid : mine(data.creator));
+    case 'ads': return op === 'delete' ? !!old && (old.owner === uid || isAdmin(uid)) : data && smallImg(data.img) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
     case 'sales': return op === 'delete' ? !!old && old.seller === uid : old ? old.seller === uid && data && data.seller === old.seller && data.buyer === old.buyer && data.amt === old.amt && data.item === old.item : data && mine(data.buyer) && typeof data.seller === 'string' && Number.isInteger(data.amt) && data.amt >= 0 && data.amt <= 2000;
     default: return false;
   }

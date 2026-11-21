@@ -465,6 +465,9 @@ body:not(.in-game) #app{padding-bottom:56px}
 .pt b{font-size:13px}.pt span{flex:1}.pt em{font-style:normal;color:var(--muted)}
 .pt.ready{border-color:#02b757;background:#eafbf1}.pt.done{opacity:.6}
 
+#gSLdot{display:none;position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:0 0 0 2px rgba(0,0,0,.45);pointer-events:none}
+#gSLdot.on{display:block}
+
 </style></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
@@ -2140,7 +2143,8 @@ const Engine = (function(){
     if(P.tool === 'balloon' && P.vy < -14) P.vy = -14;
     { const hs = Math.hypot(P.vx, P.vz); if(P.grounded && hs > 3){ P.stepT = (P.stepT || 0) - dt * hs / 16; if(P.stepT <= 0){ P.stepT = .34; sfx.step(); } } else if(P.grounded) P.stepT = 0;
       if(!wasG && P.grounded && vy0 < -30){ if(pg0 && P.ground && P.ground !== pg0 && P.ground.maxy > pg0.maxy + .4 && vy0 > -60) sfx.climb(); else sfx.land(); } }
-    if(Math.hypot(P.vx, P.vz) > 1) { const d = Math.atan2(P.vx, P.vz) - P.face; P.face += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, dt * 14); }
+    if(G.sl && !typing){ const d = G.yaw + Math.PI - P.face; P.face += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, dt * 20); }
+    else if(Math.hypot(P.vx, P.vz) > 1) { const d = Math.atan2(P.vx, P.vz) - P.face; P.face += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, dt * 14); }
     if(P.y < G.lavaY){ if(G.pvp || G.softFall || G.game.kind === 'town' || G.game.kind === 'studio' || G.game.kind === 'custom'){ respawnEnt(P); } else killEnt(P, null, 'lava'); return; }
     G.killers.forEach(k => { if(!P.dead && killHit(k, P) && P.ff <= 0) killEnt(P, null, 'kill'); });
     G.spinners.forEach(s => { if(!P.dead && spinHit(s, P) && P.ff <= 0) killEnt(P, null, 'spin'); });
@@ -2225,7 +2229,7 @@ const Engine = (function(){
     const P = G.P, tv = G.titleView;
     let tx, ty, tz;
     if(G.state === 'intro'){ G.yaw += dt * .15; G.pitch = .3; G.camDist += (G.game.kind === 'town' ? 110 : 80 - G.camDist) * (1 - Math.exp(-3 * dt)); tx = tv[0]; ty = tv[1]; tz = tv[2]; }
-    else { if(G.car && G.state === 'play'){ let d = G.car.ang + Math.PI - G.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); G.yaw += d * (1 - Math.exp(-4 * dt)); G.pitch += (.3 - G.pitch) * (1 - Math.exp(-4 * dt)); } tx = P.x; ty = P.y + 3.4; tz = P.z; if(G.spec){ if(!G.ents.includes(G.spec)) specStop(); else { tx = G.spec.x; ty = G.spec.y + 3.4; tz = G.spec.z; if(P.ff < 1) P.ff = 1; } } if(G.sMode === 'edit'){ tx = G.focus.x; ty = G.focus.y; tz = G.focus.z; } G.camDist += (G.zoom - G.camDist) * (1 - Math.exp(-6 * dt)); }
+    else { if(G.car && G.state === 'play'){ let d = G.car.ang + Math.PI - G.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); G.yaw += d * (1 - Math.exp(-4 * dt)); G.pitch += (.3 - G.pitch) * (1 - Math.exp(-4 * dt)); } tx = P.x; ty = P.y + 3.4; tz = P.z; if(G.sl && !G.spec && G.state === 'play'){ tx += Math.cos(G.yaw) * 2.2; tz -= Math.sin(G.yaw) * 2.2; } if(G.spec){ if(!G.ents.includes(G.spec)) specStop(); else { tx = G.spec.x; ty = G.spec.y + 3.4; tz = G.spec.z; if(P.ff < 1) P.ff = 1; } } if(G.sMode === 'edit'){ tx = G.focus.x; ty = G.focus.y; tz = G.focus.z; } G.camDist += (G.zoom - G.camDist) * (1 - Math.exp(-6 * dt)); }
     G.cf.x += (tx - G.cf.x) * (1 - Math.exp(-(G.camBlend > 0 ? 3 : 20) * dt)); G.cf.y += (ty - G.cf.y) * (1 - Math.exp(-(G.camBlend > 0 ? 3 : 20) * dt)); G.cf.z += (tz - G.cf.z) * (1 - Math.exp(-(G.camBlend > 0 ? 3 : 20) * dt));
     if(G.camBlend > 0) G.camBlend -= dt;
     const cp = Math.cos(G.pitch);
@@ -2280,7 +2284,7 @@ const Engine = (function(){
       + '<div id="gToast"><b></b><span></span></div>'
       + '<div id="gHotbar"></div>' + (kind === 'restaurant' ? '<div id="gPrompt"></div><div id="gTray"></div>' : '') + ((kind === 'drive' || kind === 'coaster') ? '<div id="gSpeed"></div>' : '')
       + (kind === 'studio' ? studioHud() : '')
-      + '<button id="gChatBtn" aria-label="Chat">💬</button><button id="gShotBtn" aria-label="Screenshot" title="Screenshot (F2)">📷</button><div id="gFlash"></div><div id="gSpec" hidden><span></span><button id="gSpecStop">Stop watching</button></div><div id="gTouch"><div id="gJoy"><div id="gKnob"></div></div><button id="gJump">Jump</button></div>'
+      + '<button id="gChatBtn" aria-label="Chat">💬</button><button id="gShotBtn" aria-label="Screenshot" title="Screenshot (F2)">📷</button><div id="gFlash"></div><div id="gSLdot"></div><div id="gSpec" hidden><span></span><button id="gSpecStop">Stop watching</button></div><div id="gTouch"><div id="gJoy"><div id="gKnob"></div></div><button id="gJump">Jump</button></div>'
       + '<div id="gTimeBox">Time <b id="gTime">0:00</b></div>'
       + '</div>'
       + '<div id="gMenu" hidden><div class="gm-panel"><div class="gm-tabs"><button data-tab="players" class="on">Players</button><button data-tab="settings">Settings</button><button data-tab="help">Help</button></div>'
@@ -2291,14 +2295,14 @@ const Engine = (function(){
     document.querySelectorAll('.gm-tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === tab));
     if(tab === 'players') b.innerHTML = G.ents.map((e, i) => '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span>' + (e.remote ? '<button class="tb" data-spec="' + i + '">Watch</button>' : '') + '</div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
     else if(tab === 'settings') b.innerHTML = '<label class="set">Graphics <select id="setQual"><option value="low"' + (G.qual === 'low' ? ' selected' : '') + '>Low (fastest)</option><option value="med"' + (G.qual === 'med' ? ' selected' : '') + '>Medium</option><option value="high"' + (G.qual === 'high' ? ' selected' : '') + '>High (best looking)</option></select></label><label class="set"><input type="checkbox" id="setSound"' + (G.sound ? ' checked' : '') + '> Sound effects</label><label class="set">Camera zoom <input type="range" id="setZoom" min="6" max="' + (G.game.kind === 'studio' ? 120 : 60) + '" value="' + Math.round(G.zoom) + '"></label>';
-    else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Screenshot</b>: F2 or the camera button<br><b>Emotes</b>: type /e dance, wave, cheer, bounce, point, salute or shrug</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
+    else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Shift Lock</b>: press Shift (character follows the camera)<br><b>Screenshot</b>: F2 or the camera button<br><b>Emotes</b>: type /e dance, wave, cheer, bounce, point, salute or shrug</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
     b.onclick = ev => { const w = ev.target.closest('[data-spec]'); if(w){ const t = G.ents[+w.dataset.spec]; resume(); specStart(t); } };
     const qs = document.getElementById('setQual'); if(qs) qs.onchange = () => setQual(qs.value);
     const s = document.getElementById('setSound'); if(s) s.onchange = () => G.sound = s.checked;
     const z = document.getElementById('setZoom'); if(z) z.oninput = () => G.zoom = +z.value;
   }
-  function pause(){ if(!G || G.state !== 'play') return; G.keys.clear(); G.jumpBtn = false; G.joy.vx = G.joy.vy = 0; G.state = 'paused'; document.getElementById('gMenu').hidden = false; menuBody('players'); sfx.menu(true); }
-  function resume(){ if(!G || G.state !== 'paused') return; G.state = 'play'; document.getElementById('gMenu').hidden = true; canvas.focus(); sfx.menu(false); }
+  function pause(){ if(!G || G.state !== 'play') return; G.keys.clear(); G.jumpBtn = false; G.joy.vx = G.joy.vy = 0; try{ if(document.pointerLockElement) document.exitPointerLock(); }catch(e){} G.state = 'paused'; document.getElementById('gMenu').hidden = false; menuBody('players'); sfx.menu(true); }
+  function resume(){ if(!G || G.state !== 'paused') return; G.state = 'play'; document.getElementById('gMenu').hidden = true; canvas.focus(); if(G.sl){ try{ canvas.requestPointerLock(); }catch(e){} } sfx.menu(false); }
 
   /* ---------- graphics quality, screenshot, spectate, gpu report ---------- */
   const QLV = ['low', 'med', 'high'];
@@ -2318,6 +2322,12 @@ const Engine = (function(){
       const f = document.getElementById('gFlash'); if(f){ f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
       toast('Screenshot saved', 'Look in your Downloads folder.');
     }catch(e){ toast('Screenshot failed', 'Your device would not let the game save a picture.'); }
+  }
+  function shiftLock(on){
+    if(!G || isTouchDev()) return; if(on === undefined) on = !G.sl; if(G.sMode === 'edit' || G.car) on = false; if(!!G.sl === on) return; G.sl = on;
+    const d = document.getElementById('gSLdot'); if(d) d.classList.toggle('on', on);
+    try{ if(on) canvas.requestPointerLock && canvas.requestPointerLock(); else if(document.pointerLockElement) document.exitPointerLock(); }catch(e){}
+    toast(on ? 'Shift Lock on' : 'Shift Lock off', on ? 'Your character follows the camera. Press Shift to turn it off.' : '');
   }
   function specStart(e){ if(!G || !e || !G.ents.includes(e) || e === G.P) return; G.spec = e; G.camBlend = .8; const b = document.getElementById('gSpec'); if(b){ b.hidden = false; b.querySelector('span').textContent = 'Watching ' + e.user.name; } }
   function specStop(){ if(!G || !G.spec) return; G.spec = null; G.camBlend = .6; const b = document.getElementById('gSpec'); if(b) b.hidden = true; }
@@ -2356,6 +2366,7 @@ const Engine = (function(){
   function beginPlay(){ G.state = 'play'; if(G.R){ G.pitch = .8; G.zoom = 30; } if(G.game.kind === 'studio'){ G.pitch = .7; G.zoom = 70; G.yaw = .5; G.camDist = 70; } if(G.car){ G.yaw = G.car.ang + Math.PI; G.pitch = .3; G.zoom = 26; } G.camBlend = 1.2; G.cf = {x:G.P.x, y:G.P.y + 8, z:G.P.z}; G.T = 0; G.camDist = 40; toast(G.title.a, G.title.b); canvas.focus(); }
   function stop(){
     if(!G) return null;
+    try{ if(document.pointerLockElement) document.exitPointerLock(); }catch(e){}
     const summary = {kills:G.P.kills, deaths:G.P.deaths, time:G.T, won:G.won, bricks:G.bricks ? G.bricks.length : 0, stage:G.P.stats.stage, coins:G.P.stats.coins, lap:G.car ? G.car.best : 0, rides:G.co ? G.co.rides : 0};
     if(G.bricks && G.opts.onSave){ clearTimeout(saveT); G.opts.onSave(G.bricks, G.env); }
     try{ sSnapshot(); }catch(e){} (G.stT || []).forEach(u => { try{ u(); }catch(e){} });
@@ -2379,6 +2390,7 @@ const Engine = (function(){
       if(e.code === 'F11'){ e.preventDefault(); try{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); }catch(x){} return; }
       if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) >= 0) e.preventDefault();
       if(e.code === 'F2'){ e.preventDefault(); screenshot(); return; }
+      if((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && G.sMode !== 'edit'){ shiftLock(); return; }
       if(G.spec && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) >= 0) specStop();
       G.keys.add(e.code);
       if(e.code === 'KeyI') G.zoom = Math.max(4, G.zoom - 3); if(e.code === 'KeyO') G.zoom = Math.min(G.game.kind === 'studio' ? 120 : 60, G.zoom + 3);
@@ -2433,6 +2445,8 @@ const Engine = (function(){
     };
     canvas.addEventListener('pointerup', up, sig); canvas.addEventListener('pointercancel', up, sig);
     const gt = document.getElementById('gTouch'); if(gt && G.game.kind === 'studio'){ const sync = () => { if(!G){ clearInterval(iv); return; } gt.style.visibility = G.sMode === 'edit' ? 'hidden' : ''; }; const iv = setInterval(sync, 300); sync(); }
+    document.addEventListener('mousemove', e => { if(!G || !G.sl || document.pointerLockElement !== canvas || G.state !== 'play') return; G.yaw -= e.movementX * .0042; G.pitch = Math.max(-.15, Math.min(1.35, G.pitch + e.movementY * .0036)); }, sig);
+    canvas.addEventListener('pointerdown', () => { if(G && G.sl && G.state === 'play' && document.pointerLockElement !== canvas){ try{ canvas.requestPointerLock(); }catch(e){} } }, sig);
     const sb = document.getElementById('gShotBtn'); if(sb) sb.onclick = screenshot; const ss = document.getElementById('gSpecStop'); if(ss) ss.onclick = specStop;
     const cb = document.getElementById('gChatBtn'), gch = document.getElementById('gChat'); if(cb && gch){ cb.onclick = () => { const on = gch.classList.toggle('open'); if(on){ const i = document.getElementById('gChatIn'); i.focus(); } }; const ci = document.getElementById('gChatIn'); ci.addEventListener('blur', () => setTimeout(() => gch.classList.remove('open'), 150)); }
     const jb = document.getElementById('gJump'); jb.addEventListener('pointerdown', e => { e.preventDefault(); G.jumpBtn = true; }); ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => jb.addEventListener(n, () => { if(G) G.jumpBtn = false; }));

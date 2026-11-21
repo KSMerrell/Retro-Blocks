@@ -2266,6 +2266,7 @@ const Engine = (function(){
   function resume(){ if(!G || G.state !== 'paused') return; G.state = 'play'; document.getElementById('gMenu').hidden = true; canvas.focus(); sfx.menu(false); }
 
   /* ---------- start / stop ---------- */
+  function isTouchDev(){ const ua = navigator.userAgent || ''; if(/Electron|Windows NT|CrOS/i.test(ua) && !/Mobile|Tablet/i.test(ua)) return false; if(/Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(ua)) return true; if(/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true; return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches); }
   function start(opts){
     if(!window.THREE) return false;
     if(!renderer){ try{ canvas = document.createElement('canvas'); canvas.id = 'gc'; canvas.tabIndex = 0; renderer = new THREE.WebGLRenderer({canvas, antialias:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }catch(e){ renderer = null; return false; } }
@@ -2275,7 +2276,7 @@ const Engine = (function(){
     makeScene();
     const builder = game.kind === 'obby' && game.gen ? (() => buildGenObby(game.gen)) : ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio, coins:buildCoinIsland, restaurant:buildRestaurant, drive:buildDrive, tiledrop:buildTileDrop, coaster:buildCoaster})[game.kind]; builder();
     const root = document.getElementById('gameRoot'); root.textContent = ''; root.appendChild(canvas); root.insertAdjacentHTML('beforeend', hudHtml(game.kind)); root.hidden = false; document.body.classList.add('in-game');
-    if((window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(any-pointer: coarse)').matches || matchMedia('(hover: none)').matches)) || navigator.maxTouchPoints > 0 || 'ontouchstart' in window) root.classList.add('coarse'); else root.classList.remove('coarse');
+    if(isTouchDev()) root.classList.add('coarse'); else root.classList.remove('coarse');
     // player
     const sp = G.pvp ? G.arenaSpawns() : G.spawn;
     G.P = mkEnt({name:opts.user.name, avatar:opts.user.avatar}, sp.x, sp.y, sp.z, false); G.ents.push(G.P); G.P.ff = 2.4; G.P.boost = 0; G.P.hitDone = true; G.P.stats.stage = 0;
@@ -2344,7 +2345,7 @@ const Engine = (function(){
       if(!G || G.state !== 'play') return; try{ canvas.setPointerCapture(e.pointerId); }catch(er){}
       if(G.game.kind === 'studio' && G.sMode === 'edit' && e.button === 0 && G.tool === 'brush'){ G.paint = {id:e.pointerId, changed:false}; sBrush(e); return; }
       if(G.game.kind === 'studio' && G.sMode === 'edit' && e.button === 0 && selList().length){ const h = sHandleHit(e); if(h && sDragStart(h, e)) return; }
-      if(e.pointerType === 'touch' && !root0().classList.contains('coarse')) root0().classList.add('coarse');
+      if(e.pointerType === 'touch' && isTouchDev() && !root0().classList.contains('coarse')) root0().classList.add('coarse');
       if((G.game.kind !== 'studio' || G.sMode === 'test') && e.pointerType === 'touch' && e.clientX < innerWidth * .45 && e.clientY > innerHeight * .3 && G.joy.id === null){ G.joy.id = e.pointerId; G.joy.ox = e.clientX; G.joy.oy = e.clientY; joyBase.style.left = (e.clientX - 58) + 'px'; joyBase.style.top = (e.clientY - 58) + 'px'; joyBase.style.bottom = 'auto'; }
       else if(G.look.id === null){ G.look.id = e.pointerId; G.look.x = G.look.sx = e.clientX; G.look.y = G.look.sy = e.clientY; }
     }, sig);

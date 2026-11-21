@@ -1,6 +1,6 @@
 {
   "name": "retro-blox-desktop",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Retro Blox",
   "main": "main.js",
   "author": "Retro Blox",
@@ -10,7 +10,7 @@
   "build": {
     "appId": "com.retroblox.app",
     "productName": "Retro Blox",
-    "files": ["main.js", "offline.html"],
+    "files": ["main.js", "offline.html", "splash.html", "mark.png"],
     "win": { "target": "nsis", "icon": "build/icon.ico" },
     "nsis": { "oneClick": true, "perMachine": false, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Retro Blox", "artifactName": "Retro-Blox-Setup.${ext}" }
   }

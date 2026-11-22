@@ -653,7 +653,12 @@ const GAMES_ALL = [
  {id:13, kind:'obby', event:'winter', gen:{seed:37, len:40, every:10, hard:.45, name:'Frostbite Frenzy', pal:[0xbfe6ff,0xffffff,0x8fc7ff,0xff6f6f,0x7fdc9b,0xffe08a], ground:0xeaf6ff, sky:['#7fa9de','#f2f8ff']}, name:'Frostbite Frenzy', creator:'Retro Blox', color:['#8fc7ff','#274b82'], max:12,
   desc:'Winter event! Race across icy bricks, sliding beams and vanishing snow tiles to reach the gold finish. Four checkpoints along the way. Only here for the Winter Wonderland event, so play it before it melts away.'},
  {id:12, kind:'coaster', name:'Thunder Rail Coaster', creator:'Retro Blox', color:['#e0589a','#1f3b73'], max:16,
-  desc:'Welcome to the theme park! Walk to the station, step on the glowing pad and ride a huge roller coaster with a lift hill, big drops and fast hills. Every finished ride earns 3 tokens. Look around for the Ferris wheel and the carousel.'}
+  desc:'Welcome to the theme park! Walk to the station, step on the glowing pad and ride a huge roller coaster with a lift hill, big drops and fast hills. Every finished ride earns 3 tokens. Look around for the Ferris wheel and the carousel.'},
+ {id:14, kind:'obby', gen:{seed:1001, len:594, every:6, hard:.4, ramp:[.1, .95], rise:.18, long:true, milestone:25, reward:200, stageLabel:'Stage', palEvery:10, name:'Mega Obby: 100 Stages',
+   pal:[0x8fd6ff,0xffe36e,0xa6f0a0,0xffb27a,0xc7a3ff,0xff8ac4], ground:0xdfe9f2, sky:['#6fb3ee','#e8f3ff'],
+   pals:[[0x8fd6ff,0xffe36e,0xa6f0a0,0xffb27a,0xc7a3ff,0xff8ac4],[0x2bd67b,0xa6f0a0,0xf4f1c0,0x5bbf8a,0xc2e86b,0x7fd6c2],[0xffd36e,0xffa24d,0xf7e08a,0xe07a3a,0xffcf9e,0xd4a05a],[0x7ad3ff,0xbfe6ff,0x5aa7e8,0xe6f7ff,0x9fb8ff,0x66d9e8],[0xff6f91,0xff9a6f,0xffcf5a,0xd45aff,0xff5a5a,0xffa6c9],[0xb78cff,0x7a5cff,0xff5ad6,0x5ad6ff,0xd0a0ff,0x9d7bff]]},
+  name:'Mega Obby: 100 Stages', creator:'Retro Blox', color:['#f2b705','#7a3f00'], max:12,
+  desc:'The longest obby on the site: 100 stages of jumps, moving bricks, vanishing tiles, narrow beams and spinning bars over lava. It starts easy and gets harder every stage, with a new color theme every 10 stages. Your progress is saved at every checkpoint, so you can come back and keep going. Reach stages 25, 50, 75 and 100 for bonus tokens, and beat the whole thing for 200 tokens and the Mega Climber badge.'}
 ];
 const GAMES = GAMES_ALL.filter(g => !g.event || eventOn(g.event));
 const GAME_BY_ID = {}; GAMES.forEach(g => GAME_BY_ID[g.id] = g);
@@ -1021,7 +1026,7 @@ const Engine = (function(){
   function lavaSea(y, cz){
     const t = canvasTex('lava', 256, (g) => { g.fillStyle = '#ff6a00'; g.fillRect(0, 0, 256, 256); const r = rng(5); for(let i = 0; i < 260; i++){ const rad = 5 + r() * 24, x = r() * 256, yy = r() * 256; g.fillStyle = r() < .55 ? 'rgba(255,214,70,.30)' : 'rgba(150,30,0,.32)'; [-256, 0, 256].forEach(ox => [-256, 0, 256].forEach(oy => { g.beginPath(); g.arc(x + ox, yy + oy, rad, 0, 6.28); g.fill(); })); } });
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(150, 150); G.lavaTex = t;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(3800, 3800), new THREE.MeshBasicMaterial({map:t})); m.rotation.x = -Math.PI / 2; m.position.set(0, y, cz); G.scene.add(m);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(3800, 3800), new THREE.MeshBasicMaterial({map:t})); m.rotation.x = -Math.PI / 2; m.position.set(0, y, cz); G.scene.add(m); G.lavaMesh = m;
   }
   function tree(x, z){ block(x, 7, z, 2, 2, COL.brown, 'solid', {h:7, studs:false}); decor(new THREE.BoxGeometry(8, 6, 8), 0x2e7d32, x, 10, z); decor(new THREE.BoxGeometry(5, 4, 5), 0x3d9a42, x, 15, z); }
 
@@ -1123,27 +1128,29 @@ const Engine = (function(){
   }
   /* ---------- generated obbies (Candy Obby, Neon Inferno) ---------- */
   function buildGenObby(cfg){
-    const r = rng(cfg.seed), pal = cfg.pal, pick = () => pal[Math.floor(r() * pal.length)];
+    const r = rng(cfg.seed), rise = cfg.rise == null ? .45 : cfg.rise; let pal = cfg.pal; const pick = () => pal[Math.floor(r() * pal.length)];
     G.spawn = {x:0, y:.05, z:10}; G.lavaY = -4.2; G.stageNames = ['Start'];
     if(cfg.sky){ G.sky.material.uniforms.top.value.set(cfg.sky[0]); G.sky.material.uniforms.bottom.value.set(cfg.sky[1]); G.scene.fog.color.set(cfg.sky[1]); }
     block(0, 0, 0, 80, 60, cfg.ground, 'solid', {h:2, cast:false});
     let x = 0, y = 0, z = -40, st = 0, sinceCheck = 0;
     block(x, y, z, 8, 8, pick());
     for(let i = 1; i <= cfg.len; i++){
-      x = Math.max(-20, Math.min(20, x + (r() - .5) * 10)); z -= 10 + r() * 1.5; y += r() < .45 ? 1 + r() * .8 : 0; sinceCheck++;
+      const hard = cfg.ramp ? cfg.ramp[0] + (cfg.ramp[1] - cfg.ramp[0]) * (i / cfg.len) : cfg.hard;
+      x = Math.max(-20, Math.min(20, x + (r() - .5) * 10)); z -= 10 + r() * 1.5; y += r() < rise ? 1 + r() * .8 : 0; sinceCheck++;
       const roll = r();
-      if(sinceCheck >= cfg.every){ sinceCheck = 0; st++; z -= 3; pad(st, x, y, z); G.stageNames[st] = 'Section ' + (st + 1); z -= 3; continue; }
-      if(roll < cfg.hard * .3){ block(x, y, z, 7, 7, pick(), 'move', {ax:'x', amp:4, spd:.9 + cfg.hard * .5, ph:i}); }
-      else if(roll < cfg.hard * .55){ for(let j = 0; j < 3; j++){ block(x, y, z, 5, 5, pick(), 'vanish', {delay:.6}); if(j < 2) z -= 9; } }
-      else if(roll < cfg.hard * .7){ z -= 8; block(x, y, z, 22, 22, 0x3d434d, 'solid', {h:2}); addSpinner(x, y, z, 14, (r() < .5 ? 1 : -1) * (1.4 + cfg.hard)); z -= 8; }
-      else if(roll < cfg.hard * .85){ z -= 3; block(x, y, z, 3, 14, pick()); z -= 4; }
-      else block(x, y, z, cfg.hard > .4 ? 5 : 6, cfg.hard > .4 ? 5 : 6, pick());
+      if(sinceCheck >= cfg.every){ sinceCheck = 0; st++; z -= 3; pad(st, x, y, z); G.stageNames[st] = (cfg.stageLabel || 'Section') + ' ' + (st + 1); if(cfg.pals && cfg.palEvery) pal = cfg.pals[Math.floor(st / cfg.palEvery) % cfg.pals.length]; z -= 3; continue; }
+      if(roll < hard * .3){ block(x, y, z, 7, 7, pick(), 'move', {ax:'x', amp:4, spd:.9 + hard * .5, ph:i}); }
+      else if(roll < hard * .55){ for(let j = 0; j < 3; j++){ block(x, y, z, 5, 5, pick(), 'vanish', {delay:.6}); if(j < 2) z -= 9; } }
+      else if(roll < hard * .7){ z -= 8; block(x, y, z, 22, 22, 0x3d434d, 'solid', {h:2}); addSpinner(x, y, z, 14, (r() < .5 ? 1 : -1) * (1.4 + hard)); z -= 8; }
+      else if(roll < hard * .85){ z -= 3; block(x, y, z, 3, 14, pick()); z -= 4; }
+      else block(x, y, z, hard > .4 ? 5 : 6, hard > .4 ? 5 : 6, pick());
     }
+    G.stageMax = st + 1; if(cfg.long) G.lavaFollow = true;
     z -= 14; const goal = block(x, y + 1, z, 14, 14, 0xffffff, 'goal', {stage:st + 1, topMap:labelTex('FINISH', '#f2b705', 74)}); goal.mats[0].color.set(0xf2b705); pillar(x, y + 1, z, 8);
     const gold = new THREE.MeshLambertMaterial({color:0xffd23c, emissive:0x4a3500});
     [[2.4, 1, 2.4, 1.5], [.9, 2, .9, 3], [3, 2.4, 3, 5.2]].forEach(a => { const m = new THREE.Mesh(new THREE.BoxGeometry(a[0], a[1], a[2]), gold); m.position.set(x, y + a[3], z); m.castShadow = true; G.scene.add(m); });
-    lavaSea(-5, z / 2);
-    G.statCols = ['Stage']; G.mainStat = 'stage'; G.sunTarget = [0, 0, -40]; G.title = {a:cfg.name, b:'Reach the FINISH platform. Checkpoints save your spot.'}; G.titleView = [0, 8, -45]; G.botHomes = () => [];
+    lavaSea(-5, cfg.long ? 0 : z / 2);
+    G.statCols = ['Stage']; G.mainStat = 'stage'; G.sunTarget = [0, 0, -40]; G.title = {a:cfg.name, b:cfg.long ? 'Climb all ' + (st + 1) + ' stages. Your progress is saved.' : 'Reach the FINISH platform. Checkpoints save your spot.'}; G.titleView = [0, 8, -45]; G.botHomes = () => [];
   }
 
   /* ---------- Coin Island ---------- */
@@ -2202,7 +2209,7 @@ const Engine = (function(){
     if(P.dead) return;
     const gr = P.ground;
     if(gr){
-      if(gr.kind === 'check' && gr.stage > P.stats.stage){ P.stats.stage = gr.stage; G.checkpoint = {x:gr.cx, y:gr.maxy + .05, z:gr.cz}; sfx.check(); const nm = G.stageNames[gr.stage] || ''; toast('Checkpoint ' + gr.stage, nm ? 'Next: ' + nm : ''); chatMsg('sys', 'Checkpoint ' + gr.stage + ' reached.'); G.opts.onEvent && G.opts.onEvent('checkpoint', gr.stage); updateBoard(); }
+      if(gr.kind === 'check' && gr.stage > P.stats.stage){ P.stats.stage = gr.stage; G.checkpoint = {x:gr.cx, y:gr.maxy + .05, z:gr.cz}; sfx.check(); if(G.game.gen && G.game.gen.milestone && G.opts.onEvent){ G.opts.onEvent('check', gr.stage); if(gr.stage % G.game.gen.milestone === 0) G.opts.onEvent('milestone', gr.stage); } const nm = G.stageNames[gr.stage] || ''; toast('Checkpoint ' + gr.stage, nm ? 'Next: ' + nm : ''); chatMsg('sys', 'Checkpoint ' + gr.stage + ' reached.'); G.opts.onEvent && G.opts.onEvent('checkpoint', gr.stage); updateBoard(); }
       else if(gr.kind === 'cp' && G.cpPart !== gr){ G.cpPart = gr; G.checkpoint = {x:gr.cx, y:gr.maxy + .05, z:gr.cz}; sfx.check(); toast('Checkpoint saved', 'You will respawn here'); }
       else if(gr.kind === 'bounce'){ P.vy = JUMP * 2.15; P.grounded = false; P.ground = null; sfx.boost(); }
       else if(gr.kind === 'speed'){ if(P.boost < .5) sfx.boost(); P.boost = 1.8; }
@@ -2215,9 +2222,9 @@ const Engine = (function(){
     if(P.hp < P.max && G.T - P.lastHurt > 4 && G.pvp){ P.hp = Math.min(P.max, P.hp + 3 * dt); updateHP(); }
   }
   function win(){
-    G.won = true; G.P.stats.stage = G.game.kind === 'obby' ? 6 : G.P.stats.stage; sfx.win(); updateBoard();
-    const secs = G.T, cu = G.game.kind === 'custom' || G.game.kind === 'studio'; G.opts.onEvent && G.opts.onEvent('win', secs); if(!cu && G.opts.onReward) G.opts.onReward('tokens', G.game.kind === 'obby' ? 50 : 40);
-    toast('You win!', 'Time ' + fmtT(secs) + (cu ? '' : G.game.kind === 'obby' ? ' · +50 tokens' : ' · +40 tokens')); chatMsg('sys', 'You reached the top in ' + fmtT(secs) + '!');
+    G.won = true; G.P.stats.stage = G.game.kind === 'obby' ? (G.stageMax || 6) : G.P.stats.stage; sfx.win(); updateBoard();
+    const secs = G.T, cu = G.game.kind === 'custom' || G.game.kind === 'studio', rw = (G.game.gen && G.game.gen.reward) || (G.game.kind === 'obby' ? 50 : 40); G.opts.onEvent && G.opts.onEvent('win', secs); if(!cu && G.opts.onReward) G.opts.onReward('tokens', rw);
+    toast('You win!', 'Time ' + fmtT(secs) + (cu ? '' : ' · +' + rw + ' tokens')); chatMsg('sys', 'You reached the top in ' + fmtT(secs) + '!');
     const cols = [0xff5a4a, 0xffd23c, 0x47d36b, 0x58a6ee, 0xff8a1f, 0xffffff], geo = new THREE.BoxGeometry(.6, .6, .6);
     for(let i = 0; i < 70; i++){ const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color:cols[i % 6]})); m.position.set(G.P.x, G.P.y + 4, G.P.z); G.scene.add(m); G.debris.push({m, vx:(Math.random() - .5) * 30, vy:25 + Math.random() * 30, vz:(Math.random() - .5) * 30, life:3.2, spin:8}); }
   }
@@ -2303,6 +2310,7 @@ const Engine = (function(){
     G.sun.position.set(st[0] + 50, st[1] + 90, st[2] + 35); G.sun.target.position.set(st[0], st[1], st[2]);
     G.sky.position.copy(G.camera.position); G.sunDisc.position.set(G.camera.position.x + 500, G.camera.position.y + 780, G.camera.position.z + 350); G.sunDisc.lookAt(G.camera.position);
     if(G.lavaTex){ G.lavaTex.offset.x += dt * .004; G.lavaTex.offset.y += dt * .0025; }
+    if(G.lavaFollow && G.lavaMesh){ const q = 3800 / 150, cy = G.checkpoint ? G.checkpoint.y : 0; G.lavaY = cy - 4.2; G.lavaMesh.position.set(Math.round(P.x / q) * q, G.lavaY - .8, Math.round(P.z / q) * q); }
     G.clouds.forEach(c => { c.position.x += dt * 3; if(c.position.x > 560) c.position.x = -560; });
     const hudT = document.getElementById('gTime'); if(hudT && G.state === 'play'){ const s = fmtT(G.T); if(hudT.textContent !== s) hudT.textContent = s; }
     G.bubbleBoard = (G.bubbleBoard || 0) + dt; if(G.bubbleBoard > 1.5){ G.bubbleBoard = 0; updateBoard(); }
@@ -2413,6 +2421,7 @@ const Engine = (function(){
     // player
     const sp = G.pvp ? G.arenaSpawns() : G.spawn;
     G.P = mkEnt({name:opts.user.name, avatar:opts.user.avatar}, sp.x, sp.y, sp.z, false); G.ents.push(G.P); G.P.ff = 2.4; G.P.boost = 0; G.P.hitDone = true; G.P.stats.stage = 0;
+    if(G.pads && opts.resume > 0){ const pd = G.pads.find(q => q.n === opts.resume); if(pd){ G.checkpoint = {x:pd.x, y:pd.y + .05, z:pd.z}; G.P.x = pd.x; G.P.y = pd.y + .05; G.P.z = pd.z; G.P.stats.stage = pd.n; G.resumed = pd.n; chatMsg('sys', 'Welcome back! You continue from stage ' + pd.n + '.'); } }
     G.P.face = G.game.kind === 'town' || G.game.kind === 'studio' || G.pvp ? Math.PI : Math.PI;
     G.yaw = 0; G.bots = []; G.remotes = {}; buildTools(); resize(); updateBoard(); updateHP(); if(G.R) renderTray(); if(game.kind === 'studio'){ root.classList.add('studio'); studioHudEvents(); P_hide(); sUI(); } else root.classList.remove('studio');
     emoPanel(); setPet(G.P, opts.user.petEm); chatMsg('info', 'Welcome to ' + game.name + '!'); if(G.opts.serverName) chatMsg('info', 'You joined ' + G.opts.serverName + '.');
@@ -2729,7 +2738,7 @@ const avImg = (cfg, view, ang, cls) => '<img class="' + (cls || '') + '" src="' 
 const uImg = (id, view) => avImg(prof(id).avatar, view || 'bust', .2);
 const myImg = view => avImg(U.avatar, view || 'bust', .2);
 const itemImg = it => '<img src="' + itemThumb(it) + '" alt="' + esc(it.name) + '" width="160" height="160">';
-function badgeDefs(){ return {welcome:['Welcome to Retro Blox', 'Joined the site.'], obby:['Obby Champion', 'Beat the Retro Blox Obby.'], tower:['Sky Climber', 'Reached the top of Sky Tower Obby.'], slayer:['Knockout Artist', 'Knock out 10 players in Sword Arena.'], collector:['Coin Collector', 'Collect 25 coins in Brick Town.'], builder:['Master Builder', 'Place 20 bricks in Builder Studio.'], social:['Friendly', 'Have 8 or more friends.'], shopper:['Shopaholic', 'Buy your first item.'], chatter:['Chatterbox', 'Say something in a game.'], streak7:['Hot Streak', 'Claim the daily reward 7 days in a row.'], racer:['Speed Demon', 'Finish a race in Brick Racers.'], rider:['Thrill Seeker', 'Ride the Thunder Rail Coaster 3 times.'], chef:['Head Chef', 'Earn 30 tokens in one shift at Work At A Restaurant.'], survivor:['Last One Standing', 'Survive 60 seconds in Tile Drop.'], candy:['Sweet Tooth', 'Beat the Candy Obby.'], inferno:['Fireproof', 'Beat the Neon Inferno.'], island:['Island Hopper', 'Collect 30 coins in one visit to Coin Island.'], creator:['Game Creator', 'Publish your own game.'], designer:['Fashion Designer', 'Make an item for the Catalog.'], veteran:['Regular', 'Play 50 games.'], baller:['Big Spender', 'Earn 1000 tokens from playing games.'], petlover:['Pet Lover', 'Collect 5 different pets.'], toprank:['Top Ten', 'Get on a game leaderboard.']}; }
+function badgeDefs(){ return {welcome:['Welcome to Retro Blox', 'Joined the site.'], obby:['Obby Champion', 'Beat the Retro Blox Obby.'], mega:['Mega Climber', 'Beat all 100 stages of Mega Obby.'], tower:['Sky Climber', 'Reached the top of Sky Tower Obby.'], slayer:['Knockout Artist', 'Knock out 10 players in Sword Arena.'], collector:['Coin Collector', 'Collect 25 coins in Brick Town.'], builder:['Master Builder', 'Place 20 bricks in Builder Studio.'], social:['Friendly', 'Have 8 or more friends.'], shopper:['Shopaholic', 'Buy your first item.'], chatter:['Chatterbox', 'Say something in a game.'], streak7:['Hot Streak', 'Claim the daily reward 7 days in a row.'], racer:['Speed Demon', 'Finish a race in Brick Racers.'], rider:['Thrill Seeker', 'Ride the Thunder Rail Coaster 3 times.'], chef:['Head Chef', 'Earn 30 tokens in one shift at Work At A Restaurant.'], survivor:['Last One Standing', 'Survive 60 seconds in Tile Drop.'], candy:['Sweet Tooth', 'Beat the Candy Obby.'], inferno:['Fireproof', 'Beat the Neon Inferno.'], island:['Island Hopper', 'Collect 30 coins in one visit to Coin Island.'], creator:['Game Creator', 'Publish your own game.'], designer:['Fashion Designer', 'Make an item for the Catalog.'], veteran:['Regular', 'Play 50 games.'], baller:['Big Spender', 'Earn 1000 tokens from playing games.'], petlover:['Pet Lover', 'Collect 5 different pets.'], toprank:['Top Ten', 'Get on a game leaderboard.']}; }
 function giveBadge(id){ if(U.badges.indexOf(id) >= 0) return; U.badges.push(id); persist(); toast('Badge earned: ' + badgeDefs()[id][0] + '!'); }
 function checkBadges(){ if(!U) return; if((U.stats.visits || 0) >= 50) giveBadge('veteran'); if((U.stats.earned || 0) >= 1000) giveBadge('baller'); if(ITEMDOCS.some(d => d.creator === MYID)) giveBadge('designer'); if(GAMEDOCS.some(d => d.owner === MYID)) giveBadge('creator'); if(friendIds().length >= 8) giveBadge('social'); if(U.stats.kills >= 10) giveBadge('slayer'); if(U.stats.coins >= 25) giveBadge('collector'); }
 const route = () => { const h = location.hash.replace(/^#\/?/, ''), [p, q] = h.split('?'); const parts = p.split('/').filter(Boolean); const query = {}; (q || '').split('&').forEach(kv => { if(!kv) return; const [k, v] = kv.split('='); query[decodeURIComponent(k)] = decodeURIComponent(v || ''); }); return {parts, query}; };
@@ -3342,6 +3351,8 @@ function showNotice(d){
   const go = () => { modal('Notice from ' + (nameOf(d.from) || 'RetroBlox'), '<p style="margin:0;white-space:pre-wrap">' + esc(d.text || '') + '</p>', [{label:'OK', cls:'green'}]); DB.doc('notices/' + d.id).delete().catch(() => {}); };
   const m = $('#modal'); if(m && !m.hidden) setTimeout(go, 4000); else go();
 }
+function resetBox(){ return '<div class="box"><div class="sec-h"><span>Player passwords</span></div><p class="muted" style="margin:0 0 8px">Passwords are scrambled, so nobody can read them. If a player forgot theirs, reset it here and send them the temporary one. They must pick a new password the first time they log in.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"><div><label class="f" for="rsName" style="margin-top:0">Username</label><input id="rsName" maxlength="20" placeholder="Username"></div></div><p style="margin:10px 0 0"><a class="btn green small" data-act="adminReset">Reset password</a> <a class="btn small" data-act="adminLogoutAll">Log out all devices</a></p></div>'; }
+async function adminPost(url, name){ const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:name})}); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Something went wrong.'); return j; }
 function mutesBox(){ const ms = MUTES.filter(m => m.until > Date.now()).sort((a, b) => b.until - a.until);
   return '<div class="box"><div class="sec-h"><span>Muted players (' + ms.length + ')</span></div>' + (ms.length ? ms.map(m => '<div class="lrow"><div class="grow"><b>' + esc(nameOf(m.uid) || m.name) + '</b> <span class="muted">until ' + fmtTime(m.until) + (m.reason ? ' · ' + esc(m.reason) : '') + '</span></div><a class="btn small" data-act="unmuteUser" data-n="' + esc(m.uid) + '">Unmute</a></div>').join('') : '<p class="muted" style="margin:0">Nobody is muted. Use the Mute button on a player\'s profile or the speaker button in the in-game Players tab.</p>') + '</div>'; }
 function wordsBox(){ const l = CUSTOMW.list; return '<div class="box"><div class="sec-h"><span>Chat filter words</span><span class="muted" style="font-size:13px">' + l.length + ' extra</span></div><p class="muted" style="margin:0 0 8px">Words here are blocked on top of the built-in list. Separate with commas or spaces. They also catch swaps like 3 for e. Takes effect for everyone right away.</p><textarea id="wordList" rows="3" placeholder="word1, word2, word3">' + esc(l.join(', ')) + '</textarea><p style="margin:8px 0 12px"><a class="btn green small" data-act="saveWords">Save words</a></p><label class="f" for="wordTest" style="margin-top:0">Test a phrase</label><div style="display:flex;gap:8px;align-items:center"><input id="wordTest" maxlength="100" placeholder="Type something to test"><a class="btn small" data-act="testWord">Test</a></div><div id="wordTestR" style="margin-top:6px;min-height:20px"></div></div>'; }
@@ -3384,7 +3395,7 @@ function startChatMon(){ const q = $('#chatMonQ'); if(q) q.oninput = () => { CHA
 function adminTools(){
   const gs = customGames();
   setTimeout(startChatMon, 0);
-  return noticeBox() + noticeToBox() + mutesBox() + wordsBox() + giftBox() + everyoneBox() + chatMonBox() + '<div class="box"><div class="sec-h"><span>Admin Tools</span></div><p style="margin:0 0 4px"><a class="btn green small" data-act="adminUnlock">Unlock everything for me</a></p><p class="muted" style="font-size:12px;margin:0 0 14px">Gives this account every catalog item, emote and pet, plus 999,999 tokens.</p><label class="f" for="banName" style="margin-top:0">Ban a player by username</label><div style="display:flex;gap:8px"><input id="banName" maxlength="20" placeholder="Username"><a class="btn red small" data-act="banByName">Ban</a></div></div>'
+  return noticeBox() + noticeToBox() + resetBox() + mutesBox() + wordsBox() + giftBox() + everyoneBox() + chatMonBox() + '<div class="box"><div class="sec-h"><span>Admin Tools</span></div><p style="margin:0 0 4px"><a class="btn green small" data-act="adminUnlock">Unlock everything for me</a></p><p class="muted" style="font-size:12px;margin:0 0 14px">Gives this account every catalog item, emote and pet, plus 999,999 tokens.</p><label class="f" for="banName" style="margin-top:0">Ban a player by username</label><div style="display:flex;gap:8px"><input id="banName" maxlength="20" placeholder="Username"><a class="btn red small" data-act="banByName">Ban</a></div></div>'
     + '<div class="box"><div class="sec-h"><span>Community games (' + gs.length + ')</span></div>' + (gs.length ? gs.map(g => '<div class="lrow"><div class="grow"><b>' + esc(g.name) + '</b> <span class="muted">by ' + esc(g.creator) + '</span></div><a class="btn small" href="#/game/' + esc(g.id) + '">Open</a> <a class="btn red small" data-act="adminDelGame" data-id="' + esc(g.id) + '">Delete</a></div>').join('') : '<p class="muted" style="margin:0">No community games yet.</p>') + '</div>'
     + '<div class="box"><div class="sec-h"><span>Community items (' + ITEMDOCS.length + ')</span></div>' + (ITEMDOCS.length ? ITEMDOCS.slice(0, 60).map(d => '<div class="lrow"><div class="grow"><b>' + esc(d.name || d.id) + '</b> <span class="muted">by ' + esc(nameOf(d.creator)) + '</span></div><a class="btn red small" data-act="adminDelItem" data-id="' + esc(d.id) + '">Delete</a></div>').join('') : '<p class="muted" style="margin:0">No community items yet.</p>') + '</div>';
 }
@@ -3487,8 +3498,9 @@ async function playGame(gid, opt){
   const leave = () => { if(nr) nr.leave().catch(() => {}); setLobby(null); };
   const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar)), owned:U.owned.slice(), petEm:(PET_BY_ID[U.pet] || {}).e || '', emotes:(U.emotes || []).slice()}, seed:hashStr(roomName), serverName:solo ? '' : (typeof server === 'string' ? 'Private server' : 'Server ' + server), place:place ? {bricks:place.bricks, env:place.env} : null,
     net:nr ? {room:nr, myId:MYID, nameOf, isBlocked} : null,
+    resume:(g.gen && g.gen.milestone && U.prog && U.prog[gid]) || 0,
     onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; U.stats.earned = (U.stats.earned || 0) + amt; if(g.kind === 'town' || g.kind === 'coins') U.stats.coins += amt; save(); } },
-    onEvent:(name, v) => { if(name === 'tick') addSeasonXp(5); if(name === 'win'){ addSeasonXp(30); if(!g.custom){ U.stats.wins++; giveBadge(g.kind === 'tower' ? 'tower' : g.id === 7 ? 'candy' : g.id === 8 ? 'inferno' : g.kind === 'drive' ? 'racer' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; if(lbType(g) === 'time') submitScore(g, 'time', v); } else if(name === 'ride'){ if(v >= 3) giveBadge('rider'); } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
+    onEvent:(name, v) => { if(name === 'tick') addSeasonXp(5); if(name === 'check'){ U.prog = U.prog || {}; if(v > (U.prog[gid] || 0)) U.prog[gid] = v; } else if(name === 'milestone'){ U.msBest = U.msBest || {}; if(v > (U.msBest[gid] || 0)){ U.msBest[gid] = v; U.tokens += 10; U.stats.earned = (U.stats.earned || 0) + 10; toast('Stage ' + v + ' reached: +10 tokens'); } } else if(name === 'win'){ addSeasonXp(30); if(U.prog) U.prog[gid] = 0; if(!g.custom){ U.stats.wins++; giveBadge(g.kind === 'tower' ? 'tower' : g.id === 14 ? 'mega' : g.id === 7 ? 'candy' : g.id === 8 ? 'inferno' : g.kind === 'drive' ? 'racer' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; if(lbType(g) === 'time') submitScore(g, 'time', v); } else if(name === 'ride'){ if(v >= 3) giveBadge('rider'); } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
     coWatch:coDoc ? coWatchFor(coDoc.id) : null, verWatch:solo && place && !opt.co ? placeVersions(place).watch : null, verSave:solo && place && !opt.co ? placeVersions(place).save : null, models:solo ? modelsApi() : null,
     onSave:(bricks, env) => { if(coDoc) DB.doc('cplaces/' + coDoc.id).update({bricks:packBricks(bricks), n:bricks.length, env:env || null, by:U.name, t:Date.now()}).catch(() => {}); if(place && solo && !opt.co){ place.bricks = bricks.map(b => b.slice()); if(env) place.env = env; persist(); if(bricks.length >= 20) giveBadge('builder'); } },
     onExit:(sm) => { sm = sm || {}; try{ finishScores(g, s, sm); }catch(e){} session = null; endLoad(); leave(); refreshChrome(); render(); if(pendingInvite){ const pi = pendingInvite; pendingInvite = null; setTimeout(() => onInvite(pi.by, pi.g, pi.code), 600); } toast(s.earned ? 'Thanks for playing! You earned ' + s.earned + ' tokens.' : 'Thanks for playing!'); }});
@@ -3555,6 +3567,9 @@ const ACTIONS = {
   saveWords:() => { if(!isAdminMe()) return; const seen = {}, list = ($('#wordList').value || '').toLowerCase().split(/[\s,;]+/).filter(w => /^[a-z0-9]{2,30}$/.test(w) && !seen[w] && (seen[w] = 1)).slice(0, 300);
     DB.doc('site/words').set({list, t:Date.now(), by:MYID}).then(() => toast('Saved ' + list.length + ' word' + (list.length === 1 ? '' : 's') + '.')).catch(() => toast('Could not save.', true)); },
   testWord:() => { const v = $('#wordTest').value || ''; $('#wordTestR').textContent = !v.trim() ? '' : badText(v) ? 'Blocked: ' + cleanText(v) : 'Allowed'; },
+  adminReset:() => { if(!isAdminMe()) return; const n = ($('#rsName').value || '').trim(); if(!n) return toast('Type a username first.', true);
+    confirmBox('Reset password', 'Reset the password for <b>' + esc(n) + '</b>? They will be logged out on every device.', 'Reset', () => { adminPost('/api/admin/reset', n).then(j => { $('#rsName').value = ''; modal('Temporary password', '<p style="margin-top:0">Send this to <b>' + esc(j.name) + '</b>. It is shown only once. They will choose a new password when they log in.</p><div style="font-size:24px;font-weight:700;letter-spacing:2px;padding:10px;background:#f6f7f8;border:1px solid #ccc;text-align:center;user-select:all">' + esc(j.temp) + '</div>', [{label:'Done', cls:'green'}]); }).catch(e => toast(e.message, true)); }, 'green'); },
+  adminLogoutAll:() => { if(!isAdminMe()) return; const n = ($('#rsName').value || '').trim(); if(!n) return toast('Type a username first.', true); adminPost('/api/admin/logoutall', n).then(j => toast(j.name + ' was logged out everywhere.')).catch(e => toast(e.message, true)); },
   adminNotice:() => { if(!isAdminMe()) return; const nm = ($('#ntName').value || '').trim().toLowerCase(), id = nm && Object.keys(P).find(k => nameOf(k).toLowerCase() === nm), text = ($('#ntText').value || '').trim().slice(0, 300);
     if(!id) return toast('No player with that username.', true); if(!text) return toast('Type a message first.', true);
     DB.collection('notices').add({to:id, from:MYID, text, t:Date.now()}).then(() => { toast('Notice sent to ' + nameOf(id) + '.'); $('#ntText').value = ''; }).catch(() => toast('Could not send.', true)); },

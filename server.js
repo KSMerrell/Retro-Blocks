@@ -241,7 +241,7 @@ function handle(conn, m){
   }
 }
 function onUpgrade(req, socket){
-  const u = userOf(req); const origin = req.headers.origin;
+  const u0 = userOf(req), u = u0 && !u0.must ? u0 : null; const origin = req.headers.origin;
   if(!u || req.url.split('?')[0] !== '/ws' || (origin && new URL(origin).host !== req.headers.host)){ socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); return socket.destroy(); }
   const key = req.headers['sec-websocket-key']; if(!key){ return socket.destroy(); }
   socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ' + crypto.createHash('sha1').update(key + GUID).digest('base64') + '\r\n\r\n');
@@ -320,7 +320,22 @@ const server = http.createServer((req, res) => {
     const a = S.accounts[byLower[String(b.username || '').trim().toLowerCase()]], pw = String(b.password || '');
     if(!a || !crypto.timingSafeEqual(Buffer.from(hashPw(pw, a.salt), 'hex'), Buffer.from(a.hash, 'hex'))) return json(res, 401, {error:'Incorrect username or password.'});
     if(S.docs['bans/' + a.id]){ const rs = String((S.docs['bans/' + a.id].d || {}).reason || '').slice(0, 120); return json(res, 403, {error:'This account has been banned.' + (rs ? ' Reason: ' + rs : '')}); }
-    startSession(res, a.id, req); json(res, 200, {ok:true});
+    startSession(res, a.id, req); json(res, 200, {ok:true, must:!!a.must});
+  }); }
+  if(req.method === 'POST' && url === '/api/changepw'){ const a = userOf(req); if(!a || !a.must) return json(res, 401, {error:'Please log in again.'}); return body(req, b => {
+    const pw = String((b && b.password) || ''); if(throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});
+    if(pw.length < 6 || pw.length > 100) return json(res, 400, {error:'Your password must be at least 6 characters.'});
+    if(pw.toLowerCase() === a.name.toLowerCase()) return json(res, 400, {error:'Your password cannot be the same as your username.'});
+    a.salt = crypto.randomBytes(16).toString('hex'); a.hash = hashPw(pw, a.salt); delete a.must; markDirty(); json(res, 200, {ok:true});
+  }); }
+  if(req.method === 'POST' && (url === '/api/admin/reset' || url === '/api/admin/logoutall')){ const ad = userOf(req); if(!ad || !isAdmin(ad.id)) return json(res, 403, {error:'Admins only.'}); return body(req, b => {
+    const a = S.accounts[byLower[String((b && b.username) || '').trim().toLowerCase()]]; if(!a) return json(res, 404, {error:'No player with that username.'});
+    if(isAdmin(a.id) && a.id !== ad.id) return json(res, 400, {error:'You cannot do that to another admin.'});
+    Object.keys(S.sessions).forEach(t => { if(S.sessions[t].uid === a.id) delete S.sessions[t]; });
+    if(url === '/api/admin/logoutall'){ markDirty(); return json(res, 200, {ok:true, name:a.name}); }
+    if(a.guest) return json(res, 400, {error:'Guests have no password to reset.'});
+    const AL = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; let temp = ''; for(let i = 0; i < 10; i++) temp += AL[crypto.randomInt(0, AL.length)];
+    a.salt = crypto.randomBytes(16).toString('hex'); a.hash = hashPw(temp, a.salt); a.must = true; markDirty(); console.log('admin password reset for', a.name); json(res, 200, {ok:true, name:a.name, temp});
   }); }
   if(req.method === 'POST' && url === '/api/acct/save'){ const a = userOf(req); if(!a) return json(res, 401, {}); const t = newToken(); S.sessions[t] = {uid:a.id, exp:Date.now() + 180 * 86400000}; markDirty(); return json(res, 200, {name:a.name, token:t}); }
   if(req.method === 'POST' && url === '/api/acct/switch'){ return body(req, b => {
@@ -339,6 +354,7 @@ const server = http.createServer((req, res) => {
   if(url === '/' || url === '/index.html'){
     const u = userOf(req);
     if(!u){ res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(fs.readFileSync(path.join(PUB, 'login.html'))); }
+    if(u.must){ res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(fs.readFileSync(path.join(PUB, 'login.html'), 'utf8').replace('let mode=', 'window.MUST=' + JSON.stringify(u.name) + ';let mode=')); }
     const me = JSON.stringify({id:u.id, name:u.name, admin:isAdmin(u.id), guest:!!u.guest, gender:u.gender || ''}).replace(/</g, '\\u003c');
     res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(APP().replace('/*ME*/', me));
   }

@@ -509,6 +509,13 @@ html.dark .sec-h{color:var(--ink)}
 #siteDown{position:fixed;inset:0;z-index:2147483000;background:#1b2a34;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:14px;cursor:auto}
 #siteDown h1{font-size:34px}#siteDown p{margin:0;max-width:520px;font-size:18px;color:#cfd6e4;white-space:pre-wrap}
 
+#gGolf{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:6px;z-index:6}
+#gGolfInfo{background:rgba(0,0,0,.68);color:#fff;padding:5px 14px;font-weight:700;font-size:15px;pointer-events:none}
+#gGolf .gpw{width:240px;height:14px;background:rgba(0,0,0,.6);border:2px solid #fff}#gGolfPw{height:100%;width:0;background:linear-gradient(90deg,#47d36b,#f5cd30,#e2231a)}
+#gGolfBtn{background:#02b757;color:#fff;border:2px solid #fff;font:800 20px 'Source Sans 3',Arial,sans-serif;padding:10px 40px;touch-action:none;cursor:pointer}
+#gTy,#gCtf{position:absolute;left:50%;transform:translateX(-50%);top:calc(48px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.68);color:#fff;padding:5px 14px;font-weight:800;font-size:16px;pointer-events:none;z-index:6;white-space:nowrap}
+#gTy:empty{display:none}
+
 </style><script>try{if(localStorage.rbtheme==="dark")document.documentElement.classList.add("dark")}catch(e){}</script></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
@@ -669,7 +676,13 @@ const GAMES_ALL = [
  {id:18, kind:'zombie', name:'Zombie Survival', creator:'Retro Blox', color:['#3f7f3f','#14301a'], max:12, badge:'zombie',
   desc:'Wave after wave of brick zombies walk in from every side. Click to swing your Linked Sword, run to dodge, and jump on the blocks to catch your breath. Your health slowly comes back when you are not being hit. Every wave you clear earns tokens, and the waves get bigger and faster. Reach wave 5 for the Zombie Slayer badge. Each player fights their own zombies.'},
  {id:19, kind:'hideseek', name:'Hide and Seek', creator:'Retro Blox', color:['#c4281c','#3d1a14'], max:20, badge:'seeker',
-  desc:'Three red seekers roam a little town. Hide behind the houses or sneak inside a bush so they cannot see you. They count to 12 before they start looking, then hunt for 80 seconds. If a seeker touches you, you are out until the next round. Stay hidden to the end for 6 tokens. Rounds start together for everyone in the server.'}
+  desc:'Three red seekers roam a little town. Hide behind the houses or sneak inside a bush so they cannot see you. They count to 12 before they start looking, then hunt for 80 seconds. If a seeker touches you, you are out until the next round. Stay hidden to the end for 6 tokens. Rounds start together for everyone in the server.'},
+ {id:20, kind:'golf', name:'Mini-Golf', creator:'Retro Blox', color:['#2f7a3a','#12351a'], max:12, badge:'golf',
+  desc:'Six brick mini-golf holes with bumpers and walls. Walk up behind your ball, hold F (or press the HIT button on a phone), then let go to putt it toward the flag. A bar shows how hard you will hit. Beat par for the most tokens, and set your best score on the leaderboard. Everyone plays their own ball.'},
+ {id:21, kind:'tycoon', name:'Brick Tycoon', creator:'Retro Blox', color:['#c79a00','#3b2b00'], max:12,
+  desc:'Build a brick empire! Step on the glowing pads to buy droppers that make cash, then upgrade their speed and value. Your factory keeps earning while you play and is saved to your account. When you can afford a Rebirth, your income is boosted and you earn 10 tokens.'},
+ {id:22, kind:'ctf', name:'Capture the Flag', creator:'Retro Blox', color:['#c03333','#1f3b73'], max:20, badge:'ctf',
+  desc:'Red team versus blue team. Sneak across the field, grab the enemy flag and run it back to your base, but your own flag must be at home to score. If an enemy touches you on their side you are sent back to your base. First team to 3 captures wins. Each capture earns 10 tokens.'}
 ];
 const GAMES = GAMES_ALL.filter(g => !g.event || eventOn(g.event));
 const GAME_BY_ID = {}; GAMES.forEach(g => GAME_BY_ID[g.id] = g);
@@ -855,6 +868,9 @@ function gameThumb(game, w, h){
   else if(game.kind === 'lavarise'){ g.fillStyle = '#ff6a00'; g.fillRect(0, h * .78, w, h * .22); g.fillStyle = '#ffd23c'; for(let i = 0; i < 4; i++) g.fillRect(w * (.08 + i * .24), h * .84, u * 1.2, u * .35); for(let i = 0; i < 5; i++) brick(w * (.1 + i * .15), h * (.7 - i * .11), u * 1.6, u * .5, cols[(i + 2) % 7]); }
   else if(game.kind === 'zombie'){ for(let i = 0; i < 3; i++){ const zx = w * (.16 + i * .28), zy = h * .66; g.fillStyle = '#2b3a67'; g.fillRect(zx, zy + u * 1.1, u * 1.2, u * 1.1); g.fillStyle = '#3f7f3f'; g.fillRect(zx - u * .1, zy - u * .2, u * 1.4, u * 1.4); g.fillStyle = '#6fae55'; g.fillRect(zx, zy - u * 1.1, u * 1.2, u * 1); g.fillRect(zx - u * .8, zy + u * .1, u * .9, u * .4); g.fillRect(zx + u * 1.1, zy + u * .1, u * .9, u * .4); } }
   else if(game.kind === 'hideseek'){ for(let i = 0; i < 3; i++){ g.fillStyle = '#2e8b3d'; g.fillRect(w * (.1 + i * .3), h * .62, u * 2.2, u * 1.6); } g.fillStyle = '#fff'; g.fillRect(w * .66, h * .7, u * .5, u * .4); g.fillRect(w * .72, h * .7, u * .5, u * .4); g.fillStyle = '#000'; g.fillRect(w * .68, h * .72, u * .22, u * .22); g.fillRect(w * .74, h * .72, u * .22, u * .22); }
+  else if(game.kind === 'golf'){ g.fillStyle = '#4fbf5f'; g.fillRect(w * .1, h * .64, w * .8, h * .3); g.fillStyle = '#0b0b0b'; g.beginPath(); g.ellipse(w * .72, h * .8, u * .7, u * .28, 0, 0, 6.3); g.fill(); g.fillStyle = '#fff'; g.fillRect(w * .715, h * .4, u * .12, h * .4); g.fillStyle = '#e0402a'; g.fillRect(w * .73, h * .4, u * .9, u * .55); g.fillStyle = '#fff'; g.beginPath(); g.arc(w * .28, h * .82, u * .5, 0, 6.3); g.fill(); }
+  else if(game.kind === 'tycoon'){ for(let i = 0; i < 4; i++){ g.fillStyle = '#a67c00'; g.beginPath(); g.ellipse(w * .5, h * (.86 - i * .1), u * 1.6, u * .5, 0, 0, 6.3); g.fill(); g.fillStyle = '#f5cd30'; g.beginPath(); g.ellipse(w * .5, h * (.83 - i * .1), u * 1.6, u * .5, 0, 0, 6.3); g.fill(); } g.fillStyle = '#287f47'; g.fillRect(w * .1, h * .62, u * 1.4, u * 1.4); g.fillStyle = '#c4281c'; g.fillRect(w * .75, h * .62, u * 1.4, u * 1.4); }
+  else if(game.kind === 'ctf'){ g.fillStyle = '#fff'; g.fillRect(w * .26, h * .3, u * .14, h * .55); g.fillRect(w * .72, h * .3, u * .14, h * .55); g.fillStyle = '#e03a2f'; g.fillRect(w * .28, h * .3, u * 1.5, u * .9); g.fillStyle = '#2f5fe0'; g.fillRect(w * .74, h * .3, u * 1.5, u * .9); }
   else if(game.kind === 'tiledrop'){ for(let i = 0; i < 5; i++) for(let j = 0; j < 3; j++){ if((i * 3 + j) % 7 === 4) continue; g.fillStyle = cols[(i + j) % 7]; g.fillRect(w * (.08 + i * .17), h * (.6 + j * .12), w * .15, h * .1); } g.fillStyle = '#ff6a00'; g.fillRect(0, h * .93, w, h * .07); }
   else if(game.kind === 'coins'){ for(let i = 0; i < 7; i++){ const cx = w * (.12 + i * .13), cy = h * (.7 - (i % 3) * .14); g.fillStyle = '#a67c00'; g.beginPath(); g.arc(cx, cy + 2, u * .75, 0, 6.3); g.fill(); g.fillStyle = '#ffd23c'; g.beginPath(); g.arc(cx, cy, u * .75, 0, 6.3); g.fill(); g.fillStyle = '#fff3b0'; g.fillRect(cx - u * .12, cy - u * .4, u * .24, u * .8); } }
   else if(game.kind === 'studio' || game.kind === 'custom'){ for(let i = 0; i < 5; i++) for(let j = 0; j <= 4 - i; j++) brick(w * .22 + (i * .5 + j) * u * 1.7, h * .8 - i * u * .62, u * 1.6, u * .6, cols[(i + j) % 7]); }
@@ -1625,6 +1641,181 @@ const Engine = (function(){
     if(!hs.done && t >= HUNT){ hs.done = true; hs.survived++; G.score = hs.survived; G.opts.onReward && G.opts.onReward('tokens', 6); G.opts.onEvent && G.opts.onEvent('hidewin', hs.survived); toast('You were not found!', '+6 tokens'); sfx.win(); }
   }
 
+
+  /* ---------- extra games: mini-golf, tycoon, capture the flag ---------- */
+  const GOLF_HOLES = [
+    {len:44, par:2, ob:[]},
+    {len:52, par:3, ob:[[0, 0, 6, 2]]},
+    {len:56, par:3, ob:[[-3.5, 10, 7, 1.6], [3.5, -6, 7, 1.6]]},
+    {len:58, par:3, ob:[[0, 12, 3, 3], [-4, -2, 3, 3], [4, -2, 3, 3], [0, -14, 3, 3]]},
+    {len:64, par:4, ob:[[-4, 16, 8, 1.6], [4, 4, 8, 1.6], [-4, -8, 8, 1.6], [4, -18, 8, 1.6]]},
+    {len:72, par:4, ob:[[0, 20, 2, 12], [-5.5, 2, 3, 3], [5.5, -6, 3, 3], [0, -18, 10, 1.6]]}
+  ];
+  function ovl(id, html){ let el = document.getElementById(id); if(!el){ const root = document.getElementById('gameRoot'); if(!root) return null; root.insertAdjacentHTML('beforeend', '<div id="' + id + '">' + html + '</div>'); el = document.getElementById(id); } return el; }
+  function buildGolf(){
+    G.lavaY = -40; G.stageNames = []; const WD = 16;
+    const holes = GOLF_HOLES.map((h, i) => Object.assign({cx:(i - 2.5) * 26, tee:{x:(i - 2.5) * 26, z:h.len / 2 - 5}, cup:{x:(i - 2.5) * 26, z:-h.len / 2 + 6}}, h));
+    G.spawn = {x:holes[0].tee.x, y:.05, z:holes[0].tee.z + 3};
+    block(0, -.5, 0, 6 * 26 + 24, 100, 0x2f7a3a, 'solid', {h:2, studs:false});
+    holes.forEach((h, i) => {
+      block(h.cx, 0, 0, WD, h.len, i % 2 ? 0x55c466 : 0x4fbf5f, 'solid', {h:1});
+      [[-1, 0], [1, 0]].forEach(sd => block(h.cx + sd[0] * (WD / 2 + .4), 7, 0, .8, h.len + 1.6, 0x8a5a3a, 'solid', {h:7, studs:false}));
+      [-1, 1].forEach(sd => block(h.cx, 7, sd * (h.len / 2 + .4), WD + 1.6, .8, 0x8a5a3a, 'solid', {h:7, studs:false}));
+      h.ob.forEach((o, k) => block(h.cx + o[0], 1.8, o[1], o[2], o[3], CYCLE[(i + k) % 7], 'solid', {h:1.8}));
+      decor(new THREE.BoxGeometry(2.3, .1, 2.3), 0x0b0b0b, h.cup.x, .08, h.cup.z, {cast:false}); decor(new THREE.BoxGeometry(.22, 6, .22), 0xffffff, h.cup.x, 3.1, h.cup.z - .3); decor(new THREE.BoxGeometry(1.8, 1.1, .12), 0xe0402a, h.cup.x + 1, 5.5, h.cup.z - .3);
+      decor(new THREE.BoxGeometry(3.4, .06, 3.4), 0xffffff, h.tee.x, .06, h.tee.z, {cast:false});
+    });
+    const ball = decor(new THREE.SphereGeometry(.55, 12, 10), 0xffffff, holes[0].tee.x, .6, holes[0].tee.z), arrow = decor(new THREE.BoxGeometry(.45, .08, 1), 0xffe000, 0, .35, 0, {cast:false}); arrow.visible = false;
+    G.gf = {holes, hole:-1, strokes:[0, 0, 0, 0, 0, 0], b:{x:0, z:0, vx:0, vz:0}, ball, arrow, state:'aim', t:0, power:0, charging:false, wasDown:false, pt:0, wait:0, walls:[], hint:0};
+    G.statCols = ['Strokes']; G.mainStat = 'stage'; G.sunTarget = [0, 0, 0]; G.title = {a:'Mini-Golf', b:'Stand behind your ball, hold F (or the HIT button) and let go to putt toward the flag.'}; G.titleView = [-40, 18, 40]; G.botHomes = () => [];
+  }
+  function gfSetHole(i){
+    const gf = G.gf, h = gf.holes[i], P = G.P, WD = 16; gf.hole = i; gf.state = 'aim'; gf.b = {x:h.tee.x, z:h.tee.z, vx:0, vz:0}; gf.ball.visible = true; gf.charging = false; gf.power = 0;
+    gf.walls = [{minx:h.cx - WD / 2 - 2, maxx:h.cx - WD / 2, minz:-h.len / 2 - 2, maxz:h.len / 2 + 2}, {minx:h.cx + WD / 2, maxx:h.cx + WD / 2 + 2, minz:-h.len / 2 - 2, maxz:h.len / 2 + 2}, {minx:h.cx - WD / 2 - 2, maxx:h.cx + WD / 2 + 2, minz:-h.len / 2 - 2, maxz:-h.len / 2}, {minx:h.cx - WD / 2 - 2, maxx:h.cx + WD / 2 + 2, minz:h.len / 2, maxz:h.len / 2 + 2}]
+      .concat(h.ob.map(o => ({minx:h.cx + o[0] - o[2] / 2, maxx:h.cx + o[0] + o[2] / 2, minz:o[1] - o[3] / 2, maxz:o[1] + o[3] / 2})));
+    G.spawn = {x:h.tee.x, y:.05, z:h.tee.z + 3}; P.x = h.tee.x; P.y = 1.1; P.z = h.tee.z + 3; P.vx = P.vy = P.vz = 0; P.face = Math.PI; P.grounded = false;
+    toast('Hole ' + (i + 1) + ' of 6', 'Par ' + h.par);
+  }
+  function golfStep(dt){
+    const gf = G.gf, P = G.P, b = gf.b;
+    const el = ovl('gGolf', '<div id="gGolfInfo"></div><div class="gpw"><div id="gGolfPw"></div></div><button id="gGolfBtn" type="button">HIT</button>');
+    if(el && !el._on){ el._on = 1; const bt = document.getElementById('gGolfBtn'), dn = e => { e.preventDefault(); if(G) G.keys.add('KeyF'); }, up = () => { if(G) G.keys.delete('KeyF'); }; bt.addEventListener('pointerdown', dn); bt.addEventListener('pointerup', up); bt.addEventListener('pointerleave', up); bt.addEventListener('pointercancel', up); }
+    if(G.state !== 'play') return;
+    if(gf.hole < 0) gfSetHole(0);
+    const h = gf.holes[gf.hole];
+    if(gf.state === 'done'){ gf.wait -= dt; if(gf.wait <= 0){ gf.strokes = [0, 0, 0, 0, 0, 0]; P.stats.stage = 0; G.won = false; updateBoard(); gfSetHole(0); } }
+    else if(gf.state === 'sink'){ gf.t -= dt; if(gf.t <= 0){ if(gf.hole < 5) gfSetHole(gf.hole + 1); else gfFinish(); } }
+    else if(gf.state === 'roll'){
+      let sp = Math.hypot(b.vx, b.vz); const n = Math.max(1, Math.ceil(sp * dt / .35)), st = dt / n;
+      for(let k = 0; k < n; k++){
+        b.x += b.vx * st; b.z += b.vz * st;
+        gf.walls.forEach(w => { const r = .55; if(b.x > w.minx - r && b.x < w.maxx + r && b.z > w.minz - r && b.z < w.maxz + r){ const dl = b.x - (w.minx - r), dr = (w.maxx + r) - b.x, dtp = b.z - (w.minz - r), db = (w.maxz + r) - b.z, m = Math.min(dl, dr, dtp, db); if(m === dl){ b.x = w.minx - r; if(b.vx > 0) b.vx *= -.82; } else if(m === dr){ b.x = w.maxx + r; if(b.vx < 0) b.vx *= -.82; } else if(m === dtp){ b.z = w.minz - r; if(b.vz > 0) b.vz *= -.82; } else { b.z = w.maxz + r; if(b.vz < 0) b.vz *= -.82; } sfx.equip(); } });
+        sp = Math.hypot(b.vx, b.vz); const dec = (6 + sp * .8) * st; if(sp > dec){ b.vx -= b.vx / sp * dec; b.vz -= b.vz / sp * dec; } else { b.vx = b.vz = 0; }
+      }
+      sp = Math.hypot(b.vx, b.vz);
+      if(Math.hypot(b.x - h.cup.x, b.z - h.cup.z) < 1.2 && sp < 30){ gfSink(false); }
+      else if(sp < 1.6){ b.vx = b.vz = 0; gf.state = 'aim'; const dx = b.x - P.x, dz = b.z - P.z, d = Math.hypot(dx, dz); if(d > 6.5 || d < 1){ P.x = b.x - (dx / (d || 1)) * 3; P.z = b.z - (dz / (d || 1)) * 3; } }
+    }
+    gf.ball.position.set(b.x, .6, b.z);
+    const dx = b.x - P.x, dz = b.z - P.z, d = Math.hypot(dx, dz), near = gf.state === 'aim' && d < 7 && !P.dead;
+    const down = G.keys.has('KeyF') || G.keys.has('KeyE');
+    if(gf.state === 'aim' && near){
+      if(down && !gf.wasDown){ gf.charging = true; gf.pt = 0; }
+      if(gf.charging){ gf.pt += dt * 2.3; gf.power = .5 - .5 * Math.cos(gf.pt); }
+      if(!down && gf.wasDown && gf.charging){
+        gf.charging = false; const pw = Math.max(.08, gf.power); b.vx = dx / (d || 1) * (14 + 60 * pw); b.vz = dz / (d || 1) * (14 + 60 * pw); gf.strokes[gf.hole]++; gf.state = 'roll'; sfx.hit(); P.stats.stage = gf.strokes.reduce((a, c) => a + c, 0); updateBoard();
+        if(gf.strokes[gf.hole] >= 10){ gfSink(true); }
+      }
+    } else if(!down) gf.charging = false;
+    if(gf.state === 'aim' && !near && down && !gf.wasDown && G.T - gf.hint > 2){ gf.hint = G.T; toast('Too far away', 'Walk next to your ball first'); }
+    gf.wasDown = down;
+    const ar = gf.arrow; if(near){ const len = 3 + (gf.charging ? gf.power : .3) * 9; ar.visible = true; ar.scale.set(1, 1, len); ar.position.set(b.x + dx / (d || 1) * (len / 2 + .8), .35, b.z + dz / (d || 1) * (len / 2 + .8)); ar.rotation.y = Math.atan2(dx, dz); } else ar.visible = false;
+    const inf = document.getElementById('gGolfInfo'); if(inf){ const t = 'Hole ' + (gf.hole + 1) + '/6 · Par ' + h.par + ' · Strokes ' + gf.strokes[gf.hole] + ' · Total ' + gf.strokes.reduce((a, c) => a + c, 0); if(inf.textContent !== t) inf.textContent = t; }
+    const pw = document.getElementById('gGolfPw'); if(pw) pw.style.width = Math.round((gf.charging ? gf.power : 0) * 100) + '%';
+  }
+  function gfSink(forced){
+    const gf = G.gf, h = gf.holes[gf.hole], n = gf.strokes[gf.hole]; gf.state = 'sink'; gf.t = 1.6; gf.ball.visible = false; gf.arrow.visible = false;
+    const nm = forced ? 'Picked up' : n === 1 ? 'Hole in one!' : n < h.par ? 'Birdie!' : n === h.par ? 'Par' : n === h.par + 1 ? 'Bogey' : '+' + (n - h.par); toast(nm, 'Hole ' + (gf.hole + 1) + ' · ' + n + ' stroke' + (n === 1 ? '' : 's')); if(forced) sfx.oof(); else sfx.coin();
+  }
+  function gfFinish(){
+    const gf = G.gf, total = gf.strokes.reduce((a, c) => a + c, 0), par = gf.holes.reduce((a, c) => a + c.par, 0), tk = total <= par ? 20 : total <= par + 6 ? 12 : 6;
+    G.won = true; G.score = Math.max(G.score || 0, Math.max(1, 100 - total * 4)); G.opts.onReward && G.opts.onReward('tokens', tk); G.opts.onEvent && G.opts.onEvent('win', G.T); gf.state = 'done'; gf.wait = 9; sfx.win();
+    toast('Course complete!', total + ' strokes (par ' + par + ') · +' + tk + ' tokens'); chatMsg('sys', 'You finished the course in ' + total + ' strokes. Par is ' + par + '.');
+  }
+
+  const TY_DROP = [[0, 1], [50, 4], [200, 15], [800, 55], [3000, 200], [12000, 800]];
+  const tyFmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.floor(n));
+  function tyLoad(s){
+    const d = {cash:0, own:[1, 0, 0, 0, 0, 0], spd:0, val:0, reb:0};
+    if(s && typeof s === 'object'){ if(Array.isArray(s.own) && s.own.length === 6) d.own = s.own.map(x => x ? 1 : 0); d.cash = Math.max(0, Math.min(1e12, +s.cash || 0)); d.spd = Math.max(0, Math.min(5, Math.floor(+s.spd || 0))); d.val = Math.max(0, Math.min(5, Math.floor(+s.val || 0))); d.reb = Math.max(0, Math.min(999, Math.floor(+s.reb || 0))); }
+    d.own[0] = 1; return d;
+  }
+  function buildTycoon(){
+    G.spawn = {x:0, y:.05, z:28}; G.lavaY = -40; G.stageNames = [];
+    block(0, 0, 0, 100, 80, 0x6fae55, 'solid', {h:2}); [[-51, 0, 2, 84], [51, 0, 2, 84], [0, -41, 104, 2], [0, 41, 104, 2]].forEach(w => block(w[0], 8, w[1], w[2], w[3], COL.dgrey, 'solid', {h:8}));
+    const T = tyLoad(G.opts.tycoon), pads = [], mkPad = (x, z, col, kind, i) => { block(x, .5, z, 9, 9, col, 'solid', {h:1, studs:false}); const pl = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshBasicMaterial({map:labelTex('...', '#2b3a67', 60)})); pl.rotation.x = -Math.PI / 2; pl.position.set(x, .56, z); G.scene.add(pl); const p = {x, z, kind, i, pl, sign:null, txt:''}; pads.push(p); return p; };
+    const towers = [], drops = [];
+    for(let i = 0; i < 6; i++){ const x = (i - 2.5) * 15; mkPad(x, -8, 0x2b3a67, 'drop', i); const tw = decor(new THREE.BoxGeometry(5, 12, 5), 0x666b73, x, 6, -22); towers.push(tw); const cube = decor(new THREE.BoxGeometry(1.5, 1.5, 1.5), CYCLE[i], x, 14, -22); cube.visible = false; drops.push({x, t:i * .23, cube}); }
+    mkPad(-15, 14, 0x0d69ac, 'spd', 0); mkPad(0, 14, 0x287f47, 'val', 0); mkPad(15, 14, 0xc79a00, 'reb', 0);
+    G.ty = {T, pads, towers, drops, armed:{}, saveT:0, boardT:0, dirty:true};
+    G.statCols = ['Cash']; G.mainStat = 'coins'; G.sunTarget = [0, 0, 0]; G.title = {a:'Brick Tycoon', b:'Step on the pads to buy droppers and upgrades. They keep earning cash while you play!'}; G.titleView = [0, 22, 50]; G.botHomes = () => [];
+  }
+  function tyLabels(){
+    const ty = G.ty, T = ty.T;
+    ty.pads.forEach(p => {
+      let top, name;
+      if(p.kind === 'drop'){ name = 'Dropper ' + (p.i + 1) + ' (+$' + TY_DROP[p.i][1] + ')'; top = T.own[p.i] ? 'OWNED' : '$' + tyFmt(TY_DROP[p.i][0]); }
+      else if(p.kind === 'spd'){ name = 'Faster Droppers Lv ' + T.spd + '/5'; top = T.spd >= 5 ? 'MAX' : '$' + tyFmt(150 * Math.pow(3, T.spd)); }
+      else if(p.kind === 'val'){ name = 'Bigger Bricks Lv ' + T.val + '/5'; top = T.val >= 5 ? 'MAX' : '$' + tyFmt(300 * Math.pow(3, T.val)); }
+      else { name = 'REBIRTH x' + T.reb + ' (+10 tokens)'; top = '$' + tyFmt(100000 * Math.pow(1.6, T.reb)); }
+      if(p.txt === name + top) return; p.txt = name + top;
+      p.pl.material.map = labelTex(top, p.kind === 'reb' ? '#c79a00' : p.kind === 'spd' ? '#0d69ac' : p.kind === 'val' ? '#287f47' : T.own[p.i] ? '#287f47' : '#2b3a67', top.length > 6 ? 46 : 62); p.pl.material.needsUpdate = true;
+      if(p.sign) G.scene.remove(p.sign); p.sign = textSprite(name, {color:'#fff'}); p.sign.position.set(p.x, 7, p.z); p.sign.scale.multiplyScalar(2.2); G.scene.add(p.sign);
+    });
+    ty.towers.forEach((tw, i) => tw.material.color.set(T.own[i] ? CYCLE[i] : 0x666b73)); ty.drops.forEach((d, i) => d.cube.visible = !!T.own[i]);
+  }
+  function tyStep(dt){
+    const ty = G.ty, T = ty.T, P = G.P; if(G.state !== 'play') return;
+    if(ty.dirty){ ty.dirty = false; tyLabels(); }
+    const mult = (1 + T.val * .6) * Math.pow(1.25, T.reb), rate = (1 + T.spd * .35) / 2.5; let inc = 0;
+    ty.drops.forEach((d, i) => { if(!T.own[i]) return; d.t += dt * rate; inc += TY_DROP[i][1] * mult * rate; if(d.t >= 1){ d.t -= 1; T.cash += TY_DROP[i][1] * mult; } d.cube.position.y = 13 - 11.5 * d.t; d.cube.rotation.y = d.t * 4; });
+    ty.inc = inc;
+    if(!P.dead){
+      ty.pads.forEach((p, k) => {
+        const on = Math.abs(P.x - p.x) < 4.5 && Math.abs(P.z - p.z) < 4.5 && P.y < 3; if(!on){ ty.armed[k] = false; return; } if(ty.armed[k]) return; ty.armed[k] = true;
+        if(p.kind === 'drop'){ if(T.own[p.i]) return toast('Already owned', 'Keep earning!'); const c = TY_DROP[p.i][0]; if(T.cash < c) return toast('Not enough cash', 'You need $' + tyFmt(c)); T.cash -= c; T.own[p.i] = 1; ty.dirty = true; sfx.coin(); toast('Dropper ' + (p.i + 1) + ' bought!', '+$' + TY_DROP[p.i][1] + ' per brick'); }
+        else if(p.kind === 'spd' || p.kind === 'val'){ const lv = T[p.kind]; if(lv >= 5) return toast('Max level', 'Nothing left to upgrade'); const c = (p.kind === 'spd' ? 150 : 300) * Math.pow(3, lv); if(T.cash < c) return toast('Not enough cash', 'You need $' + tyFmt(c)); T.cash -= c; T[p.kind]++; ty.dirty = true; sfx.check(); toast(p.kind === 'spd' ? 'Droppers are faster!' : 'Bricks are worth more!', 'Level ' + T[p.kind] + ' of 5'); }
+        else { const c = 100000 * Math.pow(1.6, T.reb); if(T.cash < c) return toast('Not enough cash', 'Rebirth costs $' + tyFmt(c)); T.reb++; T.cash = 0; T.own = [1, 0, 0, 0, 0, 0]; T.spd = 0; T.val = 0; ty.dirty = true; sfx.win(); G.opts.onReward && G.opts.onReward('tokens', 10); G.opts.onEvent && G.opts.onEvent('rebirth', T.reb); G.opts.onEvent && G.opts.onEvent('tycoon', JSON.parse(JSON.stringify(T))); toast('REBIRTH ' + T.reb + '!', 'All income x' + Math.pow(1.25, T.reb).toFixed(2) + ' · +10 tokens'); }
+      });
+    }
+    ty.boardT -= dt; if(ty.boardT <= 0){ ty.boardT = .5; const c = Math.floor(T.cash); if(P.stats.coins !== c){ P.stats.coins = c; updateBoard(); } const el = ovl('gTy', ''); if(el){ const t = 'Cash $' + tyFmt(T.cash) + ' · Income $' + tyFmt(inc) + '/sec · Rebirths ' + T.reb; if(el.textContent !== t) el.textContent = t; } }
+    ty.saveT -= dt; if(ty.saveT <= 0){ ty.saveT = 10; G.opts.onEvent && G.opts.onEvent('tycoon', JSON.parse(JSON.stringify(T))); }
+  }
+
+  function buildCTF(){
+    const nm = G.opts.user.name, team = hashStr(nm) % 2, FW = 150, FD = 76;
+    G.spawn = {x:team ? 62 : -62, y:.05, z:(hashStr(nm + 'z') % 9 - 4) * 3.5}; G.lavaY = -40; G.stageNames = [];
+    block(0, 0, 0, FW, FD, 0x5f8f4a, 'solid', {h:2}); block(-FW / 4, .15, 0, FW / 2, FD, 0xb86a6a, 'solid', {h:.3, studs:false}); block(FW / 4, .15, 0, FW / 2, FD, 0x6a7fb8, 'solid', {h:.3, studs:false});
+    [[-FW / 2 - 1, 0, 2, FD + 4], [FW / 2 + 1, 0, 2, FD + 4], [0, -FD / 2 - 1, FW + 4, 2], [0, FD / 2 + 1, FW + 4, 2]].forEach(w => block(w[0], 12, w[1], w[2], w[3], COL.dgrey, 'solid', {h:12}));
+    [[0, -22, 4, 14], [0, 22, 4, 14], [-22, 0, 8, 4], [22, 0, 8, 4], [-38, -20, 5, 5], [-38, 20, 5, 5], [38, -20, 5, 5], [38, 20, 5, 5], [-12, -8, 4, 4], [12, 8, 4, 4]].forEach((c, i) => block(c[0], 5, c[1], c[2], c[3], CYCLE[i % 7], 'solid', {h:5}));
+    const flags = [0, 1].map(t => { const hx = t ? 66 : -66; block(t ? 62 : -62, .5, 0, 18, 18, t ? 0x3355c0 : 0xc03333, 'solid', {h:.4, studs:false}); const g = new THREE.Group(), m = c => new THREE.MeshLambertMaterial({color:c}), pole = new THREE.Mesh(new THREE.BoxGeometry(.35, 9, .35), m(0xdddddd)), cloth = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.2, .2), m(t ? 0x2f5fe0 : 0xe03a2f)); pole.position.y = 4.5; cloth.position.set(1.8, 7.8, 0); g.add(pole, cloth); g.position.set(hx, .5, 0); G.scene.add(g); return {t, hx, hz:0, g, dropped:null}; });
+    G.ctf = {team, flags, carry:false, score:[0, 0], cd:0, warn:0, over:0};
+    G.statCols = ['Caps']; G.mainStat = 'stage'; G.sunTarget = [0, 0, 0]; G.title = {a:'Capture the Flag', b:'You are on the ' + (team ? 'BLUE' : 'RED') + ' team. Grab the enemy flag and bring it home. First to 3 wins!'}; G.titleView = [team ? 70 : -70, 18, 30]; G.botHomes = () => [];
+  }
+  function ctfEvent(d){
+    const c = G.ctf; if(!c) return; const f = c.flags[d.f === 1 ? 1 : 0];
+    if(d.k === 'drop'){ f.dropped = {x:+d.x || 0, z:+d.z || 0, t:G.T}; }
+    else if(d.k === 'ret'){ f.dropped = null; }
+    else if(d.k === 'cap'){ ctfCapture(d.tm === 1 ? 1 : 0, false); }
+  }
+  function ctfCapture(tm, mine){
+    const c = G.ctf; c.score[tm]++; c.flags.forEach(f => f.dropped = null); if(mine) c.carry = false;
+    toast((tm ? 'BLUE' : 'RED') + ' captured the flag!', 'RED ' + c.score[0] + ' - ' + c.score[1] + ' BLUE'); sfx.win();
+    if(c.score[tm] >= 3){ toast((tm ? 'BLUE' : 'RED') + ' team wins!', 'A new match starts now'); if(c.team === tm){ G.opts.onReward && G.opts.onReward('tokens', 5); } c.score = [0, 0]; c.carry = false; }
+  }
+  function ctfStep(dt){
+    const c = G.ctf, P = G.P; if(G.state !== 'play') return; const me = c.team, en = 1 - me, ents = G.ents;
+    P.tm = me; P.fc = c.carry ? 1 : 0;
+    ents.forEach(e => { if(e.tm == null || e.tm < 0 || e._tm === e.tm) return; if(e._tmM) e.A.group.remove(e._tmM); const mk = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({color:e.tm ? 0x3d6bff : 0xff3d3d})); mk.position.y = 7.4; mk.rotation.set(.6, .6, 0); e.A.group.add(mk); e._tmM = mk; e._tm = e.tm; });
+    c.flags.forEach(f => { if(f.dropped && G.T - f.dropped.t > 25) f.dropped = null; });
+    const carrierOf = f => { if(f.t !== me && c.carry && !P.dead) return P; return ents.find(e => e !== P && e.fc && e.tm === 1 - f.t && !e.dead) || null; };
+    const flagPos = f => { const cr = carrierOf(f); if(cr) return {x:cr.x, y:cr.y + 6, z:cr.z, st:'carried', by:cr}; if(f.dropped) return {x:f.dropped.x, y:.5, z:f.dropped.z, st:'dropped'}; return {x:f.hx, y:.5, z:f.hz, st:'home'}; };
+    c.flags.forEach(f => { const p = flagPos(f); f.g.position.set(p.x, p.y, p.z); f.pos = p; });
+    c.cd -= dt; c.warn -= dt;
+    if(!P.dead){
+      const ef = c.flags[en], of = c.flags[me], ep = ef.pos, op = of.pos;
+      if(!c.carry && ep.st !== 'carried' && Math.hypot(P.x - ep.x, P.z - ep.z) < 3.8){ c.carry = true; ef.dropped = null; toast('You have the flag!', 'Run it back to your base'); sfx.check(); }
+      if(op.st === 'dropped' && Math.hypot(P.x - op.x, P.z - op.z) < 3.8){ of.dropped = null; G.net && G.net.room.emit('ctf', {k:'ret', f:me}).catch(() => {}); toast('Flag returned!', 'Your flag is back at base'); sfx.coin(); }
+      if(c.carry && Math.hypot(P.x - of.hx, P.z - of.hz) < 9){
+        if(op.st === 'home'){ c.carry = false; G.net && G.net.room.emit('ctf', {k:'cap', tm:me}).catch(() => {}); G.opts.onReward && G.opts.onReward('tokens', 10); G.opts.onEvent && G.opts.onEvent('capture'); P.stats.stage++; updateBoard(); ctfCapture(me, true); }
+        else if(c.warn <= 0){ c.warn = 4; toast('Your flag is not home!', 'Return your flag first'); }
+      }
+      const inEnemyHalf = me === 0 ? P.x > 2 : P.x < -2;
+      if(inEnemyHalf && P.ff <= 0 && G.net){ const hit = Object.keys(G.remotes).map(k => G.remotes[k]).find(r => r.tm != null && r.tm === en && !r.dead && Math.hypot(r.x - P.x, r.z - P.z) < 3.4); if(hit){ if(c.carry){ c.carry = false; ef.dropped = {x:P.x, z:P.z, t:G.T}; G.net.room.emit('ctf', {k:'drop', f:en, x:r1(P.x), z:r1(P.z)}).catch(() => {}); } P.x = G.spawn.x; P.z = G.spawn.z; P.y = .05; P.vx = P.vy = P.vz = 0; P.ff = 3; toast('Tagged!', 'Back to your base'); sfx.hit(); } }
+    } else if(c.carry){ c.carry = false; }
+    const el = ovl('gCtf', ''); if(el){ const t = 'RED ' + c.score[0] + ' - ' + c.score[1] + ' BLUE · You are ' + (me ? 'BLUE' : 'RED') + (c.carry ? ' · YOU HAVE THE FLAG' : ''); if(el.textContent !== t){ el.textContent = t; el.style.background = me ? 'rgba(40,70,190,.8)' : 'rgba(190,40,40,.8)'; } }
+  }
+
   function buildStudio(){
     G.spawn = {x:0, y:.05, z:20}; G.lavaY = -80;
     const bp = makePart({x:0, y:-1, z:0, w:160, h:2, d:160, color:0xffffff, topMap:null, studs:false});
@@ -2298,7 +2489,7 @@ const Engine = (function(){
     if(pr.pt !== undefined) setPet(e, String(pr.pt).slice(0, 8));
     if((pr.g || 0) !== e.gid){ e.gid = pr.g || 0; setGear(e.A, e.gid); const it = e.gid ? ITEM_BY_ID[e.gid] : null; e.tool = it ? it.s.k : null; if(e.A.gearObj) e.A.armR.rotation.x = -1.5; }
     if(pr.sw != null && pr.sw !== e.swc){ e.swc = pr.sw; e.swing = .38; }
-    e.stats = Object.assign({stage:0, height:0, coins:0}, pr.st || {}); e.kills = pr.k || 0; e.deaths = pr.dt || 0; e.mu = pr.mu == null ? -1 : pr.mu; if(pr.cr && !e.car){ e.car = mkCar(CAR_COLS[hashStr(String(e.uid || e.user.name)) % 8]); G.scene.add(e.car); } e.cr = !!pr.cr;
+    e.stats = Object.assign({stage:0, height:0, coins:0}, pr.st || {}); e.kills = pr.k || 0; e.deaths = pr.dt || 0; e.mu = pr.mu == null ? -1 : pr.mu; if(pr.cr && !e.car){ e.car = mkCar(CAR_COLS[hashStr(String(e.uid || e.user.name)) % 8]); G.scene.add(e.car); } e.cr = !!pr.cr; e.tm = pr.tm == null ? -1 : pr.tm; e.fc = pr.fc || 0;
     const nm = nameOfPeer(p); if(nm !== e.user.name){ e.user.name = nm; e.A.group.remove(e.tag); e.tag = textSprite(nm, {color:'#fff'}); e.tag.position.y = 6.1; e.A.group.add(e.tag); }
   }
   function remoteByUid(u){ for(const k in G.remotes) if(G.remotes[k].uid === u) return G.remotes[k]; return null; }
@@ -2310,7 +2501,7 @@ const Engine = (function(){
       N.room.peers().forEach(p => { if(p.isMe || p.kind !== 'viewer') return; seen[p.peer] = 1; const pr = p.presence || {}; let r = G.remotes[p.peer]; if(!r && pr.av && pr.x != null) r = addRemote(p); if(r) applyRemote(r, p); });
       Object.keys(G.remotes).forEach(k => { if(!seen[k]) removeRemote(k); });
     };
-    G.unsubs = [N.room.onPeers(sync),
+    G.unsubs = [N.room.onPeers(sync), N.room.on('ctf', m => { if(!m.isMe && G.ctf) ctfEvent(m.data || {}); }),
       N.room.on('emo', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const e = G.remotes[m.peer], em = EMO_BY_ID[String((m.data || {}).id)]; if(e && em) showEmo(e, em.e); }),
       N.room.on('chat', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const d = m.data || {}, t = (typeof cleanText === 'function' ? cleanText : x => x)(String(d.t || '').slice(0, 120)); if(!t) return; const e = G.remotes[m.peer]; const nm = e ? e.user.name : ((N.nameOf && N.nameOf(m.by)) || 'Player'); chatMsg('say', t, nm); if(e) say(e, t); }),
       N.room.on('hit', m => { const d = m.data || {}; if(m.isMe || d.to !== G.myId || G.P.dead || !G.pvp) return; const from = remoteByUid(m.by); damage(G.P, Math.max(0, Math.min(30, +d.d || 0)), from, +d.dx || 0, +d.dz || 0); }),
@@ -2320,7 +2511,7 @@ const Engine = (function(){
   function netPublish(dt){
     if(!G.net || G.state !== 'play') return; G.pubT += dt; if(G.pubT < .066) return; G.pubT = 0;
     const P = G.P, st = {stage:P.stats.stage, height:P.stats.height, coins:P.stats.coins};
-    const patch = {x:r1(P.x), y:r1(P.y), z:r1(P.z), f:r2(P.face), hp:Math.round(P.hp), d:P.dead ? 1 : 0, a:P.grounded ? 0 : 1, em:P.emote || null, sw:G.swingCount, g:(P.A.gearItem && P.A.gearItem.id) || 0, pt:G.opts.user.petEm || '', st, k:P.kills, dt:P.deaths, mu:P.mu == null ? -1 : P.mu, cr:G.car ? 1 : 0};
+    const patch = {x:r1(P.x), y:r1(P.y), z:r1(P.z), f:r2(P.face), hp:Math.round(P.hp), d:P.dead ? 1 : 0, a:P.grounded ? 0 : 1, em:P.emote || null, sw:G.swingCount, g:(P.A.gearItem && P.A.gearItem.id) || 0, pt:G.opts.user.petEm || '', st, k:P.kills, dt:P.deaths, mu:P.mu == null ? -1 : P.mu, cr:G.car ? 1 : 0}; if(G.ctf){ patch.tm = G.ctf.team; patch.fc = G.ctf.carry ? 1 : 0; }
     const key = JSON.stringify(patch); if(key === G.lastPub) return; G.lastPub = key; G.net.room.presence(patch).catch(() => {});
   }
   function remoteStep(dt){
@@ -2330,7 +2521,7 @@ const Engine = (function(){
 
   /* ---------- per-step simulation ---------- */
   function worldStep(dt){
-    const T = Date.now() / 1000; if(G.R) rStep(dt); if(G.td) tdStep(dt); if(G.lr) lrStep(dt); if(G.zm) zmStep(dt); if(G.hs) hsStep(dt); if(G.co) coWorld(dt);
+    const T = Date.now() / 1000; if(G.R) rStep(dt); if(G.td) tdStep(dt); if(G.lr) lrStep(dt); if(G.zm) zmStep(dt); if(G.hs) hsStep(dt); if(G.gf) golfStep(dt); if(G.ty) tyStep(dt); if(G.ctf) ctfStep(dt); if(G.co) coWorld(dt);
     G.movers.forEach(m => { const s = Math.sin(T * m.spd + m.ph) * m.amp, nx = m.bx + (m.ax === 'x' ? s : 0), ny = m.by + (m.ax === 'y' ? s : 0), nz = m.bz + (m.ax === 'z' ? s : 0); m.dx = nx - m.cx; m.dy = ny - m.cy; m.dz = nz - m.cz; m.cx = nx; m.cy = ny; m.cz = nz; m.mesh.position.set(nx, ny, nz); bounds(m); });
     G.spinners.forEach(s => { s.ang = s.w * T; s.group.rotation.y = s.ang; });
     G.vanishers.forEach(v => {
@@ -2574,7 +2765,7 @@ const Engine = (function(){
     envDefaultsReset(); const game = opts.game; abort = new AbortController(); const sig = {signal:abort.signal};
     G = {opts, game, state:'intro', T:0, tR:0, acc:0, lastSec:-1, colliders:[], killers:[], movers:[], vanishers:[], trigs:[], doors:[], npcs:[], waters:[], zones:[], doorT:{}, tpCool:0, zoneIdx:-2, bgm:-1, spinners:[], pads:[], debris:[], ents:[], bots:[], keys:new Set(), typing:false, jumpBtn:false, joy:{id:null, vx:0, vy:0, ox:0, oy:0}, look:{id:null, x:0, y:0, sx:0, sy:0}, yaw:0, pitch:.38, zoom:game.kind === 'studio' ? 40 : 16, camDist:80, cf:{x:0, y:8, z:-40}, camBlend:0, sound:true, music:-1, heard:-1, mt:0, won:false, checkpoint:null, ray:new THREE.Raycaster()};
     makeScene(); G.qual = getQual(); applyQual();
-    const builder = game.kind === 'obby' && game.gen ? (() => buildGenObby(game.gen)) : ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio, coins:buildCoinIsland, restaurant:buildRestaurant, drive:buildDrive, tiledrop:buildTileDrop, maze:buildMaze, lavarise:buildLavaRise, zombie:buildZombie, hideseek:buildHideSeek, coaster:buildCoaster})[game.kind]; builder();
+    const builder = game.kind === 'obby' && game.gen ? (() => buildGenObby(game.gen)) : ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio, coins:buildCoinIsland, restaurant:buildRestaurant, drive:buildDrive, tiledrop:buildTileDrop, maze:buildMaze, lavarise:buildLavaRise, zombie:buildZombie, hideseek:buildHideSeek, golf:buildGolf, tycoon:buildTycoon, ctf:buildCTF, coaster:buildCoaster})[game.kind]; builder();
     const root = document.getElementById('gameRoot'); root.textContent = ''; root.appendChild(canvas); root.insertAdjacentHTML('beforeend', hudHtml(game.kind)); { const tn = document.getElementById('gTopName'); if(tn) tn.textContent = opts.user.name; chatMsg('sys', 'Please type / for a list of commands'); } root.hidden = false; document.body.classList.add('in-game');
     if(isTouchDev()) root.classList.add('coarse'); else root.classList.remove('coarse');
     // player
@@ -2602,7 +2793,7 @@ const Engine = (function(){
     }).catch(() => {});
   }
   function stop(){
-    customAudioStop();
+    customAudioStop(); if(G && G.ty && G.opts.onEvent) G.opts.onEvent('tycoon', JSON.parse(JSON.stringify(G.ty.T)));
     if(!G) return null;
     try{ if(document.pointerLockElement) document.exitPointerLock(); }catch(e){}
     const summary = {kills:G.P.kills, deaths:G.P.deaths, time:G.T, won:G.won, bricks:G.bricks ? G.bricks.length : 0, stage:G.P.stats.stage, coins:G.P.stats.coins, score:G.score || 0, lap:G.car ? G.car.best : 0, rides:G.co ? G.co.rides : 0};
@@ -3658,9 +3849,9 @@ async function playGame(gid, opt){
   const leave = () => { if(nr) nr.leave().catch(() => {}); setLobby(null); };
   const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar)), owned:U.owned.slice(), petEm:(PET_BY_ID[U.pet] || {}).e || '', emotes:(U.emotes || []).slice()}, seed:hashStr(roomName), serverName:solo ? '' : (typeof server === 'string' ? 'Private server' : 'Server ' + server), place:place ? {bricks:place.bricks, env:place.env} : null,
     net:nr ? {room:nr, myId:MYID, nameOf, isBlocked} : null,
-    resume:(g.gen && g.gen.milestone && U.prog && U.prog[gid]) || 0,
+    resume:(g.gen && g.gen.milestone && U.prog && U.prog[gid]) || 0, tycoon:g.kind === 'tycoon' ? (U.tyc || null) : null,
     onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; U.stats.earned = (U.stats.earned || 0) + amt; if(g.kind === 'town' || g.kind === 'coins') U.stats.coins += amt; save(); } },
-    onEvent:(name, v) => { if(name === 'tick') addSeasonXp(5); if(name === 'check'){ U.prog = U.prog || {}; if(v > (U.prog[gid] || 0)) U.prog[gid] = v; } else if(name === 'milestone'){ U.msBest = U.msBest || {}; if(v > (U.msBest[gid] || 0)){ U.msBest[gid] = v; U.tokens += 10; U.stats.earned = (U.stats.earned || 0) + 10; toast('Stage ' + v + ' reached: +10 tokens'); } } else if(name === 'win'){ addSeasonXp(30); if(U.prog) U.prog[gid] = 0; if(!g.custom){ U.stats.wins++; giveBadge(g.badge ? g.badge : g.kind === 'tower' ? 'tower' : g.id === 14 ? 'mega' : g.id === 7 ? 'candy' : g.id === 8 ? 'inferno' : g.kind === 'drive' ? 'racer' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; if(lbType(g) === 'time') submitScore(g, 'time', v); } else if(name === 'wave'){ if(v >= 5) giveBadge('zombie'); } else if(name === 'hidewin'){ giveBadge('seeker'); } else if(name === 'lavawin'){ giveBadge('lavarise'); } else if(name === 'ride'){ if(v >= 3) giveBadge('rider'); } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
+    onEvent:(name, v) => { if(name === 'tick') addSeasonXp(5); if(name === 'check'){ U.prog = U.prog || {}; if(v > (U.prog[gid] || 0)) U.prog[gid] = v; } else if(name === 'milestone'){ U.msBest = U.msBest || {}; if(v > (U.msBest[gid] || 0)){ U.msBest[gid] = v; U.tokens += 10; U.stats.earned = (U.stats.earned || 0) + 10; toast('Stage ' + v + ' reached: +10 tokens'); } } else if(name === 'win'){ addSeasonXp(30); if(U.prog) U.prog[gid] = 0; if(!g.custom){ U.stats.wins++; giveBadge(g.badge ? g.badge : g.kind === 'tower' ? 'tower' : g.id === 14 ? 'mega' : g.id === 7 ? 'candy' : g.id === 8 ? 'inferno' : g.kind === 'drive' ? 'racer' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; if(lbType(g) === 'time') submitScore(g, 'time', v); } else if(name === 'tycoon'){ if(g.kind === 'tycoon' && v && typeof v === 'object'){ U.tyc = v; } } else if(name === 'rebirth'){ giveBadge('tycoon'); } else if(name === 'capture'){ giveBadge('ctf'); } else if(name === 'wave'){ if(v >= 5) giveBadge('zombie'); } else if(name === 'hidewin'){ giveBadge('seeker'); } else if(name === 'lavawin'){ giveBadge('lavarise'); } else if(name === 'ride'){ if(v >= 3) giveBadge('rider'); } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
     coWatch:coDoc ? coWatchFor(coDoc.id) : null, verWatch:solo && place && !opt.co ? placeVersions(place).watch : null, verSave:solo && place && !opt.co ? placeVersions(place).save : null, models:solo ? modelsApi() : null,
     onSave:(bricks, env) => { if(coDoc) DB.doc('cplaces/' + coDoc.id).update({bricks:packBricks(bricks), n:bricks.length, env:env || null, by:U.name, t:Date.now()}).catch(() => {}); if(place && solo && !opt.co){ place.bricks = bricks.map(b => b.slice()); if(env) place.env = env; persist(); if(bricks.length >= 20) giveBadge('builder'); } },
     onExit:(sm) => { sm = sm || {}; try{ finishScores(g, s, sm); }catch(e){} session = null; endLoad(); leave(); refreshChrome(); render(); if(pendingInvite){ const pi = pendingInvite; pendingInvite = null; setTimeout(() => onInvite(pi.by, pi.g, pi.code), 600); } toast(s.earned ? 'Thanks for playing! You earned ' + s.earned + ' tokens.' : 'Thanks for playing!'); }});

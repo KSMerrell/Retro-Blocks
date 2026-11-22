@@ -63,11 +63,12 @@ const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 32).toString('hex');
 const newToken = () => crypto.randomBytes(24).toString('hex');
 function cookieOf(req, k){ const m = (req.headers.cookie || '').split(/;\s*/).find(c => c.startsWith(k + '=')); return m ? decodeURIComponent(m.slice(k.length + 1)) : null; }
 function userOf(req){ const t = cookieOf(req, 'bp3'); const s = t && S.sessions[t]; if(!s || s.exp < Date.now()) return null; if(S.docs['bans/' + s.uid]) return null; return S.accounts[s.uid] || null; }
-function startSession(res, uid, req){
-  const t = newToken(); S.sessions[t] = {uid, exp:Date.now() + 180 * 86400000}; markDirty();
+function startSession(res, uid, req, days){
+  days = days || 180; const t = newToken(); S.sessions[t] = {uid, exp:Date.now() + days * 86400000}; markDirty();
   const secure = (req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
-  res.setHeader('Set-Cookie', 'bp3=' + t + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + 180 * 86400 + secure);
+  res.setHeader('Set-Cookie', 'bp3=' + t + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + days * 86400 + secure);
 }
+const CHATLOG = [];
 const attempts = {};
 function throttled(ip){ const now = Date.now(), a = attempts[ip] = (attempts[ip] || []).filter(t => now - t < 600000); if(a.length >= 20) return true; a.push(now); return false; }
 function newId(){ return 'u_' + crypto.randomBytes(9).toString('hex'); }
@@ -115,7 +116,7 @@ function allowWrite(uid, p, op, data, old){
     case 'requests': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : data && mine(data.from) && id === data.from + '_' + data.to && !blockedPair(data.from, data.to);
     case 'blocks': return op === 'delete' ? !!old && old.by === uid : !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && id === uid + '_' + data.who;
     case 'bans': return isAdmin(uid);
-    case 'gifts': return op !== 'delete' && !!old && !old.claimed && old.to === uid && !!data && data.claimed === true && data.to === old.to && data.from === old.from && data.amt === old.amt && data.item === old.item;
+    case 'gifts': return op !== 'delete' && !!old && !old.claimed && old.to === uid && old.to !== '*' && !!data && data.claimed === true && data.to === old.to && data.from === old.from && data.amt === old.amt && data.item === old.item;
     case 'scores': { if(op === 'delete') return !!old && old.uid === uid; const n = (v, mx) => v == null || (typeof v === 'number' && isFinite(v) && v >= 0 && v <= mx); return !!data && mine(data.uid) && typeof data.gid === 'string' && data.gid.length < 30 && id === data.gid + '_' + uid && n(data.t, 36000) && n(data.s, 1000000) && typeof data.name === 'string'; }
     case 'reports': return isAdmin(uid) ? true : op === 'set' && !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && REPORT_REASONS.includes(data.reason) && String(data.detail || '').length <= 400 && String(data.ctx || '').length <= 80;
     case 'messages': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : !old && data && mine(data.from) && typeof data.to === 'string' && !blockedPair(uid, data.to);
@@ -138,7 +139,7 @@ function allowWrite(uid, p, op, data, old){
   }
 }
 function visible(uid, coll, id, d){ // per-doc read privacy
-  if(coll === 'gifts') return d.to === uid || d.from === uid || isAdmin(uid);
+  if(coll === 'gifts') return d.to === '*' || d.to === uid || d.from === uid || isAdmin(uid);
   if(coll === 'messages') return d.from === uid || d.to === uid;
   if(coll === 'trades' || coll === 'requests') return d.from === uid || d.to === uid;
   if(coll === 'sales') return d.seller === uid || d.buyer === uid;
@@ -225,7 +226,7 @@ function handle(conn, m){
       reply(true, {peer, peers:existing}); r.forEach((mm, k) => { if(k !== peer) send(mm.conn, {t:'peer', room:name, peer, by:uid, p:{}}); }); return;
     }
     case 'pres': { const r = rooms[m.room], me = r && r.get(m.peer); if(!me || me.conn !== conn || !m.patch || typeof m.patch !== 'object') return; const merged = Object.assign({}, me.p, m.patch); if(JSON.stringify(merged).length > 4000) return; Object.keys(merged).forEach(k => { if(merged[k] === null) delete merged[k]; }); me.p = merged; r.forEach((mm, k) => { if(k !== m.peer) send(mm.conn, {t:'peer', room:m.room, peer:m.peer, by:uid, p:merged}); }); return; }
-    case 'emit': { const r = rooms[m.room], me = r && r.get(m.peer); if(!me || me.conn !== conn || typeof m.topic !== 'string' || m.topic.length > 40) return; if(JSON.stringify(m.data || null).length > 2000) return; const to = m.topic === 'dm' && m.data && m.data.to; r.forEach((mm, k) => { if(k === m.peer) return; if(to && mm.by !== to) return; send(mm.conn, {t:'ev', room:m.room, peer:m.peer, by:uid, topic:m.topic, data:m.data}); }); return; }
+    case 'emit': { const r = rooms[m.room], me = r && r.get(m.peer); if(!me || me.conn !== conn || typeof m.topic !== 'string' || m.topic.length > 40) return; if(JSON.stringify(m.data || null).length > 2000) return; if(m.topic === 'chat' && m.data && typeof m.data.t === 'string'){ const ac = S.accounts[uid]; CHATLOG.push({t:Date.now(), room:String(m.room || ''), name:ac ? ac.name : '?', text:m.data.t.slice(0, 200)}); if(CHATLOG.length > 500) CHATLOG.shift(); } const to = m.topic === 'dm' && m.data && m.data.to; r.forEach((mm, k) => { if(k === m.peer) return; if(to && mm.by !== to) return; send(mm.conn, {t:'ev', room:m.room, peer:m.peer, by:uid, topic:m.topic, data:m.data}); }); return; }
     case 'leave': { leaveRoom(conn, String(m.room || ''), m.peer); return; }
   }
 }
@@ -264,6 +265,7 @@ function deleteAccount(a){
   Object.keys(S.sessions).forEach(t => { if(S.sessions[t].uid === a.id) delete S.sessions[t]; });
   delete S.accounts[a.id]; delete byLower[a.lower]; markDirty(); ['profiles', 'names'].forEach(notifyColl);
 }
+function pruneGuests(){ const now = Date.now(); Object.keys(S.accounts).forEach(id => { const a = S.accounts[id]; if(a && a.guest && !Object.keys(S.sessions).some(t => S.sessions[t].uid === id && S.sessions[t].exp > now)) deleteAccount(a); }); }
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0], ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
   res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'same-origin');
@@ -278,6 +280,30 @@ const server = http.createServer((req, res) => {
     const salt = crypto.randomBytes(16).toString('hex'), a = {id:newId(), name, lower:name.toLowerCase(), salt, hash:hashPw(pw, salt), created:Date.now()};
     S.accounts[a.id] = a; byLower[a.lower] = a.id; markDirty(); startSession(res, a.id, req); json(res, 200, {ok:true});
   }); }
+  if(req.method === 'POST' && url === '/api/guest'){ return body(req, b => {
+    if(!b || throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});
+    const gender = b.gender === 'girl' ? 'girl' : 'boy'; let name = '', n = 0;
+    do{ name = 'Guest' + (1000 + crypto.randomInt(0, 99000)); }while(byLower[name.toLowerCase()] && ++n < 50);
+    if(byLower[name.toLowerCase()]) return json(res, 503, {error:'Please try again.'});
+    const salt = crypto.randomBytes(16).toString('hex'), a = {id:newId(), name, lower:name.toLowerCase(), salt, hash:hashPw(crypto.randomBytes(24).toString('hex'), salt), created:Date.now(), guest:true, gender};
+    S.accounts[a.id] = a; byLower[a.lower] = a.id; markDirty(); startSession(res, a.id, req, 60); json(res, 200, {ok:true});
+  }); }
+  if(req.method === 'POST' && url === '/api/guest/save'){ const a = userOf(req); if(!a || !a.guest) return json(res, 401, {error:'This is not a guest account.'}); return body(req, b => {
+    if(!b || throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});
+    const name = String(b.username || '').trim(), pw = String(b.password || '');
+    if(!NAME_RE.test(name)) return json(res, 400, {error:'Usernames are 3 to 20 characters: letters, numbers and underscores.'});
+    if(badText(name) || /^guest\d*$/i.test(name)) return json(res, 400, {error:'That username is not allowed. Please choose another.'});
+    if(pw.length < 6 || pw.length > 100) return json(res, 400, {error:'Your password must be at least 6 characters.'});
+    if(pw.toLowerCase() === name.toLowerCase()) return json(res, 400, {error:'Your password cannot be the same as your username.'});
+    if(byLower[name.toLowerCase()] || S.docs['names/' + name.toLowerCase()]) return json(res, 409, {error:'That username is already taken.'});
+    const old = a.lower; delete byLower[old]; delete S.docs['names/' + old];
+    a.name = name; a.lower = name.toLowerCase(); a.salt = crypto.randomBytes(16).toString('hex'); a.hash = hashPw(pw, a.salt); delete a.guest; byLower[a.lower] = a.id;
+    S.docs['names/' + a.lower] = {d:{uid:a.id, t:Date.now()}, v:1};
+    ['profiles/' + a.id, 'data/users/' + a.id + '/state'].forEach(k => { const e = S.docs[k]; if(e && e.d){ e.d.name = name; if('nameLower' in e.d) e.d.nameLower = a.lower; e.v = (e.v || 0) + 1; } });
+    Object.keys(S.sessions).forEach(t => { if(S.sessions[t].uid === a.id) S.sessions[t].exp = Date.now() + 180 * 86400000; });
+    markDirty(); ['profiles', 'names'].forEach(notifyColl); json(res, 200, {ok:true, name});
+  }); }
+  if(req.method === 'GET' && url === '/api/admin/chat'){ const a = userOf(req); if(!a || !isAdmin(a.id)) return json(res, 403, {}); return json(res, 200, {log:CHATLOG.slice(-200)}); }
   if(req.method === 'POST' && url === '/api/clienterr'){ return body(req, b => { global.__errN = (global.__errN || 0) + 1; if(global.__errN < 200) console.log('CLIENTERR', JSON.stringify(b || {}).slice(0, 1800)); json(res, 200, {}); }); }
   if(req.method === 'POST' && url === '/api/login'){ return body(req, b => {
     if(!b || throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});
@@ -303,7 +329,7 @@ const server = http.createServer((req, res) => {
   if(url === '/' || url === '/index.html'){
     const u = userOf(req);
     if(!u){ res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(fs.readFileSync(path.join(PUB, 'login.html'))); }
-    const me = JSON.stringify({id:u.id, name:u.name, admin:isAdmin(u.id)}).replace(/</g, '\\u003c');
+    const me = JSON.stringify({id:u.id, name:u.name, admin:isAdmin(u.id), guest:!!u.guest, gender:u.gender || ''}).replace(/</g, '\\u003c');
     res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(APP().replace('/*ME*/', me));
   }
   const f = path.join(PUB, path.normalize(url).replace(/^(\.\.[\/\\])+/, ''));
@@ -311,4 +337,4 @@ const server = http.createServer((req, res) => {
   fs.readFile(f, (err, buf) => { if(err){ res.writeHead(404); return res.end('Not found'); } res.writeHead(200, {'Content-Type':MIME[path.extname(f)] || 'application/octet-stream', 'Cache-Control':'public, max-age=3600'}); res.end(buf); });
 });
 server.on('upgrade', onUpgrade);
-loadAll().then(() => server.listen(PORT, () => console.log('Retro Blox running on http://localhost:' + PORT + (USE_REDIS ? '  (data in Redis)' : '  (data in ' + DATA_DIR + ')')))).catch(e => { console.error('Could not load saved data:', e.message); process.exit(1); });
+loadAll().then(() => { try{ pruneGuests(); setInterval(pruneGuests, 6 * 3600000); }catch(e){ console.error(e); } server.listen(PORT, () => console.log('Retro Blox running on http://localhost:' + PORT + (USE_REDIS ? '  (data in Redis)' : '  (data in ' + DATA_DIR + ')'))); }).catch(e => { console.error('Could not load saved data:', e.message); process.exit(1); });

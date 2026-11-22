@@ -935,7 +935,7 @@ const Engine = (function(){
   function musicToggle(on){ if(!on) musicSet(-1); }
   function ownMusic(idx){ G.music = idx; G.P.mu = idx; musicSet(idx, .9); }
   function remoteMusicStep(){
-    if(!G || G.music >= 0 || G.zoneIdx >= 0 || G.bgm >= 0){ return; }
+    if(!G || G.customAudio || G.music >= 0 || G.zoneIdx >= 0 || G.bgm >= 0){ return; }
     let best = null, bd = 70; Object.keys(G.remotes).forEach(k => { const e = G.remotes[k]; if(e.mu == null || e.mu < 0) return; const d = Math.hypot(e.x - G.P.x, e.z - G.P.z); if(d < bd){ bd = d; best = e; } });
     if(best){ const v = .12 + .6 * (1 - bd / 70); if(M && M.idx === best.mu){ M.out.gain.setTargetAtTime(v, actx.currentTime, .15); } else musicSet(best.mu, v); G.heard = best.mu; }
     else if(M){ musicSet(-1); G.heard = -1; }
@@ -2344,10 +2344,10 @@ const Engine = (function(){
   function menuBody(tab){
     const b = document.getElementById('gmBody'); if(!b) return;
     document.querySelectorAll('.gm-tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === tab));
-    if(tab === 'players') b.innerHTML = G.ents.map((e, i) => '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span>' + (e.remote ? '<button class="tb" data-spec="' + i + '">Watch</button>' : '') + (e.remote && window.__ME && window.__ME.admin ? '<button class="tb" data-ban="' + esc(e.user.name) + '" title="Ban Hammer">&#128296;</button>' : '') + '</div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
+    if(tab === 'players') b.innerHTML = G.ents.map((e, i) => '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span>' + (e.remote ? '<button class="tb" data-spec="' + i + '">Watch</button>' : '') + (e.remote && window.__ME && window.__ME.admin ? '<button class="tb" data-mute="' + esc(e.user.name) + '" title="Mute">&#128263;</button><button class="tb" data-ban="' + esc(e.user.name) + '" title="Ban Hammer">&#128296;</button>' : '') + '</div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
     else if(tab === 'settings') b.innerHTML = '<label class="set">Graphics <select id="setQual"><option value="low"' + (G.qual === 'low' ? ' selected' : '') + '>Low (fastest)</option><option value="med"' + (G.qual === 'med' ? ' selected' : '') + '>Medium</option><option value="high"' + (G.qual === 'high' ? ' selected' : '') + '>High (best looking)</option></select></label><label class="set">Cursor <select id="setCur"><option value="white"' + (getCursorMode() === 'white' ? ' selected' : '') + '>White arrow</option><option value="black"' + (getCursorMode() === 'black' ? ' selected' : '') + '>Black arrow</option><option value="system"' + (getCursorMode() === 'system' ? ' selected' : '') + '>Default</option></select></label><label class="set"><input type="checkbox" id="setSound"' + (G.sound ? ' checked' : '') + '> Sound effects</label><label class="set">Camera zoom <input type="range" id="setZoom" min="6" max="' + (G.game.kind === 'studio' ? 120 : 60) + '" value="' + Math.round(G.zoom) + '"></label>';
     else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Shift Lock</b>: press Shift (character follows the camera)<br><b>Screenshot</b>: F2 or the camera button<br><b>Emotes</b>: type /e dance, wave, cheer, bounce, point, salute or shrug</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
-    b.onclick = ev => { const hm = ev.target.closest('[data-ban]'); if(hm){ ACTIONS.hammer({dataset:{n:hm.dataset.ban}}); return; } const w = ev.target.closest('[data-spec]'); if(w){ const t = G.ents[+w.dataset.spec]; resume(); specStart(t); } };
+    b.onclick = ev => { const mt = ev.target.closest('[data-mute]'); if(mt){ ACTIONS.muteByName(mt.dataset.mute); return; } const hm = ev.target.closest('[data-ban]'); if(hm){ ACTIONS.hammer({dataset:{n:hm.dataset.ban}}); return; } const w = ev.target.closest('[data-spec]'); if(w){ const t = G.ents[+w.dataset.spec]; resume(); specStart(t); } };
     const cs = document.getElementById('setCur'); if(cs) cs.onchange = () => setCursorMode(cs.value);
     const qs = document.getElementById('setQual'); if(qs) qs.onchange = () => setQual(qs.value);
     const s = document.getElementById('setSound'); if(s) s.onchange = () => G.sound = s.checked;
@@ -2422,8 +2422,19 @@ const Engine = (function(){
     G.introEnd = setTimeout(() => { if(G && G.state === 'intro') beginPlay(); }, 100);
     attachInput(sig); last = performance.now(); raf = requestAnimationFrame(frame); return true;
   }
-  function beginPlay(){ G.state = 'play'; if(G.R){ G.pitch = .8; G.zoom = 30; } if(G.game.kind === 'studio'){ G.pitch = .7; G.zoom = 70; G.yaw = .5; G.camDist = 70; } if(G.car){ G.yaw = G.car.ang + Math.PI; G.pitch = .3; G.zoom = 26; } G.camBlend = 1.2; G.cf = {x:G.P.x, y:G.P.y + 8, z:G.P.z}; G.T = 0; G.camDist = 40; toast(G.title.a, G.title.b); canvas.focus(); }
+  function beginPlay(){ G.state = 'play'; customAudioStart(G.game); if(G.R){ G.pitch = .8; G.zoom = 30; } if(G.game.kind === 'studio'){ G.pitch = .7; G.zoom = 70; G.yaw = .5; G.camDist = 70; } if(G.car){ G.yaw = G.car.ang + Math.PI; G.pitch = .3; G.zoom = 26; } G.camBlend = 1.2; G.cf = {x:G.P.x, y:G.P.y + 8, z:G.P.z}; G.T = 0; G.camDist = 40; toast(G.title.a, G.title.b); canvas.focus(); }
+  let CA = null;
+  function customAudioStop(){ if(CA){ clearInterval(CA.t); try{ CA.a.pause(); CA.a.src = ''; }catch(e){} CA = null; } }
+  function customAudioStart(game){
+    customAudioStop(); if(!game || !game.owner || typeof DB === 'undefined') return;
+    DB.doc('gsounds/' + game.id).get().then(snap => {
+      const d = snap.exists && snap.data(); if(!d || !/^data:audio\//.test(d.data || '') || !G || G.game !== game) return;
+      const a = new Audio(d.data); a.loop = true; a.volume = .45; G.customAudio = true; G.bgm = -1; musicSet(-1); customAudioStop(); CA = {a, t:setInterval(() => { if(!G){ customAudioStop(); return; } if(!G.sound){ if(!a.paused) a.pause(); } else if(a.paused) a.play().catch(() => {}); }, 700)};
+      if(G.sound) a.play().catch(() => {});
+    }).catch(() => {});
+  }
   function stop(){
+    customAudioStop();
     if(!G) return null;
     try{ if(document.pointerLockElement) document.exitPointerLock(); }catch(e){}
     const summary = {kills:G.P.kills, deaths:G.P.deaths, time:G.T, won:G.won, bricks:G.bricks ? G.bricks.length : 0, stage:G.P.stats.stage, coins:G.P.stats.coins, lap:G.car ? G.car.best : 0, rides:G.co ? G.co.rides : 0};
@@ -2463,7 +2474,7 @@ const Engine = (function(){
     document.addEventListener('visibilitychange', () => { if(G && document.hidden && G.state === 'play') pause(); }, sig);
     chatIn.addEventListener('focus', () => { G.typing = true; G.keys.clear(); }); chatIn.addEventListener('blur', () => { if(G) G.typing = false; });
     chatIn.addEventListener('keydown', e => {
-      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(window.__ME && window.__ME.admin && /^\/(speed|jump|god|tp)\b/i.test(t)){ adminCmd(t); chatIn.value = ''; chatIn.blur(); canvas.focus(); return; } if(t === '/' || /^\/(help|\?)$/i.test(t)){ chatMsg('sys', 'Commands: /e dance, /e wave, /e cheer, /e bounce, /e point, /e salute, /e shrug, or /e and the name of an emote you own.'); chatIn.value = ''; chatIn.blur(); canvas.focus(); return; } if(t){ const m = /^\/e\s+(dance|wave|cheer|bounce|point|salute|shrug)\b/i.exec(t), m2 = /^\/e\s+(\w+)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else if(m2 && EMO_BY_ID[m2[1].toLowerCase()]){ if(!playEmo(m2[1].toLowerCase())) chatMsg('info', 'You do not own that emote yet.'); } else if(typeof badText === 'function' && badText(t)){ chatMsg('info', 'Your message was not sent because it has words that are not allowed.'); } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
+      if(e.key === 'Enter'){ const t = chatIn.value.trim(); if(t && typeof muteLeftMs === 'function' && muteLeftMs()){ chatMsg('info', muteText()); chatIn.value = ''; chatIn.blur(); canvas.focus(); return; } if(window.__ME && window.__ME.admin && /^\/(speed|jump|god|tp)\b/i.test(t)){ adminCmd(t); chatIn.value = ''; chatIn.blur(); canvas.focus(); return; } if(t === '/' || /^\/(help|\?)$/i.test(t)){ chatMsg('sys', 'Commands: /e dance, /e wave, /e cheer, /e bounce, /e point, /e salute, /e shrug, or /e and the name of an emote you own.'); chatIn.value = ''; chatIn.blur(); canvas.focus(); return; } if(t){ const m = /^\/e\s+(dance|wave|cheer|bounce|point|salute|shrug)\b/i.exec(t), m2 = /^\/e\s+(\w+)/i.exec(t); if(m){ G.P.emote = m[1].toLowerCase(); G.P.emT = 6; } else if(m2 && EMO_BY_ID[m2[1].toLowerCase()]){ if(!playEmo(m2[1].toLowerCase())) chatMsg('info', 'You do not own that emote yet.'); } else if(typeof badText === 'function' && badText(t)){ chatMsg('info', 'Your message was not sent because it has words that are not allowed.'); } else { chatMsg('say', t, G.P.user.name); say(G.P, t); G.opts.onEvent && G.opts.onEvent('chat'); if(G.net) G.net.room.emit('chat', {t}).catch(() => {}); } } chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       else if(e.key === 'Escape'){ chatIn.value = ''; chatIn.blur(); canvas.focus(); }
       e.stopPropagation();
     });
@@ -2517,7 +2528,7 @@ const Engine = (function(){
 
 /* ===================== shared state: db + room + identity ===================== */
 let DB = null, ROOM = null, USERCAP = null, MYID = null, U = null, LOBBY_OK = false;
-let NOTICESEEN = {}, GIFTSEEN = {}, SITEDOC = null, COPLACES = [], P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SCORES = {}, REPORTDOCS = [], BANDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
+let MUTES = [], NOTICESEEN = {}, GIFTSEEN = {}, SITEDOC = null, COPLACES = [], P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SCORES = {}, REPORTDOCS = [], BANDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
 const loadedOnce = {};
 function esc2(s){ return esc(s); }
 const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -2540,11 +2551,16 @@ const nameOf = id => (prof(id).name) || '';
 const BAD_WORDS = ['fuck','fucker','fucking','shit','shitty','bitch','bastard','asshole','dick','dickhead','cock','pussy','cunt','whore','slut','nigger','nigga','faggot','fag','retard','retarded','rape','rapist','nazi','hitler','porn','sex','sexy','nude','nudes','penis','vagina','boob','boobs','cum','kys'];
 const BAD_SUB = BAD_WORDS.filter(w => w.length >= 5);
 const LEET = {'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i','+':'t'};
+let CUSTOMW = {list:[], sub:[]};
+function setCustomWords(arr){ const l = (Array.isArray(arr) ? arr : []).map(w => String(w).toLowerCase().replace(/[01345 7@$!+]/g, c => LEET[c] || c).replace(/[^a-z]/g, '')).filter(w => w.length >= 2).slice(0, 300); CUSTOMW = {list:l, sub:l.filter(w => w.length >= 5)}; }
 function badText(str){
   const t = String(str || '').toLowerCase().replace(/[01345 7@$!+]/g, c => LEET[c] || c).replace(/(.)\1{2,}/g, '$1$1');
   const words = t.split(/[^a-z]+/).filter(Boolean); if(words.some(w => BAD_WORDS.includes(w))) return true;
-  const packed = t.replace(/[^a-z]/g, ''); return BAD_SUB.some(w => packed.includes(w));
+  const packed = t.replace(/[^a-z]/g, ''); if(BAD_SUB.some(w => packed.includes(w))) return true;
+  return words.some(w => CUSTOMW.list.includes(w)) || CUSTOMW.sub.some(w => packed.includes(w));
 }
+function muteLeftMs(){ const m = MUTES.find(x => x.uid === MYID && x.until > Date.now()); return m && !(window.__ME && window.__ME.admin) ? m.until - Date.now() : 0; }
+function muteText(){ const ms = muteLeftMs(), m = MUTES.find(x => x.uid === MYID && x.until > Date.now()); const min = Math.ceil(ms / 60000), t = min >= 120 ? Math.ceil(min / 60) + ' hours' : min + (min === 1 ? ' minute' : ' minutes'); return 'You are muted for ' + t + ' more.' + (m && m.reason ? ' Reason: ' + m.reason : ''); }
 function cleanText(s){ return String(s || '').replace(/[A-Za-z0-9@$!+]+/g, w => badText(w) ? '#'.repeat(w.length) : w); }
 window.onContentBlocked = () => { try{ toast('That text has words that are not allowed here. Please change it.', true); }catch(e){} };
 const isBlocked = id => BLOCKDOCS.some(b => b.who === id);
@@ -2586,7 +2602,8 @@ function startSubs(){
   DB.collection('gifts').where('to', '==', MYID).onSnapshot(snap => { snapDocs(snap).forEach(claimGift); }, err);
   DB.collection('notices').where('to', '==', MYID).onSnapshot(snap => { snapDocs(snap).forEach(showNotice); }, err);
   DB.collection('gifts').where('to', '==', '*').onSnapshot(snap => { snapDocs(snap).forEach(claimGift); }, err);
-  DB.collection('site').onSnapshot(snap => { SITEDOC = snapDocs(snap).find(x => x.id === 'status') || null; applySite(); }, err);
+  DB.collection('site').onSnapshot(snap => { const ds = snapDocs(snap); SITEDOC = ds.find(x => x.id === 'status') || null; const wd = ds.find(x => x.id === 'words'); setCustomWords(wd && wd.list); applySite(); }, err);
+  DB.collection('mutes').onSnapshot(snap => { MUTES = snapDocs(snap); if(typeof queueRender === 'function') queueRender(); }, err);
   DB.collection('cplaces').where('eds', 'array-contains', MYID).onSnapshot(snap => { COPLACES = snapDocs(snap); queueRender(); }, err);
   DB.collection('blocks').onSnapshot(snap => { BLOCKDOCS = snapDocs(snap).filter(b => b.by === MYID); queueRender(); }, err);
   if(window.__ME && window.__ME.admin){ DB.collection('reports').onSnapshot(snap => { REPORTDOCS = snapDocs(snap); queueRender(); }, err); DB.collection('bans').onSnapshot(snap => { BANDOCS = snapDocs(snap); queueRender(); }, err); }
@@ -2961,7 +2978,7 @@ function renderProfile(name){
   if(me) btns = '<a class="btn neutral small" data-act="editDesc">Edit Description</a> <a class="btn neutral small" href="#/avatar">Edit Avatar</a>';
   else { const isF = isFriend(id), sent = reqOut().some(r => r.to === id), inc = reqIn().some(r => r.from === id), pg = playingOf(id); btns = isF ? '<span class="btn neutral small" style="cursor:default">Friends</span> <a class="btn small" data-act="composeTo" data-n="' + id + '">Message</a> <a class="btn small" data-act="tradeWith" data-n="' + id + '">Trade</a>' + (pg ? ' <a class="btn green small" data-act="joinFriend" data-n="' + id + '">Join Game</a>' : '') : isBlocked(id) ? '<span class="btn neutral small" style="cursor:default">Blocked</span>' : inc ? '<a class="btn green small" data-act="acceptReq" data-n="' + id + '">Accept Friend Request</a>' : sent ? '<span class="btn neutral small" style="cursor:default">Request Sent</span>' : '<a class="btn small" data-act="addFriend" data-n="' + id + '">Add Friend</a>'; }
   if(!me) btns += ' <a class="btn neutral small" data-act="' + (isBlocked(id) ? 'unblockUser' : 'blockUser') + '" data-n="' + id + '">' + (isBlocked(id) ? 'Unblock' : 'Block') + '</a> <a class="btn neutral small" data-act="reportUser" data-n="' + id + '">Report</a>';
-  if(!me && isAdminMe()) btns += ' <a class="btn small" data-act="noticeTo" data-n="' + id + '">Send Notice</a> <a class="btn red small" data-act="banUser" data-n="' + id + '">&#128296; Ban Hammer</a>';
+  if(!me && isAdminMe()) btns += ' <a class="btn small" data-act="noticeTo" data-n="' + id + '">Send Notice</a> <a class="btn small" data-act="' + (MUTES.some(m => m.uid === id && m.until > Date.now()) ? 'unmuteUser' : 'muteUser') + '" data-n="' + id + '">' + (MUTES.some(m => m.uid === id && m.until > Date.now()) ? 'Unmute' : 'Mute') + '</a> <a class="btn red small" data-act="banUser" data-n="' + id + '">&#128296; Ban Hammer</a>';
   const visits = Object.keys(o.visits || {}).reduce((s, k) => s + (o.visits[k] || 0), 0);
   setApp('<div class="box"><div class="prof"><div class="pav">' + avImg(o.avatar, 'full', .35) + '</div><div class="pinfo"><h1>' + esc(o.name) + '</h1><div class="status" style="margin:2px 0 8px">' + (me ? 'Online' : statusOf(id)) + '</div><div class="row" style="margin-bottom:10px">' + btns + '</div><p style="white-space:pre-wrap;margin:0 0 10px;word-break:break-word">' + esc(o.desc || 'Hi! I just joined Retro Blox.') + '</p><div class="pstats"><div><b>' + visits + '</b><span>Place Visits</span></div><div><b>' + ((o.owned || []).length) + '</b><span>Items</span></div><div><b>' + ((o.stats || {}).kills || 0) + '</b><span>Knockouts</span></div></div><div class="muted" style="font-size:13px">Joined ' + fmtDate(o.joined || Date.now()) + '</div></div></div></div>'
     + (me ? '<div class="box"><div class="sec-h"><span>Friends (' + fr.length + ')</span><a href="#/friends">See All</a></div>' + (fr.length ? '<div class="pcards">' + fr.slice(0, 6).map(f => pcard(f)).join('') + '</div>' : '<p class="muted">No friends yet.</p>') + '</div>' : '')
@@ -3299,12 +3316,17 @@ function createAdsHtml(){
 }
 function editGameModal(id){
   const d = GAMEDOCS.find(x => x.id === id && x.owner === MYID); if(!d) return; delete PICK.icon;
-  modal('Edit Game', '<label class="f" for="egN" style="margin-top:0">Game name</label><input id="egN" type="text" maxlength="40" value="' + esc(d.name) + '"><label class="f" for="egD">Description</label><textarea id="egD" maxlength="300">' + esc(d.desc || '') + '</textarea><label class="f">Game icon</label><input type="file" id="egI" accept="image/*"><div style="margin-top:8px"><img id="egP" alt="" width="128" height="128" src="' + gameThumb(customGame(d), 256, 256) + '" style="border:1px solid #bbb;object-fit:cover"></div><p class="muted" style="font-size:13px;margin:4px 0 0">Your icon shows on your game card, game page and loading screen. <a href="#" id="egR">Use the default icon</a></p><div class="err" id="egE"></div>', [{label:'Cancel', cls:'neutral'}, {label:'Save', cls:'green', fn:() => {
+  modal('Edit Game', '<label class="f" for="egN" style="margin-top:0">Game name</label><input id="egN" type="text" maxlength="40" value="' + esc(d.name) + '"><label class="f" for="egD">Description</label><textarea id="egD" maxlength="300">' + esc(d.desc || '') + '</textarea><label class="f">Game icon</label><input type="file" id="egI" accept="image/*"><div style="margin-top:8px"><img id="egP" alt="" width="128" height="128" src="' + gameThumb(customGame(d), 256, 256) + '" style="border:1px solid #bbb;object-fit:cover"></div><p class="muted" style="font-size:13px;margin:4px 0 0">Your icon shows on your game card, game page and loading screen. <a href="#" id="egR">Use the default icon</a></p><label class="f">Game sound (optional)</label><input type="file" id="egS" accept="audio/mpeg,audio/ogg,audio/wav,audio/webm,audio/mp4,audio/aac"><p class="muted" style="font-size:13px;margin:4px 0 0" id="egSs">Loops while people play. MP3, OGG or WAV, up to 150 KB (about 15 seconds of MP3). <a href="#" id="egSr">Remove sound</a></p><div class="err" id="egE"></div>', [{label:'Cancel', cls:'neutral'}, {label:'Save', cls:'green', fn:() => {
     const n = $('#egN').value.trim(); if(n.length < 3){ $('#egE').textContent = 'Game names need at least 3 characters.'; return false; }
     if(allGames().some(g => g.name.toLowerCase() === n.toLowerCase() && g.id !== id)){ $('#egE').textContent = 'A game with that name already exists.'; return false; }
     const upd = {name:n, desc:$('#egD').value.trim()}; if(PICK.icon === null) upd.icon = ''; else if(PICK.icon) upd.icon = PICK.icon.data;
+    if(PICK.snd) DB.doc('gsounds/' + id).set({owner:MYID, name:PICK.sndName, data:PICK.snd}).catch(() => toast('Could not save the sound.', true)); else if(PICK.sndRm) DB.doc('gsounds/' + id).delete().catch(() => {});
     DB.doc('games/' + id).update(upd).then(() => { toast('Game updated.'); render(); }).catch(() => toast('Could not save. Try again.', true));
   }}]);
+  PICK.snd = null; PICK.sndRm = false; PICK.sndName = '';
+  $('#egS').onchange = e => { const f = e.target.files[0]; if(!f) return; if(!/^audio\//.test(f.type)){ $('#egE').textContent = 'Please choose an audio file.'; e.target.value = ''; return; } if(f.size > 150000){ $('#egE').textContent = 'That sound is too big. The limit is 150 KB.'; e.target.value = ''; return; }
+    const fr = new FileReader(); fr.onload = () => { const u = String(fr.result); if(!/^data:audio\/(mpeg|mp3|ogg|wav|x-wav|webm|mp4|aac|x-m4a);base64,/.test(u)){ $('#egE').textContent = 'Use an MP3, OGG or WAV file.'; return; } if(badText(f.name)){ $('#egE').textContent = 'That file name is not allowed.'; return; } PICK.snd = u; PICK.sndRm = false; PICK.sndName = f.name.slice(0, 60); $('#egE').textContent = ''; $('#egSs').textContent = 'Ready: ' + f.name.slice(0, 40) + '. Press Save.'; }; fr.readAsDataURL(f); };
+  $('#egSr').onclick = e => { e.preventDefault(); PICK.snd = null; PICK.sndRm = true; $('#egS').value = ''; $('#egSs').textContent = 'The sound will be removed when you press Save.'; };
   bindPicker('egI', 'icon', 256, 256, 50000, 'egP'); $('#egR').onclick = e => { e.preventDefault(); PICK.icon = null; $('#egP').src = gameThumb(Object.assign(customGame(d), {icon:''}), 256, 256); };
 }
 
@@ -3320,6 +3342,9 @@ function showNotice(d){
   const go = () => { modal('Notice from ' + (nameOf(d.from) || 'RetroBlox'), '<p style="margin:0;white-space:pre-wrap">' + esc(d.text || '') + '</p>', [{label:'OK', cls:'green'}]); DB.doc('notices/' + d.id).delete().catch(() => {}); };
   const m = $('#modal'); if(m && !m.hidden) setTimeout(go, 4000); else go();
 }
+function mutesBox(){ const ms = MUTES.filter(m => m.until > Date.now()).sort((a, b) => b.until - a.until);
+  return '<div class="box"><div class="sec-h"><span>Muted players (' + ms.length + ')</span></div>' + (ms.length ? ms.map(m => '<div class="lrow"><div class="grow"><b>' + esc(nameOf(m.uid) || m.name) + '</b> <span class="muted">until ' + fmtTime(m.until) + (m.reason ? ' · ' + esc(m.reason) : '') + '</span></div><a class="btn small" data-act="unmuteUser" data-n="' + esc(m.uid) + '">Unmute</a></div>').join('') : '<p class="muted" style="margin:0">Nobody is muted. Use the Mute button on a player\'s profile or the speaker button in the in-game Players tab.</p>') + '</div>'; }
+function wordsBox(){ const l = CUSTOMW.list; return '<div class="box"><div class="sec-h"><span>Chat filter words</span><span class="muted" style="font-size:13px">' + l.length + ' extra</span></div><p class="muted" style="margin:0 0 8px">Words here are blocked on top of the built-in list. Separate with commas or spaces. They also catch swaps like 3 for e. Takes effect for everyone right away.</p><textarea id="wordList" rows="3" placeholder="word1, word2, word3">' + esc(l.join(', ')) + '</textarea><p style="margin:8px 0 12px"><a class="btn green small" data-act="saveWords">Save words</a></p><label class="f" for="wordTest" style="margin-top:0">Test a phrase</label><div style="display:flex;gap:8px;align-items:center"><input id="wordTest" maxlength="100" placeholder="Type something to test"><a class="btn small" data-act="testWord">Test</a></div><div id="wordTestR" style="margin-top:6px;min-height:20px"></div></div>'; }
 function noticeToBox(){
   return '<div class="box"><div class="sec-h"><span>Send a notice to a player</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"><div><label class="f" for="ntName" style="margin-top:0">Username</label><input id="ntName" maxlength="20" placeholder="Username"></div></div><label class="f" for="ntText">Message (shows as a pop-up on their screen)</label><input id="ntText" maxlength="300" placeholder="Please be kind in chat."><p style="margin:10px 0 0"><a class="btn green small" data-act="adminNotice">Send Notice</a></p></div>';
 }
@@ -3359,7 +3384,7 @@ function startChatMon(){ const q = $('#chatMonQ'); if(q) q.oninput = () => { CHA
 function adminTools(){
   const gs = customGames();
   setTimeout(startChatMon, 0);
-  return noticeBox() + noticeToBox() + giftBox() + everyoneBox() + chatMonBox() + '<div class="box"><div class="sec-h"><span>Admin Tools</span></div><p style="margin:0 0 4px"><a class="btn green small" data-act="adminUnlock">Unlock everything for me</a></p><p class="muted" style="font-size:12px;margin:0 0 14px">Gives this account every catalog item, emote and pet, plus 999,999 tokens.</p><label class="f" for="banName" style="margin-top:0">Ban a player by username</label><div style="display:flex;gap:8px"><input id="banName" maxlength="20" placeholder="Username"><a class="btn red small" data-act="banByName">Ban</a></div></div>'
+  return noticeBox() + noticeToBox() + mutesBox() + wordsBox() + giftBox() + everyoneBox() + chatMonBox() + '<div class="box"><div class="sec-h"><span>Admin Tools</span></div><p style="margin:0 0 4px"><a class="btn green small" data-act="adminUnlock">Unlock everything for me</a></p><p class="muted" style="font-size:12px;margin:0 0 14px">Gives this account every catalog item, emote and pet, plus 999,999 tokens.</p><label class="f" for="banName" style="margin-top:0">Ban a player by username</label><div style="display:flex;gap:8px"><input id="banName" maxlength="20" placeholder="Username"><a class="btn red small" data-act="banByName">Ban</a></div></div>'
     + '<div class="box"><div class="sec-h"><span>Community games (' + gs.length + ')</span></div>' + (gs.length ? gs.map(g => '<div class="lrow"><div class="grow"><b>' + esc(g.name) + '</b> <span class="muted">by ' + esc(g.creator) + '</span></div><a class="btn small" href="#/game/' + esc(g.id) + '">Open</a> <a class="btn red small" data-act="adminDelGame" data-id="' + esc(g.id) + '">Delete</a></div>').join('') : '<p class="muted" style="margin:0">No community games yet.</p>') + '</div>'
     + '<div class="box"><div class="sec-h"><span>Community items (' + ITEMDOCS.length + ')</span></div>' + (ITEMDOCS.length ? ITEMDOCS.slice(0, 60).map(d => '<div class="lrow"><div class="grow"><b>' + esc(d.name || d.id) + '</b> <span class="muted">by ' + esc(nameOf(d.creator)) + '</span></div><a class="btn red small" data-act="adminDelItem" data-id="' + esc(d.id) + '">Delete</a></div>').join('') : '<p class="muted" style="margin:0">No community items yet.</p>') + '</div>';
 }
@@ -3485,7 +3510,7 @@ function renderCP(){
   if(act){ const inp = $('[data-chat="' + act + '"]'); if(inp){ inp.value = actVal; inp.focus(); } }
 }
 document.addEventListener('keydown', e => {
-  const t = e.target; if(e.key === 'Enter' && t.dataset && t.dataset.chat){ const id = t.dataset.chat, v = t.value.trim(); if(!v) return; if(badText(v)){ toast('That message has words that are not allowed.', true); return; } if(!isOnline(id) || !ROOM){ toast(nameOf(id) + ' is offline. Send a message instead.', true); return; } (CHATS[id] = CHATS[id] || []).push({me:true, t:v}); t.value = ''; ROOM.emit('dm', {to:id, t:v}).catch(() => {}); renderCP(); }
+  const t = e.target; if(e.key === 'Enter' && t.dataset && t.dataset.chat){ const id = t.dataset.chat, v = t.value.trim(); if(!v) return; if(muteLeftMs()){ toast(muteText(), true); return; } if(badText(v)){ toast('That message has words that are not allowed.', true); return; } if(!isOnline(id) || !ROOM){ toast(nameOf(id) + ' is offline. Send a message instead.', true); return; } (CHATS[id] = CHATS[id] || []).push({me:true, t:v}); t.value = ''; ROOM.emit('dm', {to:id, t:v}).catch(() => {}); renderCP(); }
 });
 
 /* ===================== actions ===================== */
@@ -3522,6 +3547,14 @@ const ACTIONS = {
     const go = () => DB.doc('site/status').set({mode:m, msg:msg || (SITEDOC && SITEDOC.msg) || '', t:Date.now()}).then(() => toast(m === 'off' ? 'Back online.' : m === 'down' ? 'Maintenance mode is ON.' : 'Announcement posted.')).catch(() => toast('Could not save.', true));
     if(m === 'down') confirmBox('Turn maintenance on', 'Everyone except admins will be locked out and any games in progress will close. Continue?', 'Turn on', go, 'red'); else go(); },
   adminUnlock:() => { if(adminUnlockAll()) toast('Everything unlocked.'); else toast('You already have everything.'); refreshChrome(); },
+  muteByName:n => { const id = findByName(n); if(id) ACTIONS.muteUser({dataset:{n:id}}); else toast('No player with that username.', true); },
+  muteUser:el => { const id = el.dataset.n; if(id === MYID) return toast('You cannot mute yourself.', true);
+    modal('Mute ' + nameOf(id), '<label class="f" for="muteLen" style="margin-top:0">For how long?</label><select id="muteLen"><option value="10">10 minutes</option><option value="60">1 hour</option><option value="1440">1 day</option><option value="10080">7 days</option></select><label class="f" for="muteWhy">Reason (they will see it)</label><input id="muteWhy" maxlength="100" placeholder="Spamming the chat">', [{label:'Cancel', cls:'neutral'}, {label:'Mute', cls:'green', fn:() => { const min = +$('#muteLen').value || 10, why = ($('#muteWhy').value || '').trim().slice(0, 100), until = Date.now() + min * 60000;
+      DB.doc('mutes/' + id).set({uid:id, name:nameOf(id), until, reason:why, by:MYID, t:Date.now()}).then(() => { DB.collection('notices').add({to:id, from:MYID, text:'You have been muted for ' + (min >= 1440 ? (min / 1440) + ' day(s)' : min >= 60 ? (min / 60) + ' hour(s)' : min + ' minutes') + '. You cannot chat or send messages until then.' + (why ? ' Reason: ' + why : ''), t:Date.now()}).catch(() => {}); toast(nameOf(id) + ' is muted.'); }).catch(() => toast('Could not mute.', true)); }}]); },
+  unmuteUser:el => { DB.doc('mutes/' + el.dataset.n).delete().then(() => toast('Unmuted.')).catch(() => toast('Could not unmute.', true)); },
+  saveWords:() => { if(!isAdminMe()) return; const seen = {}, list = ($('#wordList').value || '').toLowerCase().split(/[\s,;]+/).filter(w => /^[a-z0-9]{2,30}$/.test(w) && !seen[w] && (seen[w] = 1)).slice(0, 300);
+    DB.doc('site/words').set({list, t:Date.now(), by:MYID}).then(() => toast('Saved ' + list.length + ' word' + (list.length === 1 ? '' : 's') + '.')).catch(() => toast('Could not save.', true)); },
+  testWord:() => { const v = $('#wordTest').value || ''; $('#wordTestR').textContent = !v.trim() ? '' : badText(v) ? 'Blocked: ' + cleanText(v) : 'Allowed'; },
   adminNotice:() => { if(!isAdminMe()) return; const nm = ($('#ntName').value || '').trim().toLowerCase(), id = nm && Object.keys(P).find(k => nameOf(k).toLowerCase() === nm), text = ($('#ntText').value || '').trim().slice(0, 300);
     if(!id) return toast('No player with that username.', true); if(!text) return toast('Type a message first.', true);
     DB.collection('notices').add({to:id, from:MYID, text, t:Date.now()}).then(() => { toast('Notice sent to ' + nameOf(id) + '.'); $('#ntText').value = ''; }).catch(() => toast('Could not send.', true)); },

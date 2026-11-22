@@ -88,14 +88,18 @@ const validItem = d => ['shirt', 'pants'].includes(d.type) && typeof d.name === 
 const BAD_WORDS = ['fuck','fucker','fucking','shit','shitty','bitch','bastard','asshole','dick','dickhead','cock','pussy','cunt','whore','slut','nigger','nigga','faggot','fag','retard','retarded','rape','rapist','nazi','hitler','porn','sex','sexy','nude','nudes','penis','vagina','boob','boobs','cum','kys'];
 const BAD_SUB = BAD_WORDS.filter(w => w.length >= 5);
 const LEET = {'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i','+':'t'};
+let _cw = {v:-1, list:[], sub:[]};
+function customWords(){ const e = S.docs['site/words'], v = e ? e.v : 0; if(_cw.v !== v){ const l = e && e.d && Array.isArray(e.d.list) ? e.d.list.map(w => String(w).toLowerCase().replace(/[01345 7@$!+]/g, c => LEET[c] || c).replace(/[^a-z]/g, '')).filter(w => w.length >= 2).slice(0, 300) : []; _cw = {v, list:l, sub:l.filter(w => w.length >= 5)}; } return _cw; }
 function badText(str){
   const t = String(str || '').toLowerCase().replace(/[01345 7@$!+]/g, c => LEET[c] || c).replace(/(.)\1{2,}/g, '$1$1');
   const words = t.split(/[^a-z]+/).filter(Boolean); if(words.some(w => BAD_WORDS.includes(w))) return true;
-  const packed = t.replace(/[^a-z]/g, ''); return BAD_SUB.some(w => packed.includes(w));
+  const packed = t.replace(/[^a-z]/g, ''); if(BAD_SUB.some(w => packed.includes(w))) return true;
+  const cw = customWords(); return words.some(w => cw.list.includes(w)) || cw.sub.some(w => packed.includes(w));
 }
+const isMuted = uid => { const m = S.docs['mutes/' + uid]; return !!(m && m.d && m.d.until > Date.now() && !isAdmin(uid)); };
 const SKIP_KEYS = new Set(['img', 'icon', 'bricks', 'state', 'c', 'ids']);
 function docHasBad(v, depth){ depth = depth || 0; if(depth > 3 || v == null) return false; if(typeof v === 'string') return v.length < 3000 && badText(v); if(Array.isArray(v)) return v.slice(0, 40).some(x => docHasBad(x, depth + 1)); if(typeof v === 'object') return Object.keys(v).some(k => !SKIP_KEYS.has(k) && docHasBad(v[k], depth + 1)); return false; }
-const FILTERED = new Set(['messages', 'wall', 'feed', 'groups', 'games', 'items', 'ads', 'profiles', 'names', 'models', 'cplaces']);
+const FILTERED = new Set(['gsounds', 'messages', 'wall', 'feed', 'groups', 'games', 'items', 'ads', 'profiles', 'names', 'models', 'cplaces']);
 function bricksBad(str){ if(typeof str !== 'string') return false; const rows = str.split(';'); for(let i = 0; i < rows.length && i < 1200; i++){ const k = rows[i].indexOf('|'); if(k < 0) continue; let t = ''; try{ t = decodeURIComponent(rows[i].slice(k + 1)); }catch(e){ return true; } if(t.length > 80 || badText(t)) return true; } return false; }
 const validEnv = e => e == null || (typeof e === 'object' && !Array.isArray(e) && Object.keys(e).every(k => ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90], music:[0, 12]})[k] && typeof e[k] === 'number' && e[k] >= ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90], music:[0, 12]})[k][0] && e[k] <= ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90], music:[0, 12]})[k][1]));
 const ADMINS = new Set((process.env.ADMIN_USERS || '').toLowerCase().split(',').map(x => x.trim()).filter(Boolean));
@@ -108,6 +112,7 @@ function allowWrite(uid, p, op, data, old){
   if(col === 'data'){ return s[1] === 'users' && s[2] === uid; }
   if(s.length !== 2) return false;
   if(isAdmin(uid)) return true; // admins can edit or delete any shared document
+  if((col === 'messages' || col === 'wall' || col === 'feed') && isMuted(uid)) return false;
   const mine = x => x === uid;
   switch(col){
     case 'profiles': return id === uid;
@@ -116,6 +121,7 @@ function allowWrite(uid, p, op, data, old){
     case 'requests': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : data && mine(data.from) && id === data.from + '_' + data.to && !blockedPair(data.from, data.to);
     case 'blocks': return op === 'delete' ? !!old && old.by === uid : !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && id === uid + '_' + data.who;
     case 'bans': return isAdmin(uid);
+    case 'gsounds': { const g = S.docs['games/' + id]; if(op === 'delete') return !!old && old.owner === uid; return !!data && mine(data.owner) && !!g && g.d.owner === uid && typeof data.name === 'string' && data.name.length <= 60 && typeof data.data === 'string' && data.data.length <= 215000 && /^data:audio\/(mpeg|mp3|ogg|wav|x-wav|webm|mp4|aac|x-m4a);base64,[A-Za-z0-9+\/=]+$/.test(data.data); }
     case 'notices': return op === 'delete' && !!old && old.to === uid;
     case 'gifts': return op !== 'delete' && !!old && !old.claimed && old.to === uid && old.to !== '*' && !!data && data.claimed === true && data.to === old.to && data.from === old.from && data.amt === old.amt && data.item === old.item;
     case 'scores': { if(op === 'delete') return !!old && old.uid === uid; const n = (v, mx) => v == null || (typeof v === 'number' && isFinite(v) && v >= 0 && v <= mx); return !!data && mine(data.uid) && typeof data.gid === 'string' && data.gid.length < 30 && id === data.gid + '_' + uid && n(data.t, 36000) && n(data.s, 1000000) && typeof data.name === 'string'; }
@@ -147,6 +153,7 @@ function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'blocks') return d.by === uid;
   if(coll === 'reports') return d.by === uid || isAdmin(uid);
   if(coll === 'bans') return isAdmin(uid);
+  if(coll === 'mutes') return d.uid === uid || isAdmin(uid);
   if(coll === 'notices') return d.to === uid || isAdmin(uid);
   if(coll === 'pvers') return d.owner === uid;
   if(coll === 'cplaces') return Array.isArray(d.eds) && d.eds.includes(uid);
@@ -173,7 +180,7 @@ function writeDoc(uid, op, p, data){
   if(!validPath(p)) return {code:'invalid_argument'};
   const e = S.docs[p], old = e ? e.d : null;
   if(op !== 'delete' && FILTERED.has(p.split('/')[0]) && data && (docHasBad(data) || bricksBad(data.bricks))) return {code:'content_blocked'};
-  if(op === 'delete'){ if(!e) return {ok:true}; if(!allowWrite(uid, p, 'delete', null, old)) return {code:'permission_denied'}; delete S.docs[p]; }
+  if(op === 'delete'){ if(!e) return {ok:true}; if(!allowWrite(uid, p, 'delete', null, old)) return {code:'permission_denied'}; delete S.docs[p]; if(p.startsWith('games/')) delete S.docs['gsounds/' + p.slice(6)]; }
   else {
     if(!data || typeof data !== 'object' || Array.isArray(data)) return {code:'invalid_argument'};
     const next = op === 'update' ? Object.assign({}, old || {}, data) : data;
@@ -229,7 +236,7 @@ function handle(conn, m){
       reply(true, {peer, peers:existing}); r.forEach((mm, k) => { if(k !== peer) send(mm.conn, {t:'peer', room:name, peer, by:uid, p:{}}); }); return;
     }
     case 'pres': { const r = rooms[m.room], me = r && r.get(m.peer); if(!me || me.conn !== conn || !m.patch || typeof m.patch !== 'object') return; const merged = Object.assign({}, me.p, m.patch); if(JSON.stringify(merged).length > 4000) return; Object.keys(merged).forEach(k => { if(merged[k] === null) delete merged[k]; }); me.p = merged; r.forEach((mm, k) => { if(k !== m.peer) send(mm.conn, {t:'peer', room:m.room, peer:m.peer, by:uid, p:merged}); }); return; }
-    case 'emit': { const r = rooms[m.room], me = r && r.get(m.peer); if(!me || me.conn !== conn || typeof m.topic !== 'string' || m.topic.length > 40) return; if(JSON.stringify(m.data || null).length > 2000) return; if(m.topic === 'chat' && m.data && typeof m.data.t === 'string'){ const ac = S.accounts[uid]; CHATLOG.push({t:Date.now(), room:String(m.room || ''), name:ac ? ac.name : '?', text:m.data.t.slice(0, 200)}); if(CHATLOG.length > 500) CHATLOG.shift(); } const to = m.topic === 'dm' && m.data && m.data.to; r.forEach((mm, k) => { if(k === m.peer) return; if(to && mm.by !== to) return; send(mm.conn, {t:'ev', room:m.room, peer:m.peer, by:uid, topic:m.topic, data:m.data}); }); return; }
+    case 'emit': { const r = rooms[m.room], me = r && r.get(m.peer); if(!me || me.conn !== conn || typeof m.topic !== 'string' || m.topic.length > 40) return; if(JSON.stringify(m.data || null).length > 2000) return; if((m.topic === 'chat' || m.topic === 'dm') && isMuted(uid)) return; if(m.topic === 'chat' && m.data && typeof m.data.t === 'string'){ const ac = S.accounts[uid]; CHATLOG.push({t:Date.now(), room:String(m.room || ''), name:ac ? ac.name : '?', text:m.data.t.slice(0, 200)}); if(CHATLOG.length > 500) CHATLOG.shift(); } const to = m.topic === 'dm' && m.data && m.data.to; r.forEach((mm, k) => { if(k === m.peer) return; if(to && mm.by !== to) return; send(mm.conn, {t:'ev', room:m.room, peer:m.peer, by:uid, topic:m.topic, data:m.data}); }); return; }
     case 'leave': { leaveRoom(conn, String(m.room || ''), m.peer); return; }
   }
 }

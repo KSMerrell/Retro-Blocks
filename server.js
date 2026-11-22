@@ -116,6 +116,7 @@ function allowWrite(uid, p, op, data, old){
     case 'requests': return op === 'delete' ? !!old && (old.from === uid || old.to === uid) : data && mine(data.from) && id === data.from + '_' + data.to && !blockedPair(data.from, data.to);
     case 'blocks': return op === 'delete' ? !!old && old.by === uid : !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && id === uid + '_' + data.who;
     case 'bans': return isAdmin(uid);
+    case 'notices': return op === 'delete' && !!old && old.to === uid;
     case 'gifts': return op !== 'delete' && !!old && !old.claimed && old.to === uid && old.to !== '*' && !!data && data.claimed === true && data.to === old.to && data.from === old.from && data.amt === old.amt && data.item === old.item;
     case 'scores': { if(op === 'delete') return !!old && old.uid === uid; const n = (v, mx) => v == null || (typeof v === 'number' && isFinite(v) && v >= 0 && v <= mx); return !!data && mine(data.uid) && typeof data.gid === 'string' && data.gid.length < 30 && id === data.gid + '_' + uid && n(data.t, 36000) && n(data.s, 1000000) && typeof data.name === 'string'; }
     case 'reports': return isAdmin(uid) ? true : op === 'set' && !old && data && mine(data.by) && typeof data.who === 'string' && data.who !== uid && REPORT_REASONS.includes(data.reason) && String(data.detail || '').length <= 400 && String(data.ctx || '').length <= 80;
@@ -146,6 +147,7 @@ function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'blocks') return d.by === uid;
   if(coll === 'reports') return d.by === uid || isAdmin(uid);
   if(coll === 'bans') return isAdmin(uid);
+  if(coll === 'notices') return d.to === uid || isAdmin(uid);
   if(coll === 'pvers') return d.owner === uid;
   if(coll === 'cplaces') return Array.isArray(d.eds) && d.eds.includes(uid);
   if(coll === 'friends') return (d.ids || []).includes(uid);
@@ -178,6 +180,7 @@ function writeDoc(uid, op, p, data){
     if(JSON.stringify(next).length > MAXDOC) return {code:'invalid_argument'};
     if(!allowWrite(uid, p, op, next, old)) return {code:'permission_denied'};
     S.docs[p] = {d:next, v:(e ? e.v : 0) + 1};
+    if(p.startsWith('bans/')) conns.forEach(c => { if(c.uid === p.slice(5)) try{ c.socket.destroy(); }catch(e){} });
     if(p.startsWith('reports/')) console.log('REPORT', JSON.stringify(next));
   }
   markDirty(); const s = segs(p); notifyColl(s.slice(0, -1).join('/')); return {ok:true};
@@ -309,7 +312,7 @@ const server = http.createServer((req, res) => {
     if(!b || throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});
     const a = S.accounts[byLower[String(b.username || '').trim().toLowerCase()]], pw = String(b.password || '');
     if(!a || !crypto.timingSafeEqual(Buffer.from(hashPw(pw, a.salt), 'hex'), Buffer.from(a.hash, 'hex'))) return json(res, 401, {error:'Incorrect username or password.'});
-    if(S.docs['bans/' + a.id]) return json(res, 403, {error:'This account has been banned.'});
+    if(S.docs['bans/' + a.id]){ const rs = String((S.docs['bans/' + a.id].d || {}).reason || '').slice(0, 120); return json(res, 403, {error:'This account has been banned.' + (rs ? ' Reason: ' + rs : '')}); }
     startSession(res, a.id, req); json(res, 200, {ok:true});
   }); }
   if(req.method === 'POST' && url === '/api/acct/save'){ const a = userOf(req); if(!a) return json(res, 401, {}); const t = newToken(); S.sessions[t] = {uid:a.id, exp:Date.now() + 180 * 86400000}; markDirty(); return json(res, 200, {name:a.name, token:t}); }

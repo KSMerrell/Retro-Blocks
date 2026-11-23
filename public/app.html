@@ -1542,12 +1542,15 @@ const Engine = (function(){
     if(lr.round !== round){
       lr.round = round; lr.out = false; lr.got = false; lr.ms = 0; lr.start = G.T - t;
       if(!P.dead){ P.x = G.spawn.x; P.y = G.spawn.y; P.z = G.spawn.z; P.vx = P.vy = P.vz = 0; P.ff = 2; P.grounded = false; }
-      if(G.state === 'play'){ toast('New round!', 'The lava starts rising in ' + Math.max(1, Math.ceil(lr.grace - t)) + ' seconds'); sfx.check(); }
+      if(!lr.first){ lr.first = true; lr.late = t > lr.grace + 1; if(lr.late && !P.dead){ P.x = 0; P.y = 66.1; P.z = 0; P.vx = P.vy = P.vz = 0; P.grounded = false; lr.joinMsg = true; } } else lr.late = false;
+      if(lr.late){ if(G.state === 'play'){ toast('Round in progress', 'Watch from the SAFE platform. The next round starts in ' + Math.ceil(lr.dur - t) + ' seconds.'); } lr.joinMsg = false; }
+      else if(G.state === 'play'){ toast('New round!', 'The lava starts rising in ' + Math.max(1, Math.ceil(lr.grace - t)) + ' seconds'); sfx.check(); }
     }
     const f = Math.max(0, Math.min(1, (t - lr.grace) / lr.rise)); G.lavaY = -4.2 + (lr.top + 4.2) * Math.pow(f, 1.15);
     if(G.lavaMesh) G.lavaMesh.position.y = G.lavaY - .8;
     if(P.dead){ if(!lr.out){ lr.out = true; P.respT = Math.max(2.2, lr.dur - t + .3); if(G.state === 'play') toast('You are out!', 'Next round in ' + Math.ceil(lr.dur - t) + ' seconds'); } return; }
-    const sec = Math.max(0, Math.floor(t - lr.grace)); if(sec !== P.stats.stage){ P.stats.stage = sec; updateBoard(); }
+    const sec = Math.max(0, Math.floor(t - lr.grace)); if(lr.late){ if(P.stats.stage !== 0){ P.stats.stage = 0; updateBoard(); } return; }
+    if(sec !== P.stats.stage){ P.stats.stage = sec; updateBoard(); }
     if(sec > (G.score || 0)) G.score = sec;
     if(lr.ms === 0 && sec >= 30){ lr.ms = 1; G.opts.onReward && G.opts.onReward('tokens', 1); toast('30 seconds!', '+1 token'); sfx.coin(); }
     if(lr.ms === 1 && sec >= 70){ lr.ms = 2; G.opts.onReward && G.opts.onReward('tokens', 3); toast('70 seconds!', '+3 tokens'); sfx.coin(); }

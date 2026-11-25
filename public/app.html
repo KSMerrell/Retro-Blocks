@@ -3170,7 +3170,8 @@ function applySite(){
     ov.querySelector('p').textContent = msg || (lk && !all ? 'An admin has paused your access for now. Please check back later.' : 'Retro Blox is down for maintenance right now. Please check back soon.');
     ov.querySelector('.siteLeft').textContent = until ? 'Reopens in about ' + leftTxt(until - Date.now()) + '.' : '';
     try{ if(Engine.active()) Engine.stop(); }catch(e){}
-  } else if(ov) ov.remove();
+    if(/Electron/i.test(navigator.userAgent) && !applySite.closing){ applySite.closing = true; setTimeout(() => { try{ window.close(); }catch(e){} try{ if(window.RB_QUIT) window.RB_QUIT(); }catch(e){} }, 1500); }
+  } else { applySite.closing = false; if(ov) ov.remove(); }
   if(d && d.mode === 'banner' && d.t && applySite.last !== d.t){ applySite.last = d.t; if(U) toast('Notice: ' + (d.msg || '')); }
   try{ if(!Engine.active() && U) queueRender(); }catch(e){}
 }

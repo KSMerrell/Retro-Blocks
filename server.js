@@ -63,7 +63,7 @@ const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 32).toString('hex');
 const newToken = () => crypto.randomBytes(24).toString('hex');
 function cookieOf(req, k){ const m = (req.headers.cookie || '').split(/;\s*/).find(c => c.startsWith(k + '=')); return m ? decodeURIComponent(m.slice(k.length + 1)) : null; }
 function userOf(req){ const t = cookieOf(req, 'bp3'); const s = t && S.sessions[t]; if(!s || s.exp < Date.now()) return null; if(S.docs['bans/' + s.uid]) return null; return S.accounts[s.uid] || null; }
-function startSession(res, uid, req, days){
+function startSession(res, uid, req, days){ try{ syncOwners(); }catch(e){}
   days = days || 180; const t = newToken(); S.sessions[t] = {uid, exp:Date.now() + days * 86400000}; markDirty();
   const secure = (req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
   res.setHeader('Set-Cookie', 'bp3=' + t + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + days * 86400 + secure);
@@ -97,23 +97,37 @@ function badText(str){
   const cw = customWords(); return words.some(w => cw.list.includes(w)) || cw.sub.some(w => packed.includes(w));
 }
 const siteDown = () => { const st = S.docs['site/status']; return !!(st && st.d && st.d.mode === 'down' && !(st.d.until && st.d.until < Date.now())); };
-const isLocked = uid => { const l = S.docs['locks/' + uid]; return !!(l && l.d && (!l.d.until || l.d.until > Date.now()) && !isAdmin(uid)); };
-const isMuted = uid => { const m = S.docs['mutes/' + uid]; return !!(m && m.d && m.d.until > Date.now() && !isAdmin(uid)); };
+const isLocked = uid => { const l = S.docs['locks/' + uid]; return !!(l && l.d && (!l.d.until || l.d.until > Date.now()) && lvl(uid) < 3); };
+const isMuted = uid => { const m = S.docs['mutes/' + uid]; return !!(m && m.d && m.d.until > Date.now() && lvl(uid) < 3); };
 const SKIP_KEYS = new Set(['img', 'icon', 'bricks', 'state', 'c', 'ids']);
 function docHasBad(v, depth){ depth = depth || 0; if(depth > 3 || v == null) return false; if(typeof v === 'string') return v.length < 3000 && badText(v); if(Array.isArray(v)) return v.slice(0, 40).some(x => docHasBad(x, depth + 1)); if(typeof v === 'object') return Object.keys(v).some(k => !SKIP_KEYS.has(k) && docHasBad(v[k], depth + 1)); return false; }
 const FILTERED = new Set(['gsounds', 'messages', 'wall', 'feed', 'groups', 'games', 'items', 'ads', 'profiles', 'names', 'models', 'cplaces']);
 function bricksBad(str){ if(typeof str !== 'string') return false; const rows = str.split(';'); for(let i = 0; i < rows.length && i < 1200; i++){ const k = rows[i].indexOf('|'); if(k < 0) continue; let t = ''; try{ t = decodeURIComponent(rows[i].slice(k + 1)); }catch(e){ return true; } if(t.length > 80 || badText(t)) return true; } return false; }
 const validEnv = e => e == null || (typeof e === 'object' && !Array.isArray(e) && Object.keys(e).every(k => ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90], music:[0, 12]})[k] && typeof e[k] === 'number' && e[k] >= ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90], music:[0, 12]})[k][0] && e[k] <= ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90], music:[0, 12]})[k][1]));
 const ADMINS = new Set((process.env.ADMIN_USERS || '').toLowerCase().split(',').map(x => x.trim()).filter(Boolean));
-const isAdmin = uid => !!(S.accounts[uid] && ADMINS.has(S.accounts[uid].lower));
+const isAdmin = uid => !!(S.accounts[uid] && ADMINS.has(S.accounts[uid].lower)); // the owner(s), set with ADMIN_USERS
+const ROLE_LVL = {starter:1, mod:2, admin:3, owner:4};
+const roleOf = uid => { if(isAdmin(uid)) return 'owner'; const e = S.docs['roles/' + uid], r = e && e.d && e.d.role; return (r === 'starter' || r === 'mod' || r === 'admin') ? r : ''; };
+const lvl = uid => ROLE_LVL[roleOf(uid)] || 0;
+function syncOwners(){ let ch = false; ADMINS.forEach(l => { const id = byLower[l]; if(!id) return; const k = 'roles/' + id, e = S.docs[k]; if(!e || !e.d || e.d.role !== 'owner'){ S.docs[k] = {d:{uid:id, role:'owner', t:Date.now()}, v:(e ? e.v : 0) + 1}; ch = true; } }); if(ch){ markDirty(); notifyColl('roles'); } }
 const blockedPair = (a, b) => !!(S.docs['blocks/' + a + '_' + b] || S.docs['blocks/' + b + '_' + a]);
 const REPORT_REASONS = ['inappropriate', 'harassment', 'scam', 'cheating', 'other'];
 function allowWrite(uid, p, op, data, old){
   const s = segs(p), col = s[0], id = s[s.length - 1];
-  if((siteDown() && !isAdmin(uid)) || isLocked(uid)) return false; // closed: only admins can change anything
+  if((siteDown() && lvl(uid) < 3) || isLocked(uid)) return false; // closed: only admins can change anything
   if(col === 'data'){ return s[1] === 'users' && s[2] === uid; }
   if(s.length !== 2) return false;
-  if(isAdmin(uid)) return true; // admins can edit or delete any shared document
+  if(isAdmin(uid)) return true; // the owner can edit or delete any shared document
+  const L = lvl(uid);
+  if(L >= 1){
+    if(col === 'tagpref') return id === uid && op !== 'delete' && !!data && typeof data.hide === 'boolean';
+    if(col === 'mutes') return lvl(id) < L;
+    if(col === 'notices' && op !== 'delete') return !old && !!data && typeof data.to === 'string';
+    if(col === 'reports' && op === 'delete') return true;
+    if(col === 'bans') return L >= 2 && lvl(id) < L;
+    if(col === 'locks') return L >= 3 && lvl(id) < L;
+    if(col === 'roles' && L >= 3){ const cur = lvl(id), nw = op === 'delete' ? 0 : (data && data.uid === id ? ROLE_LVL[data.role] : 99); return cur < L && cur !== 4 && nw < L && (op === 'delete' || nw >= 1) && !!S.accounts[id]; }
+  }
   if((col === 'messages' || col === 'wall' || col === 'feed') && isMuted(uid)) return false;
   const mine = x => x === uid;
   switch(col){
@@ -153,11 +167,11 @@ function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'trades' || coll === 'requests') return d.from === uid || d.to === uid;
   if(coll === 'sales') return d.seller === uid || d.buyer === uid;
   if(coll === 'blocks') return d.by === uid;
-  if(coll === 'reports') return d.by === uid || isAdmin(uid);
-  if(coll === 'bans') return isAdmin(uid);
-  if(coll === 'locks') return d.uid === uid || isAdmin(uid);
-  if(coll === 'mutes') return d.uid === uid || isAdmin(uid);
-  if(coll === 'notices') return d.to === uid || isAdmin(uid);
+  if(coll === 'reports') return d.by === uid || lvl(uid) >= 1;
+  if(coll === 'bans') return lvl(uid) >= 2;
+  if(coll === 'locks') return d.uid === uid || lvl(uid) >= 3;
+  if(coll === 'mutes') return d.uid === uid || lvl(uid) >= 1;
+  if(coll === 'notices') return d.to === uid || lvl(uid) >= 1;
   if(coll === 'pvers') return d.owner === uid;
   if(coll === 'cplaces') return Array.isArray(d.eds) && d.eds.includes(uid);
   if(coll === 'friends') return (d.ids || []).includes(uid);
@@ -317,8 +331,8 @@ const server = http.createServer((req, res) => {
     Object.keys(S.sessions).forEach(t => { if(S.sessions[t].uid === a.id) S.sessions[t].exp = Date.now() + 180 * 86400000; });
     markDirty(); ['profiles', 'names'].forEach(notifyColl); json(res, 200, {ok:true, name});
   }); }
-  if(req.method === 'GET' && url === '/api/admin/chat'){ const a = userOf(req); if(!a || !isAdmin(a.id)) return json(res, 403, {}); return json(res, 200, {log:CHATLOG.slice(-200)}); }
-  if(req.method === 'GET' && url === '/api/admin/stats'){ const a = userOf(req); if(!a || !isAdmin(a.id)) return json(res, 403, {});
+  if(req.method === 'GET' && url === '/api/admin/chat'){ const a = userOf(req); if(!a || lvl(a.id) < 1) return json(res, 403, {}); return json(res, 200, {log:CHATLOG.slice(-200)}); }
+  if(req.method === 'GET' && url === '/api/admin/stats'){ const a = userOf(req); if(!a || lvl(a.id) < 3) return json(res, 403, {});
     const online = new Set(); conns.forEach(c => { if(c.uid && !c.dead) online.add(c.uid); });
     const accs = Object.values(S.accounts), day = 864e5, now = Date.now(), days = [];
     for(let i = 6; i >= 0; i--){ const st = new Date(now - i * day); st.setHours(0, 0, 0, 0); const t0 = st.getTime(); days.push({d:t0, n:accs.filter(x => x.created >= t0 && x.created < t0 + day).length}); }
@@ -340,9 +354,9 @@ const server = http.createServer((req, res) => {
     if(pw.toLowerCase() === a.name.toLowerCase()) return json(res, 400, {error:'Your password cannot be the same as your username.'});
     a.salt = crypto.randomBytes(16).toString('hex'); a.hash = hashPw(pw, a.salt); delete a.must; markDirty(); json(res, 200, {ok:true});
   }); }
-  if(req.method === 'POST' && (url === '/api/admin/reset' || url === '/api/admin/logoutall')){ const ad = userOf(req); if(!ad || !isAdmin(ad.id)) return json(res, 403, {error:'Admins only.'}); return body(req, b => {
+  if(req.method === 'POST' && (url === '/api/admin/reset' || url === '/api/admin/logoutall')){ const ad = userOf(req); if(!ad || lvl(ad.id) < 3) return json(res, 403, {error:'Admins only.'}); return body(req, b => {
     const a = S.accounts[byLower[String((b && b.username) || '').trim().toLowerCase()]]; if(!a) return json(res, 404, {error:'No player with that username.'});
-    if(isAdmin(a.id) && a.id !== ad.id) return json(res, 400, {error:'You cannot do that to another admin.'});
+    if(lvl(a.id) >= lvl(ad.id) && a.id !== ad.id) return json(res, 400, {error:'You cannot do that to someone of the same or higher rank.'});
     Object.keys(S.sessions).forEach(t => { if(S.sessions[t].uid === a.id) delete S.sessions[t]; });
     if(url === '/api/admin/logoutall'){ markDirty(); return json(res, 200, {ok:true, name:a.name}); }
     if(a.guest) return json(res, 400, {error:'Guests have no password to reset.'});
@@ -367,7 +381,7 @@ const server = http.createServer((req, res) => {
     const u = userOf(req);
     if(!u){ res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(fs.readFileSync(path.join(PUB, 'login.html'))); }
     if(u.must){ res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(fs.readFileSync(path.join(PUB, 'login.html'), 'utf8').replace('let mode=', 'window.MUST=' + JSON.stringify(u.name) + ';let mode=')); }
-    const me = JSON.stringify({id:u.id, name:u.name, admin:isAdmin(u.id), guest:!!u.guest, gender:u.gender || ''}).replace(/</g, '\\u003c');
+    const me = JSON.stringify({id:u.id, name:u.name, admin:isAdmin(u.id), role:roleOf(u.id), lvl:lvl(u.id), guest:!!u.guest, gender:u.gender || ''}).replace(/</g, '\\u003c');
     res.writeHead(200, {'Content-Type':MIME['.html'], 'Cache-Control':'no-store'}); return res.end(APP().replace('/*ME*/', me));
   }
   const f = path.join(PUB, path.normalize(url).replace(/^(\.\.[\/\\])+/, ''));
@@ -375,4 +389,4 @@ const server = http.createServer((req, res) => {
   fs.readFile(f, (err, buf) => { if(err){ res.writeHead(404); return res.end('Not found'); } res.writeHead(200, {'Content-Type':MIME[path.extname(f)] || 'application/octet-stream', 'Cache-Control':'public, max-age=3600'}); res.end(buf); });
 });
 server.on('upgrade', onUpgrade);
-loadAll().then(() => { try{ pruneGuests(); setInterval(pruneGuests, 6 * 3600000); }catch(e){ console.error(e); } server.listen(PORT, () => console.log('Retro Blox running on http://localhost:' + PORT + (USE_REDIS ? '  (data in Redis)' : '  (data in ' + DATA_DIR + ')'))); }).catch(e => { console.error('Could not load saved data:', e.message); process.exit(1); });
+loadAll().then(() => { try{ syncOwners(); pruneGuests(); setInterval(pruneGuests, 6 * 3600000); }catch(e){ console.error(e); } server.listen(PORT, () => console.log('Retro Blox running on http://localhost:' + PORT + (USE_REDIS ? '  (data in Redis)' : '  (data in ' + DATA_DIR + ')'))); }).catch(e => { console.error('Could not load saved data:', e.message); process.exit(1); });

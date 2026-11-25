@@ -106,6 +106,10 @@ function bricksBad(str){ if(typeof str !== 'string') return false; const rows = 
 const validEnv = e => e == null || (typeof e === 'object' && !Array.isArray(e) && Object.keys(e).every(k => ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90], music:[0, 12]})[k] && typeof e[k] === 'number' && e[k] >= ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90], music:[0, 12]})[k][0] && e[k] <= ({tod:[0, 24], fog:[0, 100], grav:[30, 200], walk:[8, 40], jump:[30, 90], music:[0, 12]})[k][1]));
 const ADMINS = new Set((process.env.ADMIN_USERS || '').toLowerCase().split(',').map(x => x.trim()).filter(Boolean));
 const isAdmin = uid => !!(S.accounts[uid] && ADMINS.has(S.accounts[uid].lower)); // the owner(s), set with ADMIN_USERS
+const devMap = () => { const e = S.docs['blockdev/all']; return (e && e.d && e.d.map) || {}; };
+const blockedDev = id => typeof id === 'string' && /^[a-z0-9]{16,40}$/.test(id) && !!devMap()[id];
+function linkDev(uid, id){ if(!uid || typeof id !== 'string' || !/^[a-z0-9]{16,40}$/.test(id)) return; const k = 'devs/' + uid, e = S.docs[k], ids = (e && e.d && e.d.ids) || []; if(ids.indexOf(id) < 0){ ids.push(id); S.docs[k] = {d:{ids:ids.slice(-10)}, v:(e ? e.v : 0) + 1}; markDirty(); } }
+function blockDevsOf(uid, on){ const e = S.docs['blockdev/all'], map = Object.assign({}, (e && e.d && e.d.map) || {}); if(on){ (((S.docs['devs/' + uid] || {}).d || {}).ids || []).forEach(id => { map[id] = uid; }); } else Object.keys(map).forEach(id => { if(map[id] === uid) delete map[id]; }); S.docs['blockdev/all'] = {d:{map}, v:(e ? e.v : 0) + 1}; markDirty(); }
 const ROLE_LVL = {starter:1, mod:2, admin:3, owner:4};
 const roleOf = uid => { if(isAdmin(uid)) return 'owner'; const e = S.docs['roles/' + uid], r = e && e.d && e.d.role; return (r === 'starter' || r === 'mod' || r === 'admin') ? r : ''; };
 const lvl = uid => ROLE_LVL[roleOf(uid)] || 0;
@@ -162,6 +166,7 @@ function allowWrite(uid, p, op, data, old){
   }
 }
 function visible(uid, coll, id, d){ // per-doc read privacy
+  if(coll === 'devs' || coll === 'blockdev') return false;
   if(coll === 'gifts') return d.to === '*' || d.to === uid || d.from === uid || isAdmin(uid);
   if(coll === 'messages') return d.from === uid || d.to === uid;
   if(coll === 'trades' || coll === 'requests') return d.from === uid || d.to === uid;
@@ -197,13 +202,14 @@ function writeDoc(uid, op, p, data){
   if(!validPath(p)) return {code:'invalid_argument'};
   const e = S.docs[p], old = e ? e.d : null;
   if(op !== 'delete' && FILTERED.has(p.split('/')[0]) && data && (docHasBad(data) || bricksBad(data.bricks))) return {code:'content_blocked'};
-  if(op === 'delete'){ if(!e) return {ok:true}; if(!allowWrite(uid, p, 'delete', null, old)) return {code:'permission_denied'}; delete S.docs[p]; if(p.startsWith('games/')) delete S.docs['gsounds/' + p.slice(6)]; }
+  if(op === 'delete'){ if(!e) return {ok:true}; if(!allowWrite(uid, p, 'delete', null, old)) return {code:'permission_denied'}; delete S.docs[p]; if(p.startsWith('locks/')){ try{ blockDevsOf(p.slice(6), false); }catch(e){} } if(p.startsWith('games/')) delete S.docs['gsounds/' + p.slice(6)]; }
   else {
     if(!data || typeof data !== 'object' || Array.isArray(data)) return {code:'invalid_argument'};
     const next = op === 'update' ? Object.assign({}, old || {}, data) : data;
     if(JSON.stringify(next).length > MAXDOC) return {code:'invalid_argument'};
     if(!allowWrite(uid, p, op, next, old)) return {code:'permission_denied'};
     S.docs[p] = {d:next, v:(e ? e.v : 0) + 1};
+    if(p.startsWith('locks/')){ try{ blockDevsOf(p.slice(6), !!(next && next.forever)); }catch(e){} }
     if(p.startsWith('locks/') && op !== 'delete') conns.forEach(c => { if(c.uid === p.slice(6)) try{ c.socket.destroy(); }catch(e){} });
     if(p.startsWith('bans/')) conns.forEach(c => { if(c.uid === p.slice(5)) try{ c.socket.destroy(); }catch(e){} });
     if(p.startsWith('reports/')) console.log('REPORT', JSON.stringify(next));
@@ -297,6 +303,9 @@ function pruneGuests(){ const now = Date.now(); Object.keys(S.accounts).forEach(
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0], ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
   res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'same-origin');
+  if(req.method === 'POST' && /^\/api\/(login|signup|guest)$/.test(url) && blockedDev(req.headers['x-dev'])) return json(res, 403, {error:'Retro Blox has been closed on this device.', closed:true});
+  if(req.method === 'GET' && url === '/api/devcheck') return json(res, 200, {blocked:blockedDev(req.headers['x-dev'])});
+  if(req.method === 'POST' && url === '/api/device'){ const a = userOf(req); if(!a) return json(res, 401, {}); const d = req.headers['x-dev']; if(blockedDev(d) && lvl(a.id) < 3) return json(res, 403, {blocked:true}); linkDev(a.id, d); return json(res, 200, {ok:true}); }
   if(req.method === 'POST' && url === '/api/signup'){ return body(req, b => {
     if(!b || throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});
     const name = String(b.username || '').trim(), pw = String(b.password || '');

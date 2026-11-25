@@ -1,5 +1,14 @@
 const { app, BrowserWindow, shell, Menu } = require('electron');
 const path = require('path');
+const crypto = require('crypto');
+const { execFile } = require('child_process');
+// A stable id for this Windows computer (survives uninstall and reinstall). Only a salted hash of it is ever sent.
+function machineId(cb) {
+  execFile('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'], { windowsHide: true, timeout: 5000 }, (err, out) => {
+    const m = !err && /MachineGuid\s+REG_SZ\s+(\S+)/i.exec(String(out || ''));
+    cb(m ? crypto.createHash('sha256').update('retroblox-machine:' + m[1].toLowerCase()).digest('hex').slice(0, 32) : '');
+  });
+}
 const URL_ = 'https://retro-blocks.onrender.com';
 if (!app.requestSingleInstanceLock()) app.quit();
 let win, splash;
@@ -25,5 +34,10 @@ function create() {
   load();
 }
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
-app.whenReady().then(create);
+app.whenReady().then(() => {
+  machineId((id) => {
+    if (id) require('electron').session.defaultSession.webRequest.onBeforeSendHeaders({ urls: [URL_ + '/*'] }, (d, cb) => { d.requestHeaders['x-mach'] = id; cb({ requestHeaders: d.requestHeaders }); });
+    create();
+  });
+});
 app.on('window-all-closed', () => app.quit());

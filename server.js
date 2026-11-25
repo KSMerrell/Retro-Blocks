@@ -318,6 +318,14 @@ const server = http.createServer((req, res) => {
     markDirty(); ['profiles', 'names'].forEach(notifyColl); json(res, 200, {ok:true, name});
   }); }
   if(req.method === 'GET' && url === '/api/admin/chat'){ const a = userOf(req); if(!a || !isAdmin(a.id)) return json(res, 403, {}); return json(res, 200, {log:CHATLOG.slice(-200)}); }
+  if(req.method === 'GET' && url === '/api/admin/stats'){ const a = userOf(req); if(!a || !isAdmin(a.id)) return json(res, 403, {});
+    const online = new Set(); conns.forEach(c => { if(c.uid && !c.dead) online.add(c.uid); });
+    const accs = Object.values(S.accounts), day = 864e5, now = Date.now(), days = [];
+    for(let i = 6; i >= 0; i--){ const st = new Date(now - i * day); st.setHours(0, 0, 0, 0); const t0 = st.getTime(); days.push({d:t0, n:accs.filter(x => x.created >= t0 && x.created < t0 + day).length}); }
+    const plays = {}; Object.keys(S.docs).forEach(k => { if(k.startsWith('profiles/')){ const v = (S.docs[k].d || {}).visits; if(v && typeof v === 'object') Object.keys(v).forEach(g => { plays[g] = (plays[g] || 0) + (+v[g] || 0); }); } });
+    const top = Object.keys(plays).map(g => ({g, n:plays[g], t:((S.docs['games/' + g] || {}).d || {}).title || ''})).sort((x, y) => y.n - x.n).slice(0, 8);
+    const cnt = pre => Object.keys(S.docs).filter(k => k.startsWith(pre)).length;
+    return json(res, 200, {online:online.size, conns:conns.size, accounts:accs.length, days, top, bans:cnt('bans/'), locks:Object.keys(S.docs).filter(k => k.startsWith('locks/') && isLocked(k.slice(6))).length, reports:cnt('reports/'), games:cnt('games/')}); }
   if(req.method === 'POST' && url === '/api/clienterr'){ return body(req, b => { global.__errN = (global.__errN || 0) + 1; if(global.__errN < 200) console.log('CLIENTERR', JSON.stringify(b || {}).slice(0, 1800)); json(res, 200, {}); }); }
   if(req.method === 'POST' && url === '/api/login'){ return body(req, b => {
     if(!b || throttled(ip)) return json(res, 429, {error:'Too many tries. Wait a few minutes.'});

@@ -2890,7 +2890,7 @@ const Engine = (function(){
 
 /* ===================== shared state: db + room + identity ===================== */
 let DB = null, ROOM = null, USERCAP = null, MYID = null, U = null, LOBBY_OK = false;
-let MUTES = [], NOTICESEEN = {}, GIFTSEEN = {}, SITEDOC = null, COPLACES = [], P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SCORES = {}, REPORTDOCS = [], BANDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
+let LOCKS = [], MUTES = [], NOTICESEEN = {}, GIFTSEEN = {}, SITEDOC = null, COPLACES = [], P = {}, FRIENDDOCS = [], REQS = [], MSGDOCS = [], TRADEDOCS = [], GROUPDOCS = [], MEMBERDOCS = [], FEEDDOCS = [], VOTEDOCS = [], WALLDOCS = [], GAMEDOCS = [], ITEMDOCS = [], ADDOCS = [], BLOCKDOCS = [], SCORES = {}, REPORTDOCS = [], BANDOCS = [], SALEDOCS = [], ONLINE = {}, STATUS = 'loading';
 const loadedOnce = {};
 function esc2(s){ return esc(s); }
 const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -2947,6 +2947,7 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 function snapDocs(snap){ return snap.docs.map(d => Object.assign({id:d.id}, d.data())); }
 let renderTimer = 0;
 function queueRender(){ clearTimeout(renderTimer); renderTimer = setTimeout(softRender, 350); }
+function adminRefresh(){ setTimeout(() => { try{ const ae = document.activeElement; if(U && route().parts[0] === 'admin' && !(ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) && $('#modal').hidden){ const y = window.scrollY; render(true); window.scrollTo(0, y); } }catch(e){} }, 400); }
 function softRender(){
   if(Engine.active() || !U) return;
   const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && !(a.id === 'q')){ renderTimer = setTimeout(softRender, 1500); return; }
@@ -2964,7 +2965,8 @@ function startSubs(){
   DB.collection('gifts').where('to', '==', MYID).onSnapshot(snap => { snapDocs(snap).forEach(claimGift); }, err);
   DB.collection('notices').where('to', '==', MYID).onSnapshot(snap => { snapDocs(snap).forEach(showNotice); }, err);
   DB.collection('gifts').where('to', '==', '*').onSnapshot(snap => { snapDocs(snap).forEach(claimGift); }, err);
-  DB.collection('site').onSnapshot(snap => { const ds = snapDocs(snap); SITEDOC = ds.find(x => x.id === 'status') || null; const wd = ds.find(x => x.id === 'words'); setCustomWords(wd && wd.list); applySite(); }, err);
+  DB.collection('site').onSnapshot(snap => { const ds = snapDocs(snap); SITEDOC = ds.find(x => x.id === 'status') || null; const wd = ds.find(x => x.id === 'words'); setCustomWords(wd && wd.list); applySite(); adminRefresh(); }, err);
+  DB.collection('locks').onSnapshot(snap => { LOCKS = snapDocs(snap); applySite(); if(typeof queueRender === 'function') queueRender(); adminRefresh(); }, err);
   DB.collection('mutes').onSnapshot(snap => { MUTES = snapDocs(snap); if(typeof queueRender === 'function') queueRender(); }, err);
   DB.collection('cplaces').where('eds', 'array-contains', MYID).onSnapshot(snap => { COPLACES = snapDocs(snap); queueRender(); }, err);
   DB.collection('blocks').onSnapshot(snap => { BLOCKDOCS = snapDocs(snap).filter(b => b.by === MYID); queueRender(); }, err);
@@ -3157,16 +3159,22 @@ function siteBarHtml(){
   if(d.mode === 'down') return isAdminMe() ? '<div class="sitebar red"><b>Maintenance mode is ON.</b> Players are locked out and see: "' + esc(d.msg || '') + '". You can still use the site. <a data-act="siteSet" data-m="off" style="color:#fff;text-decoration:underline">Turn it off</a></div>' : '';
   return '<div class="sitebar"><b>Notice:</b> ' + esc(d.msg || '') + '</div>';
 }
+const lockOf = id => LOCKS.find(l => l.uid === id && (!l.until || l.until > Date.now()));
+const leftTxt = ms => { const m = Math.ceil(ms / 60000); return m >= 120 ? Math.ceil(m / 60) + ' hours' : m + (m === 1 ? ' minute' : ' minutes'); };
 function applySite(){
-  const d = SITEDOC, down = !!(d && d.mode === 'down' && !isAdminMe()); let ov = document.getElementById('siteDown');
+  const d = SITEDOC, all = !!(d && d.mode === 'down' && !(d.until && d.until < Date.now())), lk = typeof MYID !== 'undefined' && MYID ? lockOf(MYID) : null, down = (all || !!lk) && !isAdminMe(); let ov = document.getElementById('siteDown');
   if(down){
+    const msg = (lk && lk.msg) || (all && d.msg) || '', until = lk ? lk.until : d.until;
     if(!ov){ ov = document.createElement('div'); ov.id = 'siteDown'; document.body.appendChild(ov); }
-    ov.innerHTML = '<img src="/word.png" alt="Retro Blox" style="height:34px;width:auto;filter:brightness(0) invert(1)"><h1>We will be right back</h1><p></p><a data-act="logout" class="btn neutral small">Log Out</a>'; ov.querySelector('p').textContent = d.msg || 'Retro Blox is down for maintenance right now. Please check back soon.';
+    ov.innerHTML = '<img src="/word.png" alt="Retro Blox" style="height:34px;width:auto;filter:brightness(0) invert(1)"><h1>' + (lk && !all ? 'Retro Blox is closed for you right now' : 'We will be right back') + '</h1><p></p><p class="siteLeft" style="font-size:15px;opacity:.85"></p><a data-act="logout" class="btn neutral small">Log Out</a>';
+    ov.querySelector('p').textContent = msg || (lk && !all ? 'An admin has paused your access for now. Please check back later.' : 'Retro Blox is down for maintenance right now. Please check back soon.');
+    ov.querySelector('.siteLeft').textContent = until ? 'Reopens in about ' + leftTxt(until - Date.now()) + '.' : '';
     try{ if(Engine.active()) Engine.stop(); }catch(e){}
   } else if(ov) ov.remove();
   if(d && d.mode === 'banner' && d.t && applySite.last !== d.t){ applySite.last = d.t; if(U) toast('Notice: ' + (d.msg || '')); }
   try{ if(!Engine.active() && U) queueRender(); }catch(e){}
 }
+setInterval(() => { try{ if(U && (document.getElementById('siteDown') || (SITEDOC && SITEDOC.until) || LOCKS.some(l => l.until))) applySite(); }catch(e){} }, 20000);
 const isGuestMe = () => !!(window.__ME && window.__ME.guest);
 function guestBox(){ return isGuestMe() ? '<div class="box" style="border-left:4px solid #e0a000"><b>You are playing as a guest.</b> <span class="muted">Save your account so you do not lose your stuff, and so you can log in on other devices.</span> <a class="btn green small" data-act="saveGuest" style="margin-left:6px">Save My Account</a></div>' : ''; }
 function saveGuestModal(){
@@ -3705,6 +3713,10 @@ function showNotice(d){
   const go = () => { modal('Notice from ' + (nameOf(d.from) || 'RetroBlox'), '<p style="margin:0;white-space:pre-wrap">' + esc(d.text || '') + '</p>', [{label:'OK', cls:'green'}]); DB.doc('notices/' + d.id).delete().catch(() => {}); };
   const m = $('#modal'); if(m && !m.hidden) setTimeout(go, 4000); else go();
 }
+function closeBox(){
+  const ls = LOCKS.filter(l => !l.until || l.until > Date.now()).sort((a, b) => b.t - a.t), all = !!(SITEDOC && SITEDOC.mode === 'down' && !(SITEDOC.until && SITEDOC.until < Date.now()));
+  return '<div class="box"><div class="sec-h"><span>Close the app</span>' + (all ? '<span style="color:#e2231a;font-weight:700">CLOSED FOR EVERYONE</span>' : '') + '</div><p class="muted" style="margin:0 0 8px">Close Retro Blox for the players you name, or leave the box empty to close it for everyone. Closed players see your message and are kicked out of games. You can always get in.</p><label class="f" for="clNames" style="margin-top:0">Usernames (separate with commas, or leave empty for everyone)</label><input id="clNames" maxlength="300" placeholder="Player_1, Player_2"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"><div><label class="f" for="clLen">For how long?</label><select id="clLen"><option value="0">Until I reopen it</option><option value="30">30 minutes</option><option value="120">2 hours</option><option value="1440">1 day</option><option value="10080">7 days</option></select></div></div><label class="f" for="clMsg">Message they will see</label><input id="clMsg" maxlength="200" placeholder="Retro Blox is closed for an update. Back soon!"><p style="margin:10px 0 0"><a class="btn red small" data-act="adminClose">Close</a>' + (all ? ' <a class="btn green small" data-act="adminReopenAll">Reopen for everyone</a>' : '') + '</p>' + (ls.length ? '<div style="margin-top:12px"><b>Closed players (' + ls.length + ')</b>' + ls.map(l => '<div class="lrow"><div class="grow"><b>' + esc(nameOf(l.uid) || l.name) + '</b> <span class="muted">' + (l.until ? 'reopens in ' + leftTxt(l.until - Date.now()) : 'until you reopen') + '</span></div><a class="btn small" data-act="adminReopenUser" data-n="' + esc(l.uid) + '">Reopen</a></div>').join('') + '</div>' : '') + '</div>';
+}
 function resetBox(){ return '<div class="box"><div class="sec-h"><span>Player passwords</span></div><p class="muted" style="margin:0 0 8px">Passwords are scrambled, so nobody can read them. If a player forgot theirs, reset it here and send them the temporary one. They must pick a new password the first time they log in.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"><div><label class="f" for="rsName" style="margin-top:0">Username</label><input id="rsName" maxlength="20" placeholder="Username"></div></div><p style="margin:10px 0 0"><a class="btn green small" data-act="adminReset">Reset password</a> <a class="btn small" data-act="adminLogoutAll">Log out all devices</a></p></div>'; }
 async function adminPost(url, name){ const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:name})}); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Something went wrong.'); return j; }
 function mutesBox(){ const ms = MUTES.filter(m => m.until > Date.now()).sort((a, b) => b.until - a.until);
@@ -3749,7 +3761,7 @@ function startChatMon(){ const q = $('#chatMonQ'); if(q) q.oninput = () => { CHA
 function adminTools(){
   const gs = customGames();
   setTimeout(startChatMon, 0);
-  return noticeBox() + noticeToBox() + resetBox() + mutesBox() + wordsBox() + giftBox() + everyoneBox() + chatMonBox() + '<div class="box"><div class="sec-h"><span>Admin Tools</span></div><p style="margin:0 0 4px"><a class="btn green small" data-act="adminUnlock">Unlock everything for me</a></p><p class="muted" style="font-size:12px;margin:0 0 14px">Gives this account every catalog item, emote and pet, plus 999,999 tokens.</p><label class="f" for="banName" style="margin-top:0">Ban a player by username</label><div style="display:flex;gap:8px"><input id="banName" maxlength="20" placeholder="Username"><a class="btn red small" data-act="banByName">Ban</a></div></div>'
+  return noticeBox() + closeBox() + noticeToBox() + resetBox() + mutesBox() + wordsBox() + giftBox() + everyoneBox() + chatMonBox() + '<div class="box"><div class="sec-h"><span>Admin Tools</span></div><p style="margin:0 0 4px"><a class="btn green small" data-act="adminUnlock">Unlock everything for me</a></p><p class="muted" style="font-size:12px;margin:0 0 14px">Gives this account every catalog item, emote and pet, plus 999,999 tokens.</p><label class="f" for="banName" style="margin-top:0">Ban a player by username</label><div style="display:flex;gap:8px"><input id="banName" maxlength="20" placeholder="Username"><a class="btn red small" data-act="banByName">Ban</a></div></div>'
     + '<div class="box"><div class="sec-h"><span>Community games (' + gs.length + ')</span></div>' + (gs.length ? gs.map(g => '<div class="lrow"><div class="grow"><b>' + esc(g.name) + '</b> <span class="muted">by ' + esc(g.creator) + '</span></div><a class="btn small" href="#/game/' + esc(g.id) + '">Open</a> <a class="btn red small" data-act="adminDelGame" data-id="' + esc(g.id) + '">Delete</a></div>').join('') : '<p class="muted" style="margin:0">No community games yet.</p>') + '</div>'
     + '<div class="box"><div class="sec-h"><span>Community items (' + ITEMDOCS.length + ')</span></div>' + (ITEMDOCS.length ? ITEMDOCS.slice(0, 60).map(d => '<div class="lrow"><div class="grow"><b>' + esc(d.name || d.id) + '</b> <span class="muted">by ' + esc(nameOf(d.creator)) + '</span></div><a class="btn red small" data-act="adminDelItem" data-id="' + esc(d.id) + '">Delete</a></div>').join('') : '<p class="muted" style="margin:0">No community items yet.</p>') + '</div>';
 }
@@ -3924,6 +3936,13 @@ const ACTIONS = {
   adminReset:() => { if(!isAdminMe()) return; const n = ($('#rsName').value || '').trim(); if(!n) return toast('Type a username first.', true);
     confirmBox('Reset password', 'Reset the password for <b>' + esc(n) + '</b>? They will be logged out on every device.', 'Reset', () => { adminPost('/api/admin/reset', n).then(j => { $('#rsName').value = ''; modal('Temporary password', '<p style="margin-top:0">Send this to <b>' + esc(j.name) + '</b>. It is shown only once. They will choose a new password when they log in.</p><div style="font-size:24px;font-weight:700;letter-spacing:2px;padding:10px;background:#f6f7f8;border:1px solid #ccc;text-align:center;user-select:all">' + esc(j.temp) + '</div>', [{label:'Done', cls:'green'}]); }).catch(e => toast(e.message, true)); }, 'green'); },
   adminLogoutAll:() => { if(!isAdminMe()) return; const n = ($('#rsName').value || '').trim(); if(!n) return toast('Type a username first.', true); adminPost('/api/admin/logoutall', n).then(j => toast(j.name + ' was logged out everywhere.')).catch(e => toast(e.message, true)); },
+  adminClose:() => { if(!isAdminMe()) return; const names = ($('#clNames').value || '').split(/[\s,;]+/).filter(Boolean), min = +$('#clLen').value || 0, msg = ($('#clMsg').value || '').trim().slice(0, 200), until = min ? Date.now() + min * 60000 : 0;
+    if(!names.length){ confirmBox('Close for everyone', 'Close Retro Blox for <b>every player</b>? They will be kicked out of games and see your message.', 'Close it', () => { DB.doc('site/status').set({mode:'down', msg, until, t:Date.now()}).then(() => toast('Closed for everyone.')).catch(() => toast('Could not close.', true)); }, 'red'); return; }
+    const ids = [], bad = []; names.forEach(n => { const id = Object.keys(P).find(k => nameOf(k).toLowerCase() === n.toLowerCase()); if(!id) bad.push(n); else if(id !== MYID && ids.indexOf(id) < 0) ids.push(id); });
+    if(bad.length) return toast('No player named: ' + bad.join(', '), true); if(!ids.length) return toast('Nobody to close it for.', true);
+    Promise.all(ids.map(id => DB.doc('locks/' + id).set({uid:id, name:nameOf(id), msg, until, by:MYID, t:Date.now()}))).then(() => { toast('Closed for ' + ids.length + ' player' + (ids.length === 1 ? '' : 's') + '.'); $('#clNames').value = ''; $('#clMsg').value = ''; }).catch(() => toast('Could not close.', true)); },
+  adminReopenUser:el => { DB.doc('locks/' + el.dataset.n).delete().then(() => toast('Reopened for ' + nameOf(el.dataset.n) + '.')).catch(() => toast('Could not reopen.', true)); },
+  adminReopenAll:() => { DB.doc('site/status').set({mode:'off', msg:'', until:0, t:Date.now()}).then(() => toast('Reopened for everyone.')).catch(() => toast('Could not reopen.', true)); },
   adminNotice:() => { if(!isAdminMe()) return; const nm = ($('#ntName').value || '').trim().toLowerCase(), id = nm && Object.keys(P).find(k => nameOf(k).toLowerCase() === nm), text = ($('#ntText').value || '').trim().slice(0, 300);
     if(!id) return toast('No player with that username.', true); if(!text) return toast('Type a message first.', true);
     DB.collection('notices').add({to:id, from:MYID, text, t:Date.now()}).then(() => { toast('Notice sent to ' + nameOf(id) + '.'); $('#ntText').value = ''; }).catch(() => toast('Could not send.', true)); },

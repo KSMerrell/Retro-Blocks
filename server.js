@@ -96,6 +96,8 @@ function badText(str){
   const packed = t.replace(/[^a-z]/g, ''); if(BAD_SUB.some(w => packed.includes(w))) return true;
   const cw = customWords(); return words.some(w => cw.list.includes(w)) || cw.sub.some(w => packed.includes(w));
 }
+const siteDown = () => { const st = S.docs['site/status']; return !!(st && st.d && st.d.mode === 'down' && !(st.d.until && st.d.until < Date.now())); };
+const isLocked = uid => { const l = S.docs['locks/' + uid]; return !!(l && l.d && (!l.d.until || l.d.until > Date.now()) && !isAdmin(uid)); };
 const isMuted = uid => { const m = S.docs['mutes/' + uid]; return !!(m && m.d && m.d.until > Date.now() && !isAdmin(uid)); };
 const SKIP_KEYS = new Set(['img', 'icon', 'bricks', 'state', 'c', 'ids']);
 function docHasBad(v, depth){ depth = depth || 0; if(depth > 3 || v == null) return false; if(typeof v === 'string') return v.length < 3000 && badText(v); if(Array.isArray(v)) return v.slice(0, 40).some(x => docHasBad(x, depth + 1)); if(typeof v === 'object') return Object.keys(v).some(k => !SKIP_KEYS.has(k) && docHasBad(v[k], depth + 1)); return false; }
@@ -108,7 +110,7 @@ const blockedPair = (a, b) => !!(S.docs['blocks/' + a + '_' + b] || S.docs['bloc
 const REPORT_REASONS = ['inappropriate', 'harassment', 'scam', 'cheating', 'other'];
 function allowWrite(uid, p, op, data, old){
   const s = segs(p), col = s[0], id = s[s.length - 1];
-  { const st = S.docs['site/status']; if(st && st.d && st.d.mode === 'down' && !isAdmin(uid)) return false; } // maintenance: only admins can change anything
+  if((siteDown() && !isAdmin(uid)) || isLocked(uid)) return false; // closed: only admins can change anything
   if(col === 'data'){ return s[1] === 'users' && s[2] === uid; }
   if(s.length !== 2) return false;
   if(isAdmin(uid)) return true; // admins can edit or delete any shared document
@@ -153,6 +155,7 @@ function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'blocks') return d.by === uid;
   if(coll === 'reports') return d.by === uid || isAdmin(uid);
   if(coll === 'bans') return isAdmin(uid);
+  if(coll === 'locks') return d.uid === uid || isAdmin(uid);
   if(coll === 'mutes') return d.uid === uid || isAdmin(uid);
   if(coll === 'notices') return d.to === uid || isAdmin(uid);
   if(coll === 'pvers') return d.owner === uid;
@@ -187,6 +190,7 @@ function writeDoc(uid, op, p, data){
     if(JSON.stringify(next).length > MAXDOC) return {code:'invalid_argument'};
     if(!allowWrite(uid, p, op, next, old)) return {code:'permission_denied'};
     S.docs[p] = {d:next, v:(e ? e.v : 0) + 1};
+    if(p.startsWith('locks/') && op !== 'delete') conns.forEach(c => { if(c.uid === p.slice(6)) try{ c.socket.destroy(); }catch(e){} });
     if(p.startsWith('bans/')) conns.forEach(c => { if(c.uid === p.slice(5)) try{ c.socket.destroy(); }catch(e){} });
     if(p.startsWith('reports/')) console.log('REPORT', JSON.stringify(next));
   }
@@ -228,7 +232,7 @@ function handle(conn, m){
     case 'unsub': { subs.forEach(s => { if(s.conn === conn && s.sid === m.sid){ subs.delete(s); conn.nsub--; } }); return; }
     case 'join': {
       const name = String(m.room || ''); if(!ROOM_RE.test(name) || conn.peers.size > 6) return reply(false, {code:'invalid_argument'});
-      { const st = S.docs['site/status']; if(st && st.d && st.d.mode === 'down' && !isAdmin(uid)) return reply(false, {code:'maintenance'}); }
+      if((siteDown() && !isAdmin(uid)) || isLocked(uid)) return reply(false, {code:'maintenance'});
       if(name.charAt(0) === 'g'){ for(const c of conns){ if(c !== conn && c.uid === uid && !c.dead && c.socket && !c.socket.destroyed && [...c.peers].some(k => k.charAt(0) === 'g')) return reply(false, {code:'already_in_game'}); } }
       const peer = 'p' + (++peerSeq).toString(36), r = rooms[name] = rooms[name] || new Map();
       const existing = []; r.forEach((mm, k) => existing.push({peer:k, by:mm.by, p:mm.p}));

@@ -761,7 +761,7 @@ function buildHat(item, A){
 }
 function buildGear(item, A){
   const g = new THREE.Group(), k = item.s.k, add = m => { g.add(m); return m; };
-  if(k === 'banhammer'){ add(_box(.3, .3, 2.4, '#7c5c46', 0, 0, .9)); add(_box(1.9, 1.1, 1.0, '#8a1f1f', 0, 0, 2.3, '#3a0b0b')); add(_box(2.0, .4, 1.1, '#f5cd30', 0, 0, 2.3)); }
+  if(k === 'banhammer'){ add(_box(.28, .28, 3.0, '#6b4a2f', 0, 0, 1.1)); add(_box(.34, .34, .9, '#4a3220', 0, 0, .1)); add(_box(.5, .5, .3, '#f5cd30', 0, 0, -.45)); add(_box(2.6, 1.3, 1.3, '#9a6234', 0, 0, 2.9, '#4a2c12')); add(_box(.4, 1.5, 1.5, '#aab3bd', 1.5, 0, 2.9, '#5d666f')); add(_box(.4, 1.5, 1.5, '#aab3bd', -1.5, 0, 2.9, '#5d666f')); add(_box(.3, 1.4, 1.4, '#f5cd30', .75, 0, 2.9)); add(_box(.3, 1.4, 1.4, '#f5cd30', -.75, 0, 2.9)); }
   else if(k === 'sword'){ add(_box(.3, .3, .85, '#7c5c46', 0, 0, .1)); add(_box(1.4, .25, .28, '#f5cd30', 0, 0, .6)); add(_box(.32, .16, 2.9, '#d9dde3', 0, 0, 2.1, '#252a30')); }
   else if(k === 'speed' || k === 'grav'){ const col = k === 'speed' ? '#c4281c' : '#0d69ac'; const b = add(_cyl(.6, .6, 1, col, 0, 0, .8, 16)); b.rotation.x = Math.PI / 2; const t = new THREE.Mesh(new THREE.TorusGeometry(.62, .12, 8, 18), _M('#f2f3f3')); t.position.z = .8; add(t); const h = add(_cyl(.17, .17, .7, '#1b2a34', 0, 0, .1, 8)); h.rotation.x = Math.PI / 2; }
   else if(k === 'boombox'){ add(_box(1.9, .7, 1.1, '#1b2a34', 0, 0, .75)); [-1, 1].forEach(s => { const sp = add(_cyl(.32, .32, .08, '#a3a2a5', s * .5, .36, .75, 14)); }); add(_box(.5, .1, .06, '#f5cd30', 0, .36, 1.2)); A.boom = g; }
@@ -2449,7 +2449,7 @@ const Engine = (function(){
     else if(k === 'cola'){ P.boost = 8; P.cd = 3; sfx.drink(); P.hp = Math.min(P.max, P.hp + 25); updateHP(); chatMsg('info', 'Glug glug. Speed boost!'); P.swing = .5; G.swingCount++; }
     else if(k === 'torch'){ P.swing = .4; P.cd = .5; }
     else if(k === 'banhammer'){
-      P.swing = .5; P.cd = .8; G.swingCount++; sfx.swing(); if(myLvl() < 2) return;
+      P.swing = .7; P.cd = .8; G.swingCount++; sfx.swing(); if(myLvl() < 2) return;
       const fx = Math.sin(P.face), fz = Math.cos(P.face); let best = null, bd = 99;
       Object.keys(G.remotes).forEach(k2 => { const b = G.remotes[k2]; if(!b.uid || b.dead) return; const dx = b.x - P.x, dz = b.z - P.z, d = Math.hypot(dx, dz); if(d < 10 && Math.abs(b.y - P.y) < 6 && (dx * fx + dz * fz) / (d || 1) > .1 && d < bd){ best = b; bd = d; } });
       if(!best) toast('Ban Hammer', 'Stand close to a player and face them, then click.');

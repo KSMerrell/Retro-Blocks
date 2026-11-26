@@ -2506,7 +2506,7 @@ const Engine = (function(){
     const pr = p.presence || {};
     if(pr.x == null){ e.A.group.visible = false; return; }
     e.tx = pr.x; e.ty = pr.y; e.tz = pr.z; if(pr.f != null) e.face = pr.f;
-    e.hp = pr.hp == null ? 100 : pr.hp; e.dead = !!pr.d; e.airR = !!pr.a; e.emote = pr.em || null; e.emT = pr.em ? 5 : 0; e.A.group.visible = !e.dead;
+    e.hp = pr.hp == null ? 100 : pr.hp; e.dead = !!pr.d; e.airR = !!pr.a; e.emote = pr.em || null; e.emT = pr.em ? 5 : 0; e.inv = !!pr.iv && lvlOf(e.uid) >= 2; e.A.group.visible = !e.dead && !(e.inv && myLvl() < 1);
     if(pr.pt !== undefined) setPet(e, String(pr.pt).slice(0, 8));
     if((pr.g || 0) !== e.gid){ e.gid = pr.g || 0; setGear(e.A, e.gid); const it = e.gid ? ITEM_BY_ID[e.gid] : null; e.tool = it ? it.s.k : null; if(e.A.gearObj) e.A.armR.rotation.x = -1.5; }
     if(pr.sw != null && pr.sw !== e.swc){ e.swc = pr.sw; e.swing = .38; }
@@ -2532,7 +2532,7 @@ const Engine = (function(){
   function netPublish(dt){
     if(!G.net || G.state !== 'play') return; G.pubT += dt; if(G.pubT < .066) return; G.pubT = 0;
     const P = G.P, st = {stage:P.stats.stage, height:P.stats.height, coins:P.stats.coins};
-    const patch = {x:r1(P.x), y:r1(P.y), z:r1(P.z), f:r2(P.face), hp:Math.round(P.hp), d:P.dead ? 1 : 0, a:P.grounded ? 0 : 1, em:P.emote || null, sw:G.swingCount, g:(P.A.gearItem && P.A.gearItem.id) || 0, pt:G.opts.user.petEm || '', st, k:P.kills, dt:P.deaths, mu:P.mu == null ? -1 : P.mu, cr:G.car ? 1 : 0}; if(G.ctf){ patch.tm = G.ctf.team; patch.fc = G.ctf.carry ? 1 : 0; }
+    const patch = {x:r1(P.x), y:r1(P.y), z:r1(P.z), f:r2(P.face), hp:Math.round(P.hp), d:P.dead ? 1 : 0, iv:G.inv ? 1 : 0, a:P.grounded ? 0 : 1, em:P.emote || null, sw:G.swingCount, g:(P.A.gearItem && P.A.gearItem.id) || 0, pt:G.opts.user.petEm || '', st, k:P.kills, dt:P.deaths, mu:P.mu == null ? -1 : P.mu, cr:G.car ? 1 : 0}; if(G.ctf){ patch.tm = G.ctf.team; patch.fc = G.ctf.carry ? 1 : 0; }
     const key = JSON.stringify(patch); if(key === G.lastPub) return; G.lastPub = key; G.net.room.presence(patch).catch(() => {});
   }
   function remoteStep(dt){
@@ -2567,15 +2567,18 @@ const Engine = (function(){
     if(G.waters && G.waters.length){ const sw = G.waters.some(w => P.x > w.p.minx && P.x < w.p.maxx && P.z > w.p.minz && P.z < w.p.maxz && P.y + 2.5 > w.p.miny && P.y + 1.5 < w.p.maxy); if(sw){ speed *= .62; gm = .22; if(P.vy < -9) P.vy = -9; if(jump) P.vy = Math.max(P.vy, 14); if(!G.wasSw) sfx.land(); } G.wasSw = sw; }
     const wasG = P.grounded, vy0 = P.vy, pg0 = P.ground;
     if(P.tool === 'balloon' && P.vy < -12) gm = .15;
-    stepEnt(P, dt, wx, wz, jump, speed, gm);
+    if(G.fly){ const up = (!typing && (G.keys.has('Space') || G.jumpBtn)) ? 1 : 0, dn = (!typing && (G.keys.has('KeyC') || G.keys.has('ControlLeft'))) ? 1 : 0;
+      P.vx = wx * 44; P.vz = wz * 44; P.vy = (up - dn) * 34; moveEnt(P, 'x', P.vx * dt); moveEnt(P, 'z', P.vz * dt); moveEnt(P, 'y', P.vy * dt); P.grounded = false; P.ground = null; P.coyote = 0; }
+    else stepEnt(P, dt, wx, wz, jump, speed, gm);
+    P.A.group.visible = !G.inv;
     if(P.tool === 'balloon' && P.vy < -14) P.vy = -14;
     { const hs = Math.hypot(P.vx, P.vz); if(P.grounded && hs > 3){ P.stepT = (P.stepT || 0) - dt * hs / 16; if(P.stepT <= 0){ P.stepT = .34; sfx.step(); } } else if(P.grounded) P.stepT = 0;
       if(!wasG && P.grounded && vy0 < -30){ if(pg0 && P.ground && P.ground !== pg0 && P.ground.maxy > pg0.maxy + .4 && vy0 > -60) sfx.climb(); else sfx.land(); } }
     if(G.sl && !typing){ const d = G.yaw + Math.PI - P.face; P.face += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, dt * 20); }
     else if(Math.hypot(P.vx, P.vz) > 1) { const d = Math.atan2(P.vx, P.vz) - P.face; P.face += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, dt * 14); }
-    if(P.y < G.lavaY){ if(G.pvp || G.softFall || G.game.kind === 'town' || G.game.kind === 'studio' || G.game.kind === 'custom'){ respawnEnt(P); } else killEnt(P, null, 'lava'); return; }
-    G.killers.forEach(k => { if(!P.dead && killHit(k, P) && P.ff <= 0) killEnt(P, null, 'kill'); });
-    G.spinners.forEach(s => { if(!P.dead && spinHit(s, P) && P.ff <= 0) killEnt(P, null, 'spin'); });
+    if(P.y < G.lavaY && !G.fly){ if(G.pvp || G.softFall || G.game.kind === 'town' || G.game.kind === 'studio' || G.game.kind === 'custom'){ respawnEnt(P); } else killEnt(P, null, 'lava'); return; }
+    G.killers.forEach(k => { if(!P.dead && !G.fly && killHit(k, P) && P.ff <= 0) killEnt(P, null, 'kill'); });
+    G.spinners.forEach(s => { if(!P.dead && !G.fly && spinHit(s, P) && P.ff <= 0) killEnt(P, null, 'spin'); });
     if(G.trigs && (G.bgm >= 0 || G.trigs.length + G.doors.length + G.zones.length + G.npcs.length)) liveStep(dt);
     if(P.dead) return;
     const gr = P.ground;
@@ -2647,7 +2650,7 @@ const Engine = (function(){
     if(e.emT > 0){ e.emT -= dt; if(e.emT <= 0 && e.emote) e.emote = null; }
     if(e.bubble){ e.bubT -= dt; if(e.bubT <= 0){ A.group.remove(e.bubble); e.bubble = null; } }
     if(e.ff > 0 && !e.dead){ e.A.group.visible = Math.floor(G.tR * 14) % 4 !== 0 || e !== G.P; }
-    else if(!e.dead) e.A.group.visible = true;
+    else if(!e.dead) e.A.group.visible = !(e.inv && myLvl() < 1) && !(e === G.P && G.inv);
     if(e === G.P && G.sMode === 'edit') e.A.group.visible = false;
     if(e === G.P && G.ffMesh){ G.ffMesh.visible = e.ff > 0 && !e.dead; if(G.ffMesh.visible){ G.ffMesh.position.set(e.x, e.y + 2.5, e.z); G.ffMesh.material.opacity = .22 + .1 * Math.sin(G.tR * 12); } }
   }
@@ -2723,7 +2726,7 @@ const Engine = (function(){
   function menuBody(tab){
     const b = document.getElementById('gmBody'); if(!b) return;
     document.querySelectorAll('.gm-tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === tab));
-    if(tab === 'players') b.innerHTML = G.ents.map((e, i) => '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span>' + (e.remote ? '<button class="tb" data-spec="' + i + '">Watch</button>' : '') + (e.remote && e.uid && myLvl() >= 1 && lvlOf(e.uid) < myLvl() ? '<button class="tb" data-mute="' + esc(e.user.name) + '" title="Mute">&#128263;</button>' + (myLvl() >= 2 ? '<button class="tb" data-ban="' + esc(e.user.name) + '" title="Ban Hammer">&#128296;</button>' : '') : '') + '</div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
+    if(tab === 'players') b.innerHTML = G.ents.map((e, i) => (e.inv && myLvl() < 1) ? '' : '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span>' + (e.remote ? '<button class="tb" data-spec="' + i + '">Watch</button>' : '') + (e.remote && e.uid && myLvl() >= 1 && lvlOf(e.uid) < myLvl() ? '<button class="tb" data-mute="' + esc(e.user.name) + '" title="Mute">&#128263;</button>' + (myLvl() >= 2 ? '<button class="tb" data-ban="' + esc(e.user.name) + '" title="Ban Hammer">&#128296;</button>' : '') : '') + '</div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
     else if(tab === 'settings') b.innerHTML = '<label class="set">Graphics <select id="setQual"><option value="low"' + (G.qual === 'low' ? ' selected' : '') + '>Low (fastest)</option><option value="med"' + (G.qual === 'med' ? ' selected' : '') + '>Medium</option><option value="high"' + (G.qual === 'high' ? ' selected' : '') + '>High (best looking)</option></select></label><label class="set">Cursor <select id="setCur"><option value="white"' + (getCursorMode() === 'white' ? ' selected' : '') + '>White arrow</option><option value="black"' + (getCursorMode() === 'black' ? ' selected' : '') + '>Black arrow</option><option value="system"' + (getCursorMode() === 'system' ? ' selected' : '') + '>Default</option></select></label><label class="set"><input type="checkbox" id="setSound"' + (G.sound ? ' checked' : '') + '> Sound effects</label><label class="set">Camera zoom <input type="range" id="setZoom" min="6" max="' + (G.game.kind === 'studio' ? 120 : 60) + '" value="' + Math.round(G.zoom) + '"></label>';
     else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Shift Lock</b>: press Shift (character follows the camera)<br><b>Screenshot</b>: F2 or the camera button<br><b>Emotes</b>: type /e dance, wave, cheer, bounce, point, salute or shrug</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
     b.onclick = ev => { const mt = ev.target.closest('[data-mute]'); if(mt){ ACTIONS.muteByName(mt.dataset.mute); return; } const hm = ev.target.closest('[data-ban]'); if(hm){ ACTIONS.hammer({dataset:{n:hm.dataset.ban}}); return; } const w = ev.target.closest('[data-spec]'); if(w){ const t = G.ents[+w.dataset.spec]; resume(); specStart(t); } };
@@ -2784,6 +2787,7 @@ const Engine = (function(){
     if(!renderer){ try{ canvas = document.createElement('canvas'); canvas.id = 'gc'; canvas.tabIndex = 0; renderer = new THREE.WebGLRenderer({canvas, antialias:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }catch(e){ renderer = null; return false; } }
     ensureAudio();
     envDefaultsReset(); const game = opts.game; abort = new AbortController(); const sig = {signal:abort.signal};
+    { const oR = opts.onReward, oE = opts.onEvent; if(oR && !oR.__g) opts.onReward = Object.assign((...a) => { if(G && G.flew) return; return oR(...a); }, {__g:1}); if(oE && !oE.__g) opts.onEvent = Object.assign((...a) => { if(G && G.flew) return; return oE(...a); }, {__g:1}); }
     G = {opts, game, state:'intro', T:0, tR:0, acc:0, lastSec:-1, colliders:[], killers:[], movers:[], vanishers:[], trigs:[], doors:[], npcs:[], waters:[], zones:[], doorT:{}, tpCool:0, zoneIdx:-2, bgm:-1, spinners:[], pads:[], debris:[], ents:[], bots:[], keys:new Set(), typing:false, jumpBtn:false, joy:{id:null, vx:0, vy:0, ox:0, oy:0}, look:{id:null, x:0, y:0, sx:0, sy:0}, yaw:0, pitch:.38, zoom:game.kind === 'studio' ? 40 : 16, camDist:80, cf:{x:0, y:8, z:-40}, camBlend:0, sound:true, music:-1, heard:-1, mt:0, won:false, checkpoint:null, ray:new THREE.Raycaster()};
     makeScene(); G.qual = getQual(); applyQual();
     const builder = game.kind === 'obby' && game.gen ? (() => buildGenObby(game.gen)) : ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio, coins:buildCoinIsland, restaurant:buildRestaurant, drive:buildDrive, tiledrop:buildTileDrop, maze:buildMaze, lavarise:buildLavaRise, zombie:buildZombie, hideseek:buildHideSeek, golf:buildGolf, tycoon:buildTycoon, ctf:buildCTF, coaster:buildCoaster})[game.kind]; builder();
@@ -2843,6 +2847,7 @@ const Engine = (function(){
       if((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat && G.sMode !== 'edit'){ shiftLock(); return; }
       if(G.spec && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) >= 0) specStop();
       G.keys.add(e.code);
+      if(!e.repeat && !G.typing && myLvl() >= 2 && G.game.kind !== 'studio' && G.state === 'play'){ if(e.code === 'KeyG'){ G.fly = !G.fly; if(G.fly) G.flew = true; toast(G.fly ? 'Fly on' : 'Fly off', G.fly ? 'Space = up, C = down. Rewards are off this round.' : ''); } if(e.code === 'KeyV'){ G.inv = !G.inv; toast(G.inv ? 'Invisible on' : 'Invisible off', G.inv ? 'Players cannot see you. Staff can.' : ''); } }
       if(e.code === 'KeyI') G.zoom = Math.max(4, G.zoom - 3); if(e.code === 'KeyO') G.zoom = Math.min(G.game.kind === 'studio' ? 120 : 60, G.zoom + 3);
       if(/^Digit[1-9]$/.test(e.code)) equip(+e.code.slice(5) - 1);
       if(G.car && !e.repeat){ if(e.code === 'KeyR') carReset(); if(e.code === 'KeyH') sfx.horn(); }

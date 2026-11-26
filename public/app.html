@@ -2339,9 +2339,10 @@ const Engine = (function(){
 
   /* ---------- entities ---------- */
   function refreshTag(e){
-    const id = e.remote ? e.uid : (e === G.P ? MYID : null), r = id && tagShown(id) ? roleOfUid(id) : '', key = e.user.name + '|' + r;
+    const id = e.remote ? e.uid : (e === G.P ? MYID : null), r = id && tagShown(id) ? roleOfUid(id) : '', isb = e.hb || e.isBot, key = e.user.name + '|' + r + '|' + (isb ? 1 : 0);
     if(e.tagKey === key) return; e.tagKey = key; if(e.tag) e.A.group.remove(e.tag);
     const g = new THREE.Group(); g.add(textSprite(e.user.name, {color:r === 'owner' ? '#ffd23a' : (e === G.P ? '#ffe08a' : '#fff')}));
+    if(isb && !r){ const l = textSprite('BOT', {color:'#9fb3c8'}); l.position.y = .95; l.scale.multiplyScalar(.7); g.add(l); }
     if(r){ const l = textSprite(ROLE_TAG[r], {color:ROLE_COL[r]}); l.position.y = .95; l.scale.multiplyScalar(.8); g.add(l); }
     g.position.y = 6.1; e.tag = g; e.A.group.add(g);
   }
@@ -2351,6 +2352,93 @@ const Engine = (function(){
     const e = {user, A, x, y, z, vx:0, vy:0, vz:0, grounded:false, ground:null, coyote:0, hp:100, max:100, dead:false, respT:0, ff:0, face:0, emote:null, emT:0, swing:0, kills:0, deaths:0, bot, tag, bubble:null, bubT:0, lastHurt:-9, stats:{stage:0, height:0, coins:0}, tool:null, wishx:0, wishz:0, walkT:0, sword:false, cd:0, jumpReq:false, stuck:0};
     return e;
   }
+
+  /* ---------- Owner bots: act like players, run by the owner's game, shown to everyone in the room ---------- */
+  const BOT_NAMES = ['Noob_Ninja', 'BrickBuddy', 'SkyRunner', 'LavaLegend', 'Pixel_Pete', 'ObbyQueen', 'TurboTim', 'CoinHunter', 'ZigZag', 'BlockBoss'];
+  const BOT_SAY = ['gg', 'lol that jump', 'wait for me!', 'nice one', 'how do i get up there', 'almost there!', 'oof', 'this is fun', 'follow me', 'trying again', 'so close', 'who wants to race?'];
+  const BOT_EMO = ['dance', 'wave', 'cheer', 'bounce', 'point', 'salute', 'shrug'];
+  function botAvatar(i){ const a = DEFAULT_AVATAR(), cs = ['#d83a3a', '#3a7ad8', '#38a84a', '#a24ad8', '#e8892a', '#2ab0b0', '#d8479b', '#7a7a7a']; a.c.t = cs[i % cs.length]; a.c.ll = a.c.rl = cs[(i + 3) % cs.length]; a.hats = [i % 2 ? HAIR_GIRL : HAIR_BOY]; return a; }
+  function botName(i){ return BOT_NAMES[i % BOT_NAMES.length] + (i >= BOT_NAMES.length ? i : ''); }
+  function floorAt(x, z, y){ let best = null; const cs = G.colliders; for(let i = 0; i < cs.length; i++){ const c = cs[i]; if(c.active === false || x < c.minx - .3 || x > c.maxx + .3 || z < c.minz - .3 || z > c.maxz + .3) continue; if(c.maxy <= y + 1.3 && (best === null || c.maxy > best)) best = c.maxy; } return best !== null && best >= y - 9 ? best : null; }
+  function botsOn(n){
+    if(!isAdminMe() || !G || G.game.kind === 'studio') return; botsOff(true); n = Math.max(1, Math.min(10, n | 0)); G.botN = n; G.botOn = true; G.bots = [];
+    const sp = G.spawn || {x:0, y:3, z:0};
+    for(let i = 0; i < n; i++){ const e = mkEnt({name:botName(i), avatar:botAvatar(i)}, sp.x + (Math.random() - .5) * 3, sp.y + .5, sp.z + (Math.random() - .5) * 3, true); e.hb = true; e.bi = i; e.ff = 2; e.bt = {t:0, mt:0, stuck:0, goal:null, say:4 + Math.random() * 20, wait:0}; G.ents.push(e); G.bots.push(e); }
+    G.botPubT = 0; updateBoard(); chatMsg('info', 'Bots are on (' + n + ').');
+  }
+  function botsOff(quiet){
+    (G.bots || []).forEach(e => { G.scene.remove(e.A.group); if(e.emoSp) G.scene.remove(e.emoSp); const i = G.ents.indexOf(e); if(i >= 0) G.ents.splice(i, 1); });
+    G.bots = []; if(G.botOn){ G.botOn = false; if(G.net) G.net.room.emit('bots', {l:[]}).catch(() => {}); if(!quiet) chatMsg('info', 'Bots are off.'); updateBoard(); }
+  }
+  function botHop(e, g){
+    const dG = Math.hypot(g.x - e.x, g.z - e.z); if(dG < 7 && Math.abs(g.y - e.y) < 3) return null;
+    let best = null, bs = 1e9; const here = e.ground;
+    for(let i = 0; i < G.colliders.length; i++){ const c = G.colliders[i]; if(c === here || c.active === false) continue;
+      const top = c.maxy; if(top > e.y + 4.8 || top < e.y - 14) continue;
+      const dx = Math.max(c.minx - e.x, 0, e.x - c.maxx), dz = Math.max(c.minz - e.z, 0, e.z - c.maxz); if(Math.hypot(dx, dz) > 8.5 + (here ? Math.max(here.hx, here.hz) : 0)) continue;
+      const dg = Math.hypot(g.x - c.cx, g.z - c.cz), fin = c.kind === 'goal' || c.kind === 'check'; if(dg > dG - 1.5 && !fin) continue;
+      const sc = dg + Math.max(0, e.y - top) * .6 - Math.max(0, top - e.y) * .3 - (fin ? 20 : 0); if(sc < bs){ bs = sc; best = c; } }
+    return best ? {x:best.cx, z:best.cz, y:best.maxy, r:1.2} : null;
+  }
+  function botGoal(e){
+    const st = e.stats.stage || 0, sp = G.spawn || {x:0, z:0, y:0};
+    if(G.coins){ let b = null, bd = 1e9; G.coins.forEach(c => { if(!c.on) return; const d = Math.hypot(c.x - e.x, c.z - e.z) + Math.abs(c.y - e.y) * 2; if(d < bd){ bd = d; b = c; } }); if(b) return {x:b.x, z:b.z, y:b.y, r:1.2, coin:b}; }
+    let nx = null; G.colliders.forEach(c => { if(c.kind === 'check' && c.stage > st && (!nx || c.stage < nx.stage)) nx = c; });
+    if(!nx) G.colliders.forEach(c => { if(c.kind === 'goal') nx = c; });
+    if(nx){ const fin = {x:nx.cx, z:nx.cz, y:nx.maxy, r:1.1}; return botHop(e, fin) || fin; }
+    if(G.game.kind === 'tower'){ let h = null; G.colliders.forEach(c => { if(c.maxy > e.y + .5 && Math.hypot(c.cx - e.x, c.cz - e.z) < 22 && (!h || c.maxy < h.maxy)) h = c; }); if(h) return {x:h.cx, z:h.cz, y:h.maxy, r:1.2}; }
+    // otherwise roam, sometimes near a real player
+    const real = Object.keys(G.remotes).map(k => G.remotes[k]).filter(r => !r.isBot && !r.inv); const tgt = (real.length && Math.random() < .5) ? real[Math.floor(Math.random() * real.length)] : G.P; 
+    if(tgt && Math.random() < .6) return {x:tgt.x + (Math.random() - .5) * 8, z:tgt.z + (Math.random() - .5) * 8, y:tgt.y, r:2.5, idle:1};
+    const a = Math.random() * 6.28, r = 8 + Math.random() * 22; return {x:sp.x + Math.cos(a) * r, z:sp.z + Math.sin(a) * r, y:sp.y, r:2.5, idle:1};
+  }
+  function botStep(dt){
+    const bs = G.bots; if(!bs || !bs.length) return;
+    bs.forEach(e => {
+      const bt = e.bt;
+      if(e.dead){ e.respT -= dt; if(e.respT <= 0){ respawnEnt(e); e.ff = 2; if(e.cp){ e.x = e.cp.x; e.y = e.cp.y; e.z = e.cp.z; } } return; }
+      if(e.ff > 0) e.ff -= dt; if(e.cd > 0) e.cd -= dt;
+      bt.t -= dt; bt.mt -= dt; bt.say -= dt; if(bt.wait > 0){ bt.wait -= dt; e.vx *= .8; e.vz *= .8; stepEnt(e, dt, 0, 0, false, WALK, 1); }
+      else {
+        if(bt.t <= 0 || !bt.goal){ bt.t = .5 + Math.random() * .4; bt.goal = botGoal(e); }
+        const g = bt.goal; let wx = 0, wz = 0, jump = false;
+        if(g){ const dx = g.x - e.x, dz = g.z - e.z, d = Math.hypot(dx, dz);
+          if(d > g.r){ wx = dx / d; wz = dz / d; if(bt.side && bt.sideT > 0){ bt.sideT -= dt; const a = bt.side * 1.45, c = Math.cos(a), s2 = Math.sin(a), tx = wx * c - wz * s2; wz = wx * s2 + wz * c; wx = tx; } }
+          else { if(g.coin){ const c = g.coin; if(c.on){ c.on = false; c.t = 25; c.m.visible = false; e.stats.coins++; updateBoard(); } } if(g.idle){ bt.wait = 1 + Math.random() * 2.5; if(Math.random() < .35){ e.emote = BOT_EMO[Math.floor(Math.random() * BOT_EMO.length)]; e.emT = 3; } } bt.goal = null; }
+          if(e.grounded && (wx || wz)){
+            bt.pr = (bt.pr || 0) - dt; if(bt.pr <= 0){ bt.pr = .1; const fl = floorAt(e.x + wx * 1.7, e.z + wz * 1.7, e.y), here = floorAt(e.x, e.z, e.y + .5); bt.gap = fl === null || (fl > (here == null ? e.y : here) + .4); }
+            if(bt.gap || (g.y > e.y + 1.4 && d < 12)) jump = true; }
+        }
+        bt.chk = (bt.chk || 0) + dt; if(bt.chk > .6){ bt.chk = 0; const mv = Math.hypot(e.x - (bt.px == null ? e.x : bt.px), e.z - (bt.pz == null ? e.z : bt.pz)); bt.px = e.x; bt.pz = e.z; if((wx || wz) && mv < .7){ bt.stuck++; if(bt.stuck >= 2){ bt.side = Math.random() < .5 ? 1 : -1; bt.sideT = .9; } if(bt.stuck >= 5){ bt.goal = null; bt.stuck = 0; } } else bt.stuck = 0; }
+        if(bt.stuck) jump = jump || e.grounded;
+        stepEnt(e, dt, wx, wz, jump, WALK * .95, 1);
+      }
+      if(bt.say <= 0){ bt.say = 25 + Math.random() * 40; const t = BOT_SAY[Math.floor(Math.random() * BOT_SAY.length)]; say(e, t); chatMsg('say', t, e.user.name); G.botChat = [e.bi, t]; }
+      const gr = e.ground;
+      if(gr){ if(gr.kind === 'check' && gr.stage > e.stats.stage){ e.stats.stage = gr.stage; e.cp = {x:gr.cx, y:gr.maxy + .05, z:gr.cz}; updateBoard(); }
+        else if(gr.kind === 'goal'){ if(!bt.won){ bt.won = true; e.wins = (e.wins || 0) + 1; e.stats.stage = G.game.kind === 'obby' ? (G.stageMax || e.stats.stage) : e.stats.stage; updateBoard(); say(e, 'I made it!'); bt.wait = 4; setTimeout(() => { if(G && !e.dead){ const s = G.spawn || {x:0, y:3, z:0}; e.x = s.x; e.y = s.y + .5; e.z = s.z; e.vx = e.vy = e.vz = 0; e.cp = null; e.stats.stage = 0; bt.won = false; updateBoard(); } }, 4000); } }
+        else if(gr.kind === 'bounce'){ e.vy = JUMP * 2.15; e.grounded = false; e.ground = null; } else if(gr.kind === 'speed') e.boost = 1.8; }
+      if(G.game.kind === 'tower'){ const h = Math.max(0, Math.floor(e.y)); if(h > e.stats.height){ e.stats.height = h; updateBoard(); } }
+      if(e.y < G.lavaY){ killEnt(e, null, 'lava'); }
+      else if(e.ff <= 0){ if(G.killers.some(k => killHit(k, e)) || G.spinners.some(sp => spinHit(sp, e))) killEnt(e, null, 'kill'); }
+    });
+  }
+  function botPublish(dt){
+    if(!G.botOn || !G.net || G.state !== 'play') return; G.botPubT += dt; if(G.botPubT < .1) return; G.botPubT = 0;
+    const l = G.bots.map(e => [e.bi, r1(e.x), r1(e.y), r1(e.z), r2(e.face), e.dead ? 1 : 0, e.grounded ? 0 : 1, e.emote || null, e.stats.stage | 0, e.stats.coins | 0, e.stats.height | 0, e.wins | 0]);
+    const m = {l}; if(G.botChat){ m.c = G.botChat; G.botChat = null; } G.net.room.emit('bots', m).catch(() => {});
+  }
+  function botRecv(m){
+    const d = m.data || {}; if(roleOfUid(m.by) !== 'owner' || !Array.isArray(d.l)) return;
+    const seen = {};
+    d.l.slice(0, 10).forEach(a => { const i = a[0] | 0, k = 'bot:' + i; seen[k] = 1; let e = G.remotes[k];
+      if(!e){ e = mkEnt({name:botName(i), avatar:botAvatar(i)}, +a[1] || 0, +a[2] || 0, +a[3] || 0, true); e.remote = true; e.isBot = true; e.uid = null; e.peer = k; e.tx = e.x; e.ty = e.y; e.tz = e.z; e.swc = 0; e.gid = 0; e.bi = i; G.ents.push(e); G.remotes[k] = e; updateBoard(); }
+      e.tx = +a[1] || 0; e.ty = +a[2] || 0; e.tz = +a[3] || 0; e.face = +a[4] || 0; e.dead = !!a[5]; e.airR = !!a[6]; e.emote = a[7] || null; e.emT = a[7] ? 3 : 0; e.stats = {stage:a[8] | 0, coins:a[9] | 0, height:a[10] | 0}; e.wins = a[11] | 0; e.last = G.tR; e.A.group.visible = !e.dead; });
+    Object.keys(G.remotes).forEach(k => { if(G.remotes[k].isBot && !seen[k]) removeRemote(k, true); });
+    if(Array.isArray(d.c) && G.remotes['bot:' + (d.c[0] | 0)]){ const e = G.remotes['bot:' + (d.c[0] | 0)], t = String(d.c[1] || '').slice(0, 60); say(e, t); chatMsg('say', t, e.user.name); }
+    if(d.l.length) updateBoard();
+  }
+  function botPrune(){ Object.keys(G.remotes).forEach(k => { const e = G.remotes[k]; if(e.isBot && G.tR - e.last > 2.5) removeRemote(k, true); }); }
   function say(e, text){
     if(e.bubble){ e.A.group.remove(e.bubble); e.bubble = null; }
     const b = textSprite(text, {bubble:true}); b.position.y = 7; e.A.group.add(b); e.bubble = b; e.bubT = 5 + Math.min(5, text.length / 20);
@@ -2499,8 +2587,8 @@ const Engine = (function(){
     const e = mkEnt(user, pr.x || 0, pr.y || 0, pr.z || 0, true); e.remote = true; e.peer = p.peer; e.uid = p.by; e.tx = e.x; e.ty = e.y; e.tz = e.z; e.swc = pr.sw || 0; e.gid = 0;
     G.ents.push(e); G.remotes[p.peer] = e; chatMsg('info', user.name + ' joined the server.'); updateBoard(); return e;
   }
-  function removeRemote(k){
-    const e = G.remotes[k]; if(!e) return; if(e.petSp) G.scene.remove(e.petSp); if(e.emoSp) G.scene.remove(e.emoSp); G.scene.remove(e.A.group); if(e.car) G.scene.remove(e.car); const i = G.ents.indexOf(e); if(i >= 0) G.ents.splice(i, 1); delete G.remotes[k]; chatMsg('info', e.user.name + ' left the server.'); updateBoard();
+  function removeRemote(k, quiet){
+    const e = G.remotes[k]; if(!e) return; if(e.petSp) G.scene.remove(e.petSp); if(e.emoSp) G.scene.remove(e.emoSp); G.scene.remove(e.A.group); if(e.car) G.scene.remove(e.car); const i = G.ents.indexOf(e); if(i >= 0) G.ents.splice(i, 1); delete G.remotes[k]; if(!quiet) chatMsg('info', e.user.name + ' left the server.'); updateBoard();
   }
   function applyRemote(e, p){
     const pr = p.presence || {};
@@ -2520,9 +2608,9 @@ const Engine = (function(){
     const sync = () => {
       const seen = {};
       N.room.peers().forEach(p => { if(p.isMe || p.kind !== 'viewer') return; seen[p.peer] = 1; const pr = p.presence || {}; let r = G.remotes[p.peer]; if(!r && pr.av && pr.x != null) r = addRemote(p); if(r) applyRemote(r, p); });
-      Object.keys(G.remotes).forEach(k => { if(!seen[k]) removeRemote(k); });
+      Object.keys(G.remotes).forEach(k => { if(!seen[k] && !G.remotes[k].isBot) removeRemote(k); });
     };
-    G.unsubs = [N.room.onPeers(sync), N.room.on('ctf', m => { if(!m.isMe && G.ctf) ctfEvent(m.data || {}); }),
+    G.unsubs = [N.room.onPeers(sync), N.room.on('bots', m => { if(!m.isMe) botRecv(m); }), N.room.on('ctf', m => { if(!m.isMe && G.ctf) ctfEvent(m.data || {}); }),
       N.room.on('emo', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const e = G.remotes[m.peer], em = EMO_BY_ID[String((m.data || {}).id)]; if(e && em) showEmo(e, em.e); }),
       N.room.on('chat', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const d = m.data || {}, t = (typeof cleanText === 'function' ? cleanText : x => x)(String(d.t || '').slice(0, 120)); if(!t) return; const e = G.remotes[m.peer]; const nm = e ? e.user.name : ((N.nameOf && N.nameOf(m.by)) || 'Player'); chatMsg('say', t, nm); if(e) say(e, t); }),
       N.room.on('hit', m => { const d = m.data || {}; if(m.isMe || d.to !== G.myId || G.P.dead || !G.pvp) return; const from = remoteByUid(m.by); damage(G.P, Math.max(0, Math.min(30, +d.d || 0)), from, +d.dx || 0, +d.dz || 0); }),
@@ -2542,7 +2630,7 @@ const Engine = (function(){
 
   /* ---------- per-step simulation ---------- */
   function worldStep(dt){
-    const T = Date.now() / 1000; if(G.R) rStep(dt); if(G.td) tdStep(dt); if(G.lr) lrStep(dt); if(G.zm) zmStep(dt); if(G.hs) hsStep(dt); if(G.gf) golfStep(dt); if(G.ty) tyStep(dt); if(G.ctf) ctfStep(dt); if(G.co) coWorld(dt);
+    const T = Date.now() / 1000; if(G.R) rStep(dt); if(G.td) tdStep(dt); if(G.lr) lrStep(dt); if(G.zm) zmStep(dt); if(G.hs) hsStep(dt); if(G.gf) golfStep(dt); if(G.ty) tyStep(dt); if(G.ctf) ctfStep(dt); if(G.co) coWorld(dt); if(G.botOn) botStep(dt);
     G.movers.forEach(m => { const s = Math.sin(T * m.spd + m.ph) * m.amp, nx = m.bx + (m.ax === 'x' ? s : 0), ny = m.by + (m.ax === 'y' ? s : 0), nz = m.bz + (m.ax === 'z' ? s : 0); m.dx = nx - m.cx; m.dy = ny - m.cy; m.dz = nz - m.cz; m.cx = nx; m.cy = ny; m.cz = nz; m.mesh.position.set(nx, ny, nz); bounds(m); });
     G.spinners.forEach(s => { s.ang = s.w * T; s.group.rotation.y = s.ang; });
     G.vanishers.forEach(v => {
@@ -2676,7 +2764,7 @@ const Engine = (function(){
     if(G.state === 'play'){ G.acc += dt; let n = 0; while(G.acc >= STEP && n < 8){ simulate(STEP); G.acc -= STEP; n++; } if(n === 8) G.acc = 0; const s = Math.floor(G.T); if(s !== G.lastSec){ G.lastSec = s; } }
     else if(G.state === 'intro' || G.state === 'paused'){ G.acc = 0; if(G.state === 'paused') {} }
     G.mt += dt; if(G.mt > .5){ G.mt = 0; remoteMusicStep(); }
-    remoteStep(dt); netPublish(dt); G.ents.forEach(e => { refreshTag(e); animEnt(e, dt); }); if(G.R) G.R.cust.forEach(c => animEnt(c.e, dt));
+    remoteStep(dt); netPublish(dt); botPublish(dt); botPrune(); G.ents.forEach(e => { refreshTag(e); animEnt(e, dt); }); if(G.R) G.R.cust.forEach(c => animEnt(c.e, dt));
     for(let i = G.debris.length - 1; i >= 0; i--){ const d = G.debris[i]; d.vy -= 90 * dt; d.m.position.x += d.vx * dt; d.m.position.y += d.vy * dt; d.m.position.z += d.vz * dt; d.m.rotation.x += d.spin * dt; d.m.rotation.z += d.spin * .7 * dt; d.life -= dt; const sc = Math.max(.01, Math.min(1, d.life / .4)); d.m.scale.set(sc, sc, sc); if(d.life <= 0){ G.scene.remove(d.m); G.debris.splice(i, 1); } }
     if(G.coins) G.coins.forEach(c => { if(c.on) c.m.rotation.z += dt * 3; else { c.t -= dt; if(c.t <= 0){ c.on = true; c.m.visible = true; } } });
     updateCamera(dt);
@@ -2726,10 +2814,10 @@ const Engine = (function(){
   function menuBody(tab){
     const b = document.getElementById('gmBody'); if(!b) return;
     document.querySelectorAll('.gm-tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === tab));
-    if(tab === 'players') b.innerHTML = G.ents.map((e, i) => (e.inv && myLvl() < 1) ? '' : '<div class="pl"><span>' + esc(e.user.name) + (e === G.P ? ' (you)' : '') + '</span>' + (e.remote ? '<button class="tb" data-spec="' + i + '">Watch</button>' : '') + (e.remote && e.uid && myLvl() >= 1 && lvlOf(e.uid) < myLvl() ? '<button class="tb" data-mute="' + esc(e.user.name) + '" title="Mute">&#128263;</button>' + (myLvl() >= 2 ? '<button class="tb" data-ban="' + esc(e.user.name) + '" title="Ban Hammer">&#128296;</button>' : '') : '') + '</div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
+    if(tab === 'players') b.innerHTML = (isAdminMe() && G.game.kind !== 'studio' ? '<div class="pl" style="gap:6px;flex-wrap:wrap"><span><b>Bots</b> ' + (G.botOn ? '(' + G.bots.length + ' playing)' : '(off)') + '</span><button class="tb" data-botn="-1">-</button><button class="tb" data-botn="1">+</button><button class="tb" data-boton="1">' + (G.botOn ? 'Turn off' : 'Turn on') + '</button></div>' : '') + G.ents.map((e, i) => (e.inv && myLvl() < 1) ? '' : '<div class="pl"><span>' + esc(e.user.name) + (e.hb || e.isBot ? ' [BOT]' : '') + (e === G.P ? ' (you)' : '') + '</span>' + (e.remote || e.hb ? '<button class="tb" data-spec="' + i + '">Watch</button>' : '') + (e.remote && e.uid && myLvl() >= 1 && lvlOf(e.uid) < myLvl() ? '<button class="tb" data-mute="' + esc(e.user.name) + '" title="Mute">&#128263;</button>' + (myLvl() >= 2 ? '<button class="tb" data-ban="' + esc(e.user.name) + '" title="Ban Hammer">&#128296;</button>' : '') : '') + '</div>').join('') + (G.net ? '' : '<p style="margin-top:8px;color:#aab">Live multiplayer is not connected, so you are playing alone.</p>');
     else if(tab === 'settings') b.innerHTML = '<label class="set">Graphics <select id="setQual"><option value="low"' + (G.qual === 'low' ? ' selected' : '') + '>Low (fastest)</option><option value="med"' + (G.qual === 'med' ? ' selected' : '') + '>Medium</option><option value="high"' + (G.qual === 'high' ? ' selected' : '') + '>High (best looking)</option></select></label><label class="set">Cursor <select id="setCur"><option value="white"' + (getCursorMode() === 'white' ? ' selected' : '') + '>White arrow</option><option value="black"' + (getCursorMode() === 'black' ? ' selected' : '') + '>Black arrow</option><option value="system"' + (getCursorMode() === 'system' ? ' selected' : '') + '>Default</option></select></label><label class="set"><input type="checkbox" id="setSound"' + (G.sound ? ' checked' : '') + '> Sound effects</label><label class="set">Camera zoom <input type="range" id="setZoom" min="6" max="' + (G.game.kind === 'studio' ? 120 : 60) + '" value="' + Math.round(G.zoom) + '"></label>';
     else b.innerHTML = '<p><b>Move</b>: W A S D or arrow keys</p><p><b>Jump</b>: Space</p><p><b>Look</b>: drag the mouse</p><p><b>Zoom</b>: scroll wheel, or I and O</p><p><b>Tools</b>: number keys 1-9, click to use</p><p><b>Chat</b>: press /<br><b>Shift Lock</b>: press Shift (character follows the camera)<br><b>Screenshot</b>: F2 or the camera button<br><b>Emotes</b>: type /e dance, wave, cheer, bounce, point, salute or shrug</p>' + (G.game.kind === 'studio' ? '<p><b>Build</b>: click to place, E for delete mode, R to rotate</p>' : '') + (G.R ? '<p><b>Restaurant</b>: E or click to cook at a station or serve at the counter. Q drops your tray.</p>' : '');
-    b.onclick = ev => { const mt = ev.target.closest('[data-mute]'); if(mt){ ACTIONS.muteByName(mt.dataset.mute); return; } const hm = ev.target.closest('[data-ban]'); if(hm){ ACTIONS.hammer({dataset:{n:hm.dataset.ban}}); return; } const w = ev.target.closest('[data-spec]'); if(w){ const t = G.ents[+w.dataset.spec]; resume(); specStart(t); } };
+    b.onclick = ev => { const bo = ev.target.closest('[data-boton]'); if(bo){ if(G.botOn) botsOff(); else botsOn(G.botN || 5); menuBody('players'); return; } const bn = ev.target.closest('[data-botn]'); if(bn){ G.botN = Math.max(1, Math.min(10, (G.botN || 5) + +bn.dataset.botn)); if(G.botOn) botsOn(G.botN); menuBody('players'); return; } const mt = ev.target.closest('[data-mute]'); if(mt){ ACTIONS.muteByName(mt.dataset.mute); return; } const hm = ev.target.closest('[data-ban]'); if(hm){ ACTIONS.hammer({dataset:{n:hm.dataset.ban}}); return; } const w = ev.target.closest('[data-spec]'); if(w){ const t = G.ents[+w.dataset.spec]; resume(); specStart(t); } };
     const cs = document.getElementById('setCur'); if(cs) cs.onchange = () => setCursorMode(cs.value);
     const qs = document.getElementById('setQual'); if(qs) qs.onchange = () => setQual(qs.value);
     const s = document.getElementById('setSound'); if(s) s.onchange = () => G.sound = s.checked;
@@ -2907,7 +2995,7 @@ const Engine = (function(){
     const cb = document.getElementById('gChatBtn'), gch = document.getElementById('gChat'); if(cb && gch){ cb.onclick = () => { if(isTouchDev()){ const on = gch.classList.toggle('open'); if(on) document.getElementById('gChatIn').focus(); } else { const h = gch.classList.toggle('hide'); if(!h) document.getElementById('gChatIn').focus(); } }; const ci = document.getElementById('gChatIn'); ci.addEventListener('blur', () => setTimeout(() => gch.classList.remove('open'), 150)); }
     const jb = document.getElementById('gJump'); jb.addEventListener('pointerdown', e => { e.preventDefault(); G.jumpBtn = true; }); ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => jb.addEventListener(n, () => { if(G) G.jumpBtn = false; }));
   }
-  window.__bbDebug = () => G;
+  window.__bbDebug = () => G; window.__bbHop = (e, g) => botHop(e, g); window.__bbBots = (on, n) => { if(G && isAdminMe()){ if(on) botsOn(n || 4); else botsOff(); } };
   return {start, stop, active, pause, uiTick};
 })();
 
@@ -3191,6 +3279,7 @@ function siteBarHtml(){
   if(d.mode === 'down') return isAdminMe() ? '<div class="sitebar red"><b>Maintenance mode is ON.</b> Players are locked out and see: "' + esc(d.msg || '') + '". You can still use the site. <a data-act="siteSet" data-m="off" style="color:#fff;text-decoration:underline">Turn it off</a></div>' : '';
   return '<div class="sitebar"><b>Notice:</b> ' + esc(d.msg || '') + '</div>';
 }
+const clockTxt = ms => { const t = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
 const lockOf = id => LOCKS.find(l => l.uid === id && (!l.until || l.until > Date.now()));
 const leftTxt = ms => { const m = Math.ceil(ms / 60000); return m >= 120 ? Math.ceil(m / 60) + ' hours' : m + (m === 1 ? ' minute' : ' minutes'); };
 function applySite(){
@@ -3201,13 +3290,14 @@ function applySite(){
     ov.innerHTML = '<img src="/word.png" alt="Retro Blox" style="height:34px;width:auto;filter:brightness(0) invert(1)"><h1>' + (lk && !all ? (lk.forever ? 'Retro Blox is closed for you' : 'Retro Blox is closed for you right now') : 'We will be right back') + '</h1><p></p><p class="siteLeft" style="font-size:15px;opacity:.85"></p><a data-act="logout" class="btn neutral small">Log Out</a>';
     const kick = !!lk;
     if(kick){ ov.querySelector('p').textContent = ''; ov.querySelector('.siteLeft').textContent = ''; ov.querySelector('h1').textContent = 'Retro Blox is closed for you'; }
-    else { ov.querySelector('p').textContent = msg || 'Retro Blox is down for maintenance right now. Please check back soon.'; ov.querySelector('.siteLeft').textContent = until ? 'Reopens in about ' + leftTxt(until - Date.now()) + '.' : ''; }
+    else { ov.querySelector('p').textContent = msg || 'Retro Blox is down for maintenance right now. Please check back soon.'; ov.dataset.until = until || ''; ov.querySelector('.siteLeft').textContent = until ? 'Back in ' + clockTxt(until - Date.now()) : ''; }
     try{ if(Engine.active()) Engine.stop(); }catch(e){}
     if(kick && /Electron/i.test(navigator.userAgent) && !applySite.closing){ applySite.closing = true; ov.style.visibility = 'hidden'; setTimeout(() => { try{ window.close(); }catch(e){} try{ if(window.RB_QUIT) window.RB_QUIT(); }catch(e){} }, 400); }
   } else { applySite.closing = false; if(ov) ov.remove(); }
   if(d && d.mode === 'banner' && d.t && applySite.last !== d.t){ applySite.last = d.t; if(U) toast('Notice: ' + (d.msg || '')); }
   try{ if(!Engine.active() && U) queueRender(); }catch(e){}
 }
+setInterval(() => { try{ const ov = document.getElementById('siteDown'); if(ov && ov.dataset.until){ const left = +ov.dataset.until - Date.now(); if(left <= 0) applySite(); else { const el = ov.querySelector('.siteLeft'); if(el) el.textContent = 'Back in ' + clockTxt(left); } } }catch(e){} }, 1000);
 setInterval(() => { try{ if(U && (document.getElementById('siteDown') || (SITEDOC && SITEDOC.until) || LOCKS.some(l => l.until))) applySite(); }catch(e){} }, 20000);
 const isGuestMe = () => !!(window.__ME && window.__ME.guest);
 function guestBox(){ return isGuestMe() ? '<div class="box" style="border-left:4px solid #e0a000"><b>You are playing as a guest.</b> <span class="muted">Save your account so you do not lose your stuff, and so you can log in on other devices.</span> <a class="btn green small" data-act="saveGuest" style="margin-left:6px">Save My Account</a></div>' : ''; }
@@ -3781,7 +3871,7 @@ function rolesBox(){
 }
 function closeBox(){
   const ls = LOCKS.filter(l => !l.until || l.until > Date.now()).sort((a, b) => b.t - a.t), all = !!(SITEDOC && SITEDOC.mode === 'down' && !(SITEDOC.until && SITEDOC.until < Date.now()));
-  return '<div class="box"><div class="sec-h"><span>Close the app</span>' + (all ? '<span style="color:#e2231a;font-weight:700">CLOSED FOR EVERYONE</span>' : '') + '</div><p class="muted" style="margin:0 0 8px">Close Retro Blox for the players you name' + (isAdminMe() ? ', or leave the box empty to close it for everyone' : '') + '. Closed players see your message and are kicked out of games. You can always get in.</p><label class="f" for="clNames" style="margin-top:0">Usernames (separate with commas' + (isAdminMe() ? ', or leave empty for everyone' : '') + ')</label><input id="clNames" maxlength="300" placeholder="Player_1, Player_2"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"><div><label class="f" for="clLen">For how long?</label><select id="clLen"><option value="0">Until I reopen it</option><option value="30">30 minutes</option><option value="120">2 hours</option><option value="1440">1 day</option><option value="10080">7 days</option></select></div></div><label class="set" style="display:flex;gap:8px;align-items:center;margin:10px 0 0"><input type="checkbox" id="clForever"> Never let their app open again (closes it for good, also on their device)</label><label class="f" for="clMsg">Message they will see</label><input id="clMsg" maxlength="200" placeholder="Retro Blox is closed for an update. Back soon!"><p style="margin:10px 0 0"><a class="btn red small" data-act="adminClose">Close</a>' + (all && isAdminMe() ? ' <a class="btn green small" data-act="adminReopenAll">Reopen for everyone</a>' : '') + '</p>' + (ls.length ? '<div style="margin-top:12px"><b>Closed players (' + ls.length + ')</b>' + ls.map(l => '<div class="lrow"><div class="grow"><b>' + esc(nameOf(l.uid) || l.name) + '</b> <span class="muted">' + (l.forever ? '<b style="color:#e2231a">closed for good</b>' : l.until ? 'reopens in ' + leftTxt(l.until - Date.now()) : 'until you reopen') + '</span></div><a class="btn small" data-act="adminReopenUser" data-n="' + esc(l.uid) + '">Reopen</a></div>').join('') + '</div>' : '') + '</div>';
+  return '<div class="box"><div class="sec-h"><span>Close the app</span>' + (all ? '<span style="color:#e2231a;font-weight:700">CLOSED FOR EVERYONE</span>' : '') + '</div><p class="muted" style="margin:0 0 8px">Close Retro Blox for the players you name' + (isAdminMe() ? ', or leave the box empty to close it for everyone' : '') + '. Closed players see your message and are kicked out of games. You can always get in.</p><label class="f" for="clNames" style="margin-top:0">Usernames (separate with commas' + (isAdminMe() ? ', or leave empty for everyone' : '') + ')</label><input id="clNames" maxlength="300" placeholder="Player_1, Player_2"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"><div><label class="f" for="clLen">For how long?</label><select id="clLen"><option value="0">Until I reopen it</option><option value="30">30 minutes</option><option value="120">2 hours</option><option value="1440">1 day</option><option value="10080">7 days</option></select></div><div><label class="f" for="clMin">Or type minutes (timer)</label><input id="clMin" type="number" min="1" max="100000" placeholder="e.g. 15"></div></div><label class="set" style="display:flex;gap:8px;align-items:center;margin:10px 0 0"><input type="checkbox" id="clForever"> Never let their app open again (closes it for good, also on their device)</label><label class="f" for="clMsg">Message they will see</label><input id="clMsg" maxlength="200" placeholder="Retro Blox is closed for an update. Back soon!"><p style="margin:10px 0 0"><a class="btn red small" data-act="adminClose">Close</a>' + (all && isAdminMe() ? ' <a class="btn green small" data-act="adminReopenAll">Reopen for everyone</a>' : '') + '</p>' + (ls.length ? '<div style="margin-top:12px"><b>Closed players (' + ls.length + ')</b>' + ls.map(l => '<div class="lrow"><div class="grow"><b>' + esc(nameOf(l.uid) || l.name) + '</b> <span class="muted">' + (l.forever ? '<b style="color:#e2231a">closed for good</b>' : l.until ? 'reopens in ' + leftTxt(l.until - Date.now()) : 'until you reopen') + '</span></div><a class="btn small" data-act="adminReopenUser" data-n="' + esc(l.uid) + '">Reopen</a></div>').join('') + '</div>' : '') + '</div>';
 }
 function resetBox(){ return '<div class="box"><div class="sec-h"><span>Player passwords</span></div><p class="muted" style="margin:0 0 8px">Passwords are scrambled, so nobody can read them. If a player forgot theirs, reset it here and send them the temporary one. They must pick a new password the first time they log in.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"><div><label class="f" for="rsName" style="margin-top:0">Username</label><input id="rsName" maxlength="20" placeholder="Username"></div></div><p style="margin:10px 0 0"><a class="btn green small" data-act="adminReset">Reset password</a> <a class="btn small" data-act="adminLogoutAll">Log out all devices</a></p></div>'; }
 async function adminPost(url, name){ const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:name})}); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Something went wrong.'); return j; }
@@ -4002,7 +4092,7 @@ const ACTIONS = {
   adminReset:() => { if(myLvl() < 3) return; const n = ($('#rsName').value || '').trim(); if(!n) return toast('Type a username first.', true);
     confirmBox('Reset password', 'Reset the password for <b>' + esc(n) + '</b>? They will be logged out on every device.', 'Reset', () => { adminPost('/api/admin/reset', n).then(j => { $('#rsName').value = ''; modal('Temporary password', '<p style="margin-top:0">Send this to <b>' + esc(j.name) + '</b>. It is shown only once. They will choose a new password when they log in.</p><div style="font-size:24px;font-weight:700;letter-spacing:2px;padding:10px;background:#f6f7f8;border:1px solid #ccc;text-align:center;user-select:all">' + esc(j.temp) + '</div>', [{label:'Done', cls:'green'}]); }).catch(e => toast(e.message, true)); }, 'green'); },
   adminLogoutAll:() => { if(myLvl() < 3) return; const n = ($('#rsName').value || '').trim(); if(!n) return toast('Type a username first.', true); adminPost('/api/admin/logoutall', n).then(j => toast(j.name + ' was logged out everywhere.')).catch(e => toast(e.message, true)); },
-  adminClose:() => { if(myLvl() < 3) return; const names = ($('#clNames').value || '').split(/[\s,;]+/).filter(Boolean), forever = !!($('#clForever') && $('#clForever').checked), min = forever ? 0 : (+$('#clLen').value || 0), msg = ($('#clMsg').value || '').trim().slice(0, 200), until = min ? Date.now() + min * 60000 : 0;
+  adminClose:() => { if(myLvl() < 3) return; const names = ($('#clNames').value || '').split(/[\s,;]+/).filter(Boolean), forever = !!($('#clForever') && $('#clForever').checked), min = forever ? 0 : (Math.max(0, Math.min(100000, +($('#clMin') && $('#clMin').value) || 0)) || +$('#clLen').value || 0), msg = ($('#clMsg').value || '').trim().slice(0, 200), until = min ? Date.now() + min * 60000 : 0;
     if(!names.length && !isAdminMe()) return toast('Type at least one username.', true);
     if(!names.length){ confirmBox('Close for everyone', 'Close Retro Blox for <b>every player</b>? They will be kicked out of games and see your message.', 'Close it', () => { DB.doc('site/status').set({mode:'down', msg, until, t:Date.now()}).then(() => toast('Closed for everyone.')).catch(() => toast('Could not close.', true)); }, 'red'); return; }
     const ids = [], bad = []; names.forEach(n => { const id = Object.keys(P).find(k => nameOf(k).toLowerCase() === n.toLowerCase()); if(!id) bad.push(n); else if(lvlOf(id) >= myLvl()) bad.push(nameOf(id) + ' (same or higher rank)'); else if(id !== MYID && ids.indexOf(id) < 0) ids.push(id); });

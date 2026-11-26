@@ -532,7 +532,7 @@ html.dark .sec-h{color:var(--ink)}
 <script>window.__ME=/*ME*/;</script>
 <script src="/shim.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>(function(){var d='';try{d=localStorage.getItem('rbdev')||'';if(!/^[a-z0-9]{16,40}$/.test(d)){d=Array.prototype.map.call(crypto.getRandomValues(new Uint8Array(12)),function(x){return('0'+x.toString(16)).slice(-2)}).join('');localStorage.setItem('rbdev',d)}}catch(e){}window.RB_DEV=d;var of=window.fetch;window.fetch=function(u,o){o=o||{};if(d&&typeof u==='string'&&u.charAt(0)==='/'){o.headers=Object.assign({},o.headers||{},{'x-dev':d})}return of.call(this,u,o)}})();
+<script>(function(){var d='';try{d=localStorage.getItem('rbdev')||'';if(!/^[a-z0-9]{16,40}$/.test(d)){d=Array.prototype.map.call(crypto.getRandomValues(new Uint8Array(12)),function(x){return('0'+x.toString(16)).slice(-2)}).join('');localStorage.setItem('rbdev',d)}}catch(e){}window.RB_DEV=d;try{if(/[?&]safe=1/.test(location.search))localStorage.setItem('rbsafe','1');if(/[?&]safe=0/.test(location.search))localStorage.removeItem('rbsafe')}catch(e){}var of=window.fetch;window.fetch=function(u,o){o=o||{};if(d&&typeof u==='string'&&u.charAt(0)==='/'){o.headers=Object.assign({},o.headers||{},{'x-dev':d})}return of.call(this,u,o)}})();
 const LOGO_SVG = "<img class=\"wm\" src=\"/word.png\" alt=\"Retro Blox\">";
 'use strict';
 /* ===================== helpers ===================== */
@@ -804,6 +804,7 @@ function thumbInit(){
   if(_tr !== null) return _tr;
   try{
     if(!window.THREE) throw 0;
+    try{ if(localStorage.getItem('rbsafe') === '1') throw 0; }catch(e){ if(e === 0) throw 0; }
     const cv = document.createElement('canvas');
     _tr = new THREE.WebGLRenderer({canvas:cv, antialias:true, alpha:true, preserveDrawingBuffer:true});
     _tr.setSize(260, 260, false); _tr.setClearColor(0x000000, 0);
@@ -3270,6 +3271,10 @@ function reportErr(m){ if(_errN++ > 8) return; try{ fetch('/api/clienterr', {met
 window.addEventListener('error', e => reportErr('onerror ' + (e.message || '') + ' ' + (e.filename || '') + ':' + (e.lineno || '') + ':' + (e.colno || '')));
 window.addEventListener('error', e => { const t = e.target; if(t && t !== window && (t.src || t.href)) reportErr('resource failed ' + (t.src || t.href)); }, true);
 function diag(tag){ try{ const a = document.getElementById('app'); reportErr('DIAG ' + tag + ' app=' + (a ? a.innerHTML.length : -1) + ' engine=' + Engine.active() + ' hash=' + location.hash + ' U=' + !!U + ' wrap=' + (document.getElementById('wrap') || {style:{}}).style.display + ' three=' + (typeof THREE) + ' body=' + document.body.className); }catch(e){ reportErr('DIAG fail ' + e); } }
+function diag2(){ try{ const w = document.getElementById('wrap'), r = w ? w.getBoundingClientRect() : {width:0, height:0}, el = document.elementFromPoint(innerWidth / 2, innerHeight / 2); let gl = 'n/a'; try{ const c = document.createElement('canvas'), g = c.getContext('webgl'); if(g){ const x = g.getExtension('WEBGL_debug_renderer_info'); gl = x ? String(g.getParameter(x.UNMASKED_RENDERER_WEBGL)).slice(0, 60) : 'ok'; } else gl = 'none'; }catch(e){ gl = 'err'; }
+  let safe = ''; try{ safe = localStorage.getItem('rbsafe') || ''; }catch(e){}
+  reportErr('DIAG2 vis=' + document.visibilityState + ' size=' + innerWidth + 'x' + innerHeight + ' dpr=' + devicePixelRatio + ' wrap=' + Math.round(r.width) + 'x' + Math.round(r.height) + ' at=' + (el ? el.tagName + '#' + el.id + '.' + String(el.className).slice(0, 30) : 'null') + ' bg=' + getComputedStyle(document.body).backgroundColor + ' gl=' + gl + ' tr=' + String(_tr) + ' safe=' + safe + ' imgs=' + document.images.length + ' broken=' + [].filter.call(document.images, i => i.complete && !i.naturalWidth).length + ' text=' + ((document.getElementById('app') || {innerText:''}).innerText || '').slice(0, 50).replace(/\s+/g, ' ')); }catch(e){ reportErr('DIAG2 fail ' + e); } }
+setTimeout(diag2, 3000);
 setTimeout(() => diag('1.5s'), 1500); setTimeout(() => diag('5s'), 5000); setTimeout(() => diag('12s'), 12000);
 window.addEventListener('unhandledrejection', e => reportErr('rejection ' + ((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
 window.addEventListener('hashchange', render);

@@ -169,6 +169,7 @@ function allowWrite(uid, p, op, data, old){
 }
 function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'devs' || coll === 'blockdev') return false;
+  if(coll === 'stafflog') return lvl(uid) >= 3;
   if(coll === 'gifts') return d.to === '*' || d.to === uid || d.from === uid || isAdmin(uid);
   if(coll === 'messages') return d.from === uid || d.to === uid;
   if(coll === 'trades' || coll === 'requests') return d.from === uid || d.to === uid;
@@ -200,6 +201,13 @@ function pushSub(sub){
   send(sub.conn, {t:'snap', sid:sub.sid, docs, removed, init});
 }
 function notifyColl(coll){ subs.forEach(s => { if(s.coll === coll) pushSub(s); }); }
+const LOGCOLL = {bans:'ban', mutes:'mute', locks:'close', roles:'rank', notices:'notice', reports:'report', site:'site', gifts:'gift'};
+function logStaff(uid, p, op, d){
+  try{ const col = p.split('/')[0]; if(!LOGCOLL[col] || lvl(uid) < 1) return; const x = d || {}; const id = Date.now().toString(36) + crypto.randomBytes(2).toString('hex');
+    S.docs['stafflog/' + id] = {d:{by:uid, act:LOGCOLL[col], op, target:p.split('/')[1] || '', info:String(x.reason || x.msg || x.m || x.role || x.mode || x.note || '').slice(0, 80), t:Date.now()}, v:1};
+    const keys = Object.keys(S.docs).filter(k => k.startsWith('stafflog/')); if(keys.length > 400){ keys.sort((a, b) => S.docs[a].d.t - S.docs[b].d.t).slice(0, keys.length - 400).forEach(k => delete S.docs[k]); }
+    notifyColl('stafflog'); }catch(er){}
+}
 function writeDoc(uid, op, p, data){
   if(!validPath(p)) return {code:'invalid_argument'};
   const e = S.docs[p], old = e ? e.d : null;
@@ -216,6 +224,7 @@ function writeDoc(uid, op, p, data){
     if(p.startsWith('bans/')) conns.forEach(c => { if(c.uid === p.slice(5)) try{ c.socket.destroy(); }catch(e){} });
     if(p.startsWith('reports/')) console.log('REPORT', JSON.stringify(next));
   }
+  logStaff(uid, p, op, op === 'delete' ? old : S.docs[p] && S.docs[p].d);
   markDirty(); const s = segs(p); notifyColl(s.slice(0, -1).join('/')); return {ok:true};
 }
 

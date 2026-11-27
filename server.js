@@ -160,7 +160,10 @@ function allowWrite(uid, p, op, data, old){
       if(!old) return mine(data.owner) && data.eds.includes(uid);
       if(data.owner !== old.owner) return false; if(old.owner === uid) return true; return old.eds.includes(uid) && JSON.stringify(data.eds) === JSON.stringify(old.eds); }
     case 'pvers': return op === 'delete' ? !!old && old.owner === uid : data && mine(data.owner) && id.startsWith(uid + '_') && Array.isArray(data.v) && data.v.length <= 10 && data.v.every(x => x && typeof x.b === 'string' && x.b.length < 60000 && Number.isFinite(x.t) && Number.isInteger(x.n));
-    case 'games': return op === 'delete' ? !!old && (old.owner === uid || isAdmin(uid)) : data && validEnv(data.env) && smallImg(data.icon) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
+    case 'games': { if(op === 'delete') return !!old && (old.owner === uid || isAdmin(uid)); if(!(data && validEnv(data.env) && smallImg(data.icon))) return false;
+      if(old){ if(lvl(uid) >= 2 && data.owner === old.owner) return true; return old.owner === uid && data.owner === uid && data.approved === old.approved && data.declined === old.declined; }
+      return mine(data.owner) && (data.approved === false || lvl(uid) >= 2) && !data.declined; }
+    case 'payouts': { if(op === 'delete') return !!old && old.to === uid; if(old) return old.to === uid && data.claimed === true && data.from === old.from && data.to === old.to && data.amt === old.amt && data.gid === old.gid; return data && mine(data.from) && typeof data.to === 'string' && data.to !== uid && typeof data.gid === 'string' && data.amt >= 1 && data.amt <= 3 && !data.claimed && id === data.gid + '_' + uid + '_' + String(data.day || '').slice(0, 12); }
     case 'items': return op === 'delete' ? !!old && (old.creator === uid || isAdmin(uid)) : data && validItem(data) && (old ? old.creator === uid && data.creator === uid : mine(data.creator));
     case 'ads': return op === 'delete' ? !!old && (old.owner === uid || isAdmin(uid)) : data && smallImg(data.img) && (old ? old.owner === uid && data.owner === uid : mine(data.owner));
     case 'sales': return op === 'delete' ? !!old && old.seller === uid : old ? old.seller === uid && data && data.seller === old.seller && data.buyer === old.buyer && data.amt === old.amt && data.item === old.item : data && mine(data.buyer) && typeof data.seller === 'string' && Number.isInteger(data.amt) && data.amt >= 0 && data.amt <= 2000;
@@ -170,6 +173,8 @@ function allowWrite(uid, p, op, data, old){
 function visible(uid, coll, id, d){ // per-doc read privacy
   if(coll === 'devs' || coll === 'blockdev') return false;
   if(coll === 'stafflog') return lvl(uid) >= 3;
+  if(coll === 'games') return d.approved !== false || d.owner === uid || lvl(uid) >= 2;
+  if(coll === 'payouts') return d.to === uid || d.from === uid;
   if(coll === 'gifts') return d.to === '*' || d.to === uid || d.from === uid || isAdmin(uid);
   if(coll === 'messages') return d.from === uid || d.to === uid;
   if(coll === 'trades' || coll === 'requests') return d.from === uid || d.to === uid;

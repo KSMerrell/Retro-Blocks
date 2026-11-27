@@ -1180,7 +1180,11 @@ const Engine = (function(){
     {n:'Cheerful Town', bpm:104, root:67, lt:'triangle', lv:.08,
      lead:['0 . 4 . 7 . 4 . 7 . 9 . 7 . 4 .', '5 . 9 . 12 . 9 . 12 . 14 . 12 . 9 .', '7 . 11 . 14 . 11 . 14 . 16 . 14 . 11 .', '12 . 11 . 9 . 7 . 4 . 7 . 0 . . .'],
      roots:[0, 5, 7, 0], chord:[0, 4, 7], cp:[4, 12], bass:'r . . . 5 . . . r . . . 5 . . .', k:'x.......x.......', s:'....x.......x...', h:'x...x...x...x...'}
+,
+    {n:'Crossroads Times', file:'/music/crossroads-times.mp3'}, {n:'Noob Alert', file:'/music/noob-alert.mp3'}, {n:'Training Day', file:'/music/training-day.mp3'},
+    {n:'Metal Bricks', file:'/music/metal-bricks.mp3'}, {n:'ROBLOX\u2019s Last Stand', file:'/music/robloxs-last-stand.mp3'}
   ];
+  const DEFAULT_BGM = {obby:6, tower:6, lavarise:6, tiledrop:5, maze:8, coins:4, town:4, tycoon:4, restaurant:4, coaster:4, golf:4, drive:7, zombie:7, ctf:7, arena:7, hideseek:5};
   let M = null, noiseBuf = null;
   const mfreq = m => 440 * Math.pow(2, (m - 69) / 12);
   function mv(f, t0, dur, type, vol, cut){
@@ -1202,18 +1206,23 @@ const Engine = (function(){
     if(T.k[s] === 'x') mdrum('k', t0); if(T.s[s] === 'x') mdrum('s', t0); if(T.h[s] === 'x') mdrum('h', t0);
   }
   function musicSet(idx, vol){
-    if(M){ const old = M; clearInterval(old.timer); try{ old.out.gain.setTargetAtTime(.0001, actx.currentTime, .08); setTimeout(() => { try{ old.out.disconnect(); }catch(e){} }, 600); }catch(e){} M = null; }
+    if(M){ const old = M; clearInterval(old.timer); try{ old.out.gain.setTargetAtTime(.0001, actx.currentTime, .08); setTimeout(() => { try{ old.out.disconnect(); if(old.audio){ old.audio.pause(); old.audio.removeAttribute('src'); old.audio.load(); } }catch(e){} }, 600); }catch(e){} M = null; }
     if(idx < 0 || !actx) return;
-    const T = TRACKS[idx], out = actx.createGain(); out.gain.value = vol == null ? .9 : vol; out.connect(actx.destination);
+    const T = TRACKS[idx], out = actx.createGain(), k = T.file ? .5 : 1; out.gain.value = (vol == null ? .9 : vol) * k; out.connect(actx.destination);
+    if(T.file){
+      const a = new Audio(T.file); a.loop = true; a.preload = 'auto'; let ok = true; try{ actx.createMediaElementSource(a).connect(out); }catch(er){ ok = false; a.volume = Math.min(1, (vol == null ? .9 : vol) * k); }
+      M = {idx, out, audio:a, k, timer:setInterval(() => { if(!G || !G.sound){ if(!a.paused) a.pause(); return; } if(a.paused){ if(actx.state === 'suspended') actx.resume(); const p = a.play(); if(p && p.catch) p.catch(() => {}); } }, 300)};
+      return;
+    }
     const sd = 60 / T.bpm / 4; let step = 0, next = actx.currentTime + .08;
-    M = {idx, out, timer:setInterval(() => { if(!G || !G.sound){ return; } if(actx.state === 'suspended') actx.resume(); while(next < actx.currentTime + .3){ mstep(T, step, next, sd); next += sd; step++; } }, 60)};
+    M = {idx, out, k, timer:setInterval(() => { if(!G || !G.sound){ return; } if(actx.state === 'suspended') actx.resume(); while(next < actx.currentTime + .3){ mstep(T, step, next, sd); next += sd; step++; } }, 60)};
   }
   function musicToggle(on){ if(!on) musicSet(-1); }
-  function ownMusic(idx){ G.music = idx; G.P.mu = idx; musicSet(idx, .9); }
+  function ownMusic(idx){ G.music = idx; G.P.mu = idx; musicSet(idx >= 0 ? idx : (G.zoneIdx >= 0 ? G.zoneIdx : G.bgm), .9); }
   function remoteMusicStep(){
     if(!G || G.customAudio || G.music >= 0 || G.zoneIdx >= 0 || G.bgm >= 0){ return; }
     let best = null, bd = 70; Object.keys(G.remotes).forEach(k => { const e = G.remotes[k]; if(e.mu == null || e.mu < 0) return; const d = Math.hypot(e.x - G.P.x, e.z - G.P.z); if(d < bd){ bd = d; best = e; } });
-    if(best){ const v = .12 + .6 * (1 - bd / 70); if(M && M.idx === best.mu){ M.out.gain.setTargetAtTime(v, actx.currentTime, .15); } else musicSet(best.mu, v); G.heard = best.mu; }
+    if(best){ const v = .12 + .6 * (1 - bd / 70); if(M && M.idx === best.mu){ M.out.gain.setTargetAtTime(v * (M.k || 1), actx.currentTime, .15); } else musicSet(best.mu, v); G.heard = best.mu; }
     else if(M){ musicSet(-1); G.heard = -1; }
   }
 
@@ -3139,6 +3148,7 @@ const Engine = (function(){
     if(G.pads && opts.resume > 0){ const pd = G.pads.find(q => q.n === opts.resume); if(pd){ G.checkpoint = {x:pd.x, y:pd.y + .05, z:pd.z}; G.P.x = pd.x; G.P.y = pd.y + .05; G.P.z = pd.z; G.P.stats.stage = pd.n; G.resumed = pd.n; chatMsg('sys', 'Welcome back! You continue from stage ' + pd.n + '.'); } }
     G.P.face = G.game.kind === 'town' || G.game.kind === 'studio' || G.pvp ? Math.PI : Math.PI;
     G.yaw = 0; G.bots = []; G.remotes = {}; buildTools(); resize(); updateBoard(); updateHP(); if(G.R) renderTray(); if(game.kind === 'studio'){ root.classList.add('studio'); studioHudEvents(); P_hide(); sUI(); } else root.classList.remove('studio');
+    if(G.bgm < 0 && game.kind !== 'studio' && !game.custom && !(opts.place)) G.bgm = DEFAULT_BGM[game.kind] != null ? DEFAULT_BGM[game.kind] : 5;
     emoPanel(); setPet(G.P, opts.user.petEm); chatMsg('info', 'Welcome to ' + game.name + '!'); if(G.opts.serverName) chatMsg('info', 'You joined ' + G.opts.serverName + '.');
     netStart();
     // intro -> play
@@ -4313,6 +4323,7 @@ async function playGame(gid, opt){
   if(s.cancel){ if(nr) nr.leave().catch(() => {}); return; }
   U.stats.visits++; U.visits[gid] = (U.visits[gid] || 0) + 1; U.recent = [gid].concat(U.recent.filter(x => x !== gid)).slice(0, 6); persist();
   const leave = () => { if(nr) nr.leave().catch(() => {}); setLobby(null); };
+  musGame(true);
   const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar)), owned:U.owned.slice(), petEm:(PET_BY_ID[U.pet] || {}).id || '', emotes:(U.emotes || []).slice()}, seed:hashStr(roomName), serverName:solo ? '' : (typeof server === 'string' ? 'Private server' : 'Server ' + server), place:place ? {bricks:place.bricks, env:place.env} : null,
     net:nr ? {room:nr, myId:MYID, nameOf, isBlocked} : null,
     resume:(g.gen && g.gen.milestone && U.prog && U.prog[gid]) || 0, tycoon:g.kind === 'tycoon' ? (U.tyc || null) : null,
@@ -4320,9 +4331,9 @@ async function playGame(gid, opt){
     onEvent:(name, v) => { if(name === 'tick') addSeasonXp(5); if(name === 'check'){ U.prog = U.prog || {}; if(v > (U.prog[gid] || 0)) U.prog[gid] = v; } else if(name === 'milestone'){ U.msBest = U.msBest || {}; if(v > (U.msBest[gid] || 0)){ U.msBest[gid] = v; U.tokens += 10; U.stats.earned = (U.stats.earned || 0) + 10; toast('Stage ' + v + ' reached: +10 tokens'); } } else if(name === 'win'){ addSeasonXp(30); if(U.prog) U.prog[gid] = 0; if(!g.custom){ U.stats.wins++; giveBadge(g.badge ? g.badge : g.kind === 'tower' ? 'tower' : g.id === 14 ? 'mega' : g.id === 7 ? 'candy' : g.id === 8 ? 'inferno' : g.kind === 'drive' ? 'racer' : 'obby'); } if(!U.best[gid] || v < U.best[gid]) U.best[gid] = v; if(lbType(g) === 'time') submitScore(g, 'time', v); } else if(name === 'tycoon'){ if(g.kind === 'tycoon' && v && typeof v === 'object'){ U.tyc = v; } } else if(name === 'rebirth'){ giveBadge('tycoon'); } else if(name === 'capture'){ giveBadge('ctf'); } else if(name === 'wave'){ if(v >= 5) giveBadge('zombie'); } else if(name === 'hidewin'){ giveBadge('seeker'); } else if(name === 'lavawin'){ giveBadge('lavarise'); } else if(name === 'ride'){ if(v >= 3) giveBadge('rider'); } else if(name === 'ko'){ U.stats.kills++; } else if(name === 'death'){ U.stats.deaths++; } else if(name === 'chat'){ giveBadge('chatter'); } persist(); checkBadges(); },
     coWatch:coDoc ? coWatchFor(coDoc.id) : null, verWatch:solo && place && !opt.co ? placeVersions(place).watch : null, verSave:solo && place && !opt.co ? placeVersions(place).save : null, models:solo ? modelsApi() : null,
     onSave:(bricks, env) => { if(coDoc) DB.doc('cplaces/' + coDoc.id).update({bricks:packBricks(bricks), n:bricks.length, env:env || null, by:U.name, t:Date.now()}).catch(() => {}); if(place && solo && !opt.co){ place.bricks = bricks.map(b => b.slice()); if(env) place.env = env; persist(); if(bricks.length >= 20) giveBadge('builder'); } },
-    onExit:(sm) => { sm = sm || {}; try{ finishScores(g, s, sm); }catch(e){} session = null; endLoad(); leave(); refreshChrome(); render(); if(pendingInvite){ const pi = pendingInvite; pendingInvite = null; setTimeout(() => onInvite(pi.by, pi.g, pi.code), 600); } toast(s.earned ? 'Thanks for playing! You earned ' + s.earned + ' tokens.' : 'Thanks for playing!'); }});
+    onExit:(sm) => { musGame(false); sm = sm || {}; try{ finishScores(g, s, sm); }catch(e){} session = null; endLoad(); leave(); refreshChrome(); render(); if(pendingInvite){ const pi = pendingInvite; pendingInvite = null; setTimeout(() => onInvite(pi.by, pi.g, pi.code), 600); } toast(s.earned ? 'Thanks for playing! You earned ' + s.earned + ' tokens.' : 'Thanks for playing!'); }});
   endLoad();
-  if(!ok){ session = null; leave(); modal('Cannot Start Game', '<p style="margin:0">Your browser could not start the 3D view. Make sure WebGL and hardware acceleration are turned on.</p>', [{label:'OK'}]); }
+  if(!ok){ musGame(false); session = null; leave(); modal('Cannot Start Game', '<p style="margin:0">Your browser could not start the 3D view. Make sure WebGL and hardware acceleration are turned on.</p>', [{label:'OK'}]); }
   else if(!solo) setLobby({g:gid, s:server});
 }
 
@@ -4340,6 +4351,7 @@ function musPlay(i){
 }
 function musPause(){ if(MUS.a) MUS.a.pause(); MUS.on = false; try{ localStorage.setItem('rbmusic', '0'); }catch(e){} musUi(); }
 function musNext(){ musPlay(MUS.i + 1); }
+function musGame(on){ if(on){ if(MUS.on && MUS.a){ MUS.a.pause(); MUS.on = false; MUS.resume = true; musUi(); } } else if(MUS.resume){ MUS.resume = false; musPlay(); } }
 function musToggle(){ if(MUS.on) musPause(); else musPlay(); }
 function musUi(){
   const n = $('#musNow'); if(n) n.textContent = (MUS.on ? '\u266A Playing: ' : 'Paused: ') + TRACKS[MUS.i].n;
@@ -4347,11 +4359,10 @@ function musUi(){
   $$('#musList [data-i]').forEach(b => { const on = +b.dataset.i === MUS.i; b.classList.toggle('on', on); });
 }
 function musModal(){
-  modal('Music', '<p class="muted" style="margin:0 0 8px">Pick a song. It keeps playing while you browse and in games. In a game, press <b>M</b> to pause or play.</p><div id="musNow" style="font-weight:700;margin-bottom:8px"></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><a class="btn small neutral" data-act="musPrev">&laquo; Back</a><a class="btn small" id="musPP" data-act="musToggle">Play</a><a class="btn small neutral" data-act="musSkip">Next &raquo;</a><label style="margin-left:auto;font-size:13px">Volume <input type="range" id="musVol" min="0" max="100" value="' + Math.round(MUS.vol * 100) + '" style="vertical-align:middle;width:110px"></label></div><div id="musList">' + TRACKS.map((t, i) => '<div class="lrow"><div class="grow"><b>' + esc(t.n) + '</b></div><a class="btn small neutral" data-act="musPick" data-i="' + i + '">Play</a></div>').join('') + '</div><p class="muted" style="font-size:12px;margin:10px 0 0">Music by Finobe &middot; <a href="https://finobe.bandcamp.com" target="_blank" rel="noopener">finobe.bandcamp.com</a></p>', [{label:'Close', cls:'neutral'}]);
+  modal('Music', '<p class="muted" style="margin:0 0 8px">Pick a song. It keeps playing while you browse. Games have their own music, so this pauses while you play and comes back when you leave.</p><div id="musNow" style="font-weight:700;margin-bottom:8px"></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><a class="btn small neutral" data-act="musPrev">&laquo; Back</a><a class="btn small" id="musPP" data-act="musToggle">Play</a><a class="btn small neutral" data-act="musSkip">Next &raquo;</a><label style="margin-left:auto;font-size:13px">Volume <input type="range" id="musVol" min="0" max="100" value="' + Math.round(MUS.vol * 100) + '" style="vertical-align:middle;width:110px"></label></div><div id="musList">' + TRACKS.map((t, i) => '<div class="lrow"><div class="grow"><b>' + esc(t.n) + '</b></div><a class="btn small neutral" data-act="musPick" data-i="' + i + '">Play</a></div>').join('') + '</div><p class="muted" style="font-size:12px;margin:10px 0 0">Music by Finobe &middot; <a href="https://finobe.bandcamp.com" target="_blank" rel="noopener">finobe.bandcamp.com</a></p>', [{label:'Close', cls:'neutral'}]);
   const v = $('#musVol'); if(v) v.addEventListener('input', () => { MUS.vol = v.value / 100; if(MUS.a) MUS.a.volume = MUS.vol; try{ localStorage.setItem('rbmvol', String(MUS.vol)); }catch(e){} });
   musUi();
 }
-document.addEventListener('keydown', e => { if(e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || !U || !Engine.active()) return; const t = e.target; if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return; musToggle(); toast(MUS.on ? '\u266A ' + TRACKS[MUS.i].n : 'Music paused'); });
 (function(){ let started = false; const go = () => { if(started) return; started = true; document.removeEventListener('pointerdown', go, true); document.removeEventListener('keydown', go, true); try{ if(localStorage.getItem('rbmusic') === '1') musPlay(); }catch(e){} }; document.addEventListener('pointerdown', go, true); document.addEventListener('keydown', go, true); })();
 
 /* ===================== chat & party (live, friends who are online) ===================== */

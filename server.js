@@ -74,7 +74,7 @@ function throttled(ip){ const now = Date.now(), a = attempts[ip] = (attempts[ip]
 function newId(){ return 'u_' + crypto.randomBytes(9).toString('hex'); }
 
 /* ---------------- document store ---------------- */
-const MAXDOC = 256 * 1024;
+const MAXDOC = 800 * 1024;
 const subs = new Set(); // {conn, sid, coll, where, order, limit, sent:Map id->version}
 const leases = {};
 const segs = p => p.split('/');

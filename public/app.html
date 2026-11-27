@@ -1612,6 +1612,11 @@ const Engine = (function(){
     G.carMesh = mkCar(CAR_COLS[hashStr(String(G.opts.user.name)) % 8]); G.scene.add(G.carMesh); G.carMesh.position.set(-30, 0, 80); G.carMesh.rotation.y = Math.PI / 2;
     G.statCols = ['Lap']; G.mainStat = 'stage'; G.sunTarget = [0, 0, 0]; G.title = {a:'Brick Racers', b:'W/S gas and brake, A/D steer, Space handbrake, H horn, R reset. 3 laps to win!'}; G.titleView = [0, 10, 0]; G.botHomes = () => [];
   }
+  function carToggle(){
+    if(G.car && G.car.studio){ const c = G.car.ref; c.x = G.car.x; c.z = G.car.z; c.y = G.car.y || 0; c.ang = G.car.ang; const a = G.car.ang + Math.PI / 2; G.P.x = c.x + Math.sin(a) * 5; G.P.z = c.z + Math.cos(a) * 5; G.P.y = c.y + 1; G.P.vy = 0; G.P.grounded = false; G.car = null; G.carMesh = null; toast('You got out of the car'); return; }
+    let best = null, bd = 10; (G.cars || []).forEach(c => { const d = Math.hypot(c.x - G.P.x, c.z - G.P.z); if(d < bd && Math.abs(c.y - G.P.y) < 7){ best = c; bd = d; } });
+    if(!best) return; G.car = {x:best.x, y:best.y, z:best.z, ang:best.ang, v:0, steer:0, boost:0, next:1, lap:0, lapT:0, best:0, snd:0, hud:0, bp:0, studio:true, ref:best}; G.carMesh = best.mesh; toast('Driving!', 'W/S gas and brake, A/D steer, Space handbrake, E to get out.');
+  }
   function carReset(){ const C = G.car; C.x = -30; C.z = 80; C.ang = Math.PI / 2; C.v = 0; C.next = 1; sfx.respawn(); }
   function driveStep(dt){
     const P = G.P, C = G.car, k = G.keys; let th = 0, st = 0;
@@ -1625,22 +1630,23 @@ const Engine = (function(){
     C.ang += C.steer * 2 * Math.min(1, Math.abs(C.v) / 14) * (C.v >= 0 ? 1 : -1) * (hand ? 1.5 : 1) * dt;
     const px = C.x, pz = C.z; C.x += Math.sin(C.ang) * C.v * dt; C.z += Math.cos(C.ang) * C.v * dt; if(C.boost > 0) C.boost -= dt;
     for(let i = 0; i < G.colliders.length; i++){
-      const s = G.colliders[i]; if(!s.active || s.maxy < 1.5 || s.miny > 4) continue;
+      const s = G.colliders[i], cy0 = C.y || 0; if(!s.active || s.maxy < cy0 + 1.5 || s.miny > cy0 + 4) continue;
       const cx = Math.max(s.minx, Math.min(C.x, s.maxx)), cz = Math.max(s.minz, Math.min(C.z, s.maxz)); let dx = C.x - cx, dz = C.z - cz, d = Math.hypot(dx, dz);
       if(d < 3.2){ if(d < .001){ dx = C.x - px || 1; dz = C.z - pz; d = Math.hypot(dx, dz) || 1; } C.x = cx + dx / d * 3.2; C.z = cz + dz / d * 3.2; if(Math.abs(C.v) > 18) sfx.hit(); C.v *= .45; }
     }
-    G.boostPads.forEach(b => { if(Math.abs(C.x - b[0]) < b[2] / 2 + 1 && Math.abs(C.z - b[1]) < b[3] / 2 + 1 && C.bp <= 0){ C.boost = 1.6; C.v = Math.max(C.v, 74); C.bp = 1; sfx.boost(); } }); if(C.bp > 0) C.bp -= dt;
-    const L = [[() => px < 0 && C.x >= 0 && C.z > 60], [() => pz > 0 && C.z <= 0 && C.x > 100], [() => px > 0 && C.x <= 0 && C.z < -60], [() => pz < 0 && C.z >= 0 && C.x < -100]];
+    (G.boostPads || []).forEach(b => { if(Math.abs(C.x - b[0]) < b[2] / 2 + 1 && Math.abs(C.z - b[1]) < b[3] / 2 + 1 && C.bp <= 0){ C.boost = 1.6; C.v = Math.max(C.v, 74); C.bp = 1; sfx.boost(); } }); if(C.bp > 0) C.bp -= dt;
+    if(!C.studio){ const L = [[() => px < 0 && C.x >= 0 && C.z > 60], [() => pz > 0 && C.z <= 0 && C.x > 100], [() => px > 0 && C.x <= 0 && C.z < -60], [() => pz < 0 && C.z >= 0 && C.x < -100]];
     C.lapT += dt;
     const ci = C.next % 4;
     if(L[ci][0]()){
       C.next++; if(ci === 0){ C.lap++; const lt = C.lapT; C.lapT = 0; if(!C.best || lt < C.best) C.best = lt; P.stats.stage = C.lap; sfx.lap(); toast('Lap ' + C.lap + ' of ' + G.laps, 'Lap time ' + fmtT(lt) + ' (' + (lt % 60).toFixed(1) + 's)'); updateBoard();
         if(C.lap >= G.laps && !G.won){ G.won = true; sfx.win(); G.opts.onEvent && G.opts.onEvent('win', G.T); G.opts.onReward && G.opts.onReward('tokens', 40); toast('You finished the race!', 'Time ' + fmtT(G.T) + ' · +40 tokens'); chatMsg('sys', 'You finished ' + G.laps + ' laps in ' + fmtT(G.T) + '!'); } }
       else sfx.check();
-    }
+    } }
+    if(C.studio){ const cy0 = C.y || 0; let gy = 0; for(let i = 0; i < G.colliders.length; i++){ const s = G.colliders[i]; if(!s.active || s.maxy > cy0 + 1.6 || C.x < s.minx - 1 || C.x > s.maxx + 1 || C.z < s.minz - 1 || C.z > s.maxz + 1) continue; if(s.maxy > gy) gy = s.maxy; } C.y = cy0 + (gy - cy0) * (1 - Math.exp(-12 * dt)); }
     C.snd -= dt; if(C.snd <= 0 && Math.abs(C.v) > 1){ C.snd = .09; sfx.engine(C.v); }
-    P.x = C.x; P.z = C.z; P.y = .9; P.face = C.ang; P.vx = P.vz = 0; P.vy = 0; P.grounded = true; P.ground = null;
-    G.carMesh.position.set(C.x, 0, C.z); G.carMesh.rotation.y = C.ang;
+    P.x = C.x; P.z = C.z; P.y = (C.y || 0) + .9; P.face = C.ang; P.vx = P.vz = 0; P.vy = 0; P.grounded = true; P.ground = null;
+    G.carMesh.position.set(C.x, C.y || 0, C.z); G.carMesh.rotation.y = C.ang;
     C.hud -= dt; if(C.hud <= 0){ C.hud = .15; const el = document.getElementById('gSpeed'); if(el) el.innerHTML = '<b>' + Math.round(Math.abs(C.v) * 3.6) + '</b> km/h<br><span>Lap ' + Math.min(G.laps, C.lap + 1) + '/' + G.laps + (C.best ? ' · Best ' + (C.best).toFixed(1) + 's' : '') + '</span>'; }
   }
 
@@ -2096,9 +2102,9 @@ const Engine = (function(){
   const bg = b => b[8] | 0, bpar = b => b[9] | 0, btxt = b => b[10] || '';
   function bset(b, i, v){ while(b.length < i) b.push(0); b[i] = v; }
   /* Part types (stored in b[7]). b[8] = group id, b[9] = parameter, b[10] = text. */
-  const PTYPES = [[0, 'Block'], [4, 'Wedge (ramp)'], [5, 'Stairs'], [1, 'Cylinder'], [2, 'Sphere'], [3, 'Cone'], [10, 'Spawn Point'], [11, 'Checkpoint'], [12, 'Bounce Pad'], [13, 'Speed Pad'], [14, 'Ice'], [15, 'Glass'], [16, 'Neon'], [17, 'Light'], [18, 'Moving Platform'], [19, 'Vanishing Block'], [20, 'Finish'], [21, 'Script (when touched)'], [22, 'Teleporter'], [23, 'Door'], [24, 'Button'], [25, 'Text Sign'], [26, 'Decal (emoji)'], [27, 'Music Zone'], [28, 'Sound Button'], [29, 'Water'], [30, 'Grass'], [31, 'Sand'], [32, 'Snow'], [33, 'Patrol Enemy'], [34, 'Chaser Enemy']];
+  const PTYPES = [[0, 'Block'], [4, 'Wedge (ramp)'], [5, 'Stairs'], [1, 'Cylinder'], [2, 'Sphere'], [3, 'Cone'], [10, 'Spawn Point'], [11, 'Checkpoint'], [12, 'Bounce Pad'], [13, 'Speed Pad'], [14, 'Ice'], [15, 'Glass'], [16, 'Neon'], [17, 'Light'], [18, 'Moving Platform'], [19, 'Vanishing Block'], [20, 'Finish'], [21, 'Script (when touched)'], [22, 'Teleporter'], [23, 'Door'], [24, 'Button'], [25, 'Text Sign'], [26, 'Decal (emoji)'], [27, 'Music Zone'], [28, 'Sound Button'], [29, 'Water'], [30, 'Grass'], [31, 'Sand'], [32, 'Snow'], [33, 'Patrol Enemy'], [34, 'Chaser Enemy'], [35, 'Car (drivable)']];
   const PNAME = {}; PTYPES.forEach(t => { PNAME[t[0]] = t[1]; });
-  const PT_DESC = {0:'Normal brick', 1:'Cylinder shape (box hitbox)', 2:'Sphere shape (box hitbox)', 3:'Cone shape (box hitbox)', 4:'Wedge: a real slope you can walk up', 5:'Stairs: real steps you can walk up', 10:'Spawn Point: players start here', 11:'Checkpoint: touch it to save your spot', 12:'Bounce Pad: launches players high', 13:'Speed Pad: gives a speed burst', 14:'Ice: slippery floor', 15:'Glass: see-through but solid', 16:'Neon: glows', 17:'Light: shines on nearby parts', 18:'Moving Platform: slides side to side', 19:'Vanishing Block: falls away after you step on it', 20:'Finish: reach it to win', 21:'Script: does something when a player touches it', 22:'Teleporter: touch it to jump to another teleporter with the same Link ID', 23:'Door: Link ID 0 opens when you walk up. Link ID 1-99 opens when a Button with the same ID is pressed', 24:'Button: opens Doors with the same Link ID', 25:'Text Sign: shows your text', 26:'Decal: shows an emoji (walk-through)', 27:'Music Zone: plays a tune while you are inside it', 28:'Sound Button: plays a sound when touched', 29:'Water: players can swim in it', 30:'Grass tile', 31:'Sand tile', 32:'Snow tile', 33:'Patrol Enemy: walks back and forth. Jump on its head to beat it', 34:'Chaser Enemy: chases nearby players. Jump on its head to beat it'};
+  const PT_DESC = {0:'Normal brick', 1:'Cylinder shape (box hitbox)', 2:'Sphere shape (box hitbox)', 3:'Cone shape (box hitbox)', 4:'Wedge: a real slope you can walk up', 5:'Stairs: real steps you can walk up', 10:'Spawn Point: players start here', 11:'Checkpoint: touch it to save your spot', 12:'Bounce Pad: launches players high', 13:'Speed Pad: gives a speed burst', 14:'Ice: slippery floor', 15:'Glass: see-through but solid', 16:'Neon: glows', 17:'Light: shines on nearby parts', 18:'Moving Platform: slides side to side', 19:'Vanishing Block: falls away after you step on it', 20:'Finish: reach it to win', 21:'Script: does something when a player touches it', 22:'Teleporter: touch it to jump to another teleporter with the same Link ID', 23:'Door: Link ID 0 opens when you walk up. Link ID 1-99 opens when a Button with the same ID is pressed', 24:'Button: opens Doors with the same Link ID', 35:'Car: walk up and press E to drive it. W/S gas and brake, A/D steer, Space handbrake, E to get out. The brick color is the car color', 25:'Text Sign: shows your text', 26:'Decal: shows an emoji (walk-through)', 27:'Music Zone: plays a tune while you are inside it', 28:'Sound Button: plays a sound when touched', 29:'Water: players can swim in it', 30:'Grass tile', 31:'Sand tile', 32:'Snow tile', 33:'Patrol Enemy: walks back and forth. Jump on its head to beat it', 34:'Chaser Enemy: chases nearby players. Jump on its head to beat it'};
   const TYPE_SIZE = {4:[8, 4, 6], 5:[6, 4, 6], 21:[4, .3, 4], 22:[4, .3, 4], 23:[6, 8, 1], 24:[2, .3, 2], 25:[8, 4, .5], 26:[4, 4, .2], 27:[14, 8, 14], 28:[2, .3, 2], 29:[8, 3, 8], 33:[2, 4, 2], 34:[2, 4, 2]};
   const TYPE_DEF = {22:[1], 24:[1], 28:[1], 21:[1, 'Hello!'], 25:[0, 'Hello!'], 26:[0, '😀']};
   const TERRAIN = {30:'#5fae45', 31:'#e3cf91', 32:'#f4f8fb'}, TERRAIN_T = [29, 30, 31, 32];
@@ -2153,7 +2159,7 @@ const Engine = (function(){
     let kind = live && cs ? (b[6] === 1 ? 'kill' : b[6] === 0 ? 'goal' : 'solid') : 'solid';
     if(live){ if(t === 11) kind = 'cp'; else if(t === 12) kind = 'bounce'; else if(t === 13) kind = 'speed'; else if(t === 14) kind = 'ice'; else if(t === 20) kind = 'goal'; else if(t === 18) kind = 'move'; else if(t === 19) kind = 'vanish'; }
     const glow = t === 16 || t === 17 || t === 13 || t === 12 || t === 11 || t === 21 || t === 22 || t === 28;
-    const none = t === 26 || t === 27 || t === 29 || t === 33 || t === 34;
+    const none = t === 26 || t === 27 || t === 29 || t === 33 || t === 34 || t === 35;
     const p = makePart({x:b[0], y:b[1], z:b[2], w:b[3], h:b[4], d:b[5], color:new THREE.Color(col), kind:kind === 'move' || kind === 'vanish' ? 'solid' : kind, studs:t === 0, emissive:glow ? col : undefined}); p.mesh.userData.brick = b; p.brick = b; p.kind = kind; p.t = t; G.pm.set(b, p);
     const m = p.mesh, mat = p.mats[0], reg = (list, o) => { list.push(o); (p.lists = p.lists || []).push([list, o]); return o; };
     if(t === 14){ mat.color.set('#bfe8f5'); }
@@ -2181,6 +2187,13 @@ const Engine = (function(){
     }
     if(t === 27){ mat.transparent = true; mat.opacity = .22; mat.color.set('#b04adf'); m.castShadow = false; p.kind = 'none'; if(live){ m.visible = false; reg(G.zones, {p, idx:((bpar(b) % TRACKS.length) + TRACKS.length) % TRACKS.length}); } return p; }
     if(t === 29){ mat.transparent = true; mat.opacity = .55; mat.color.set('#2f8fe8'); p.mats[1].transparent = true; p.mats[1].opacity = .55; p.mats[1].color.set('#2f8fe8'); m.castShadow = false; p.kind = 'none'; if(live) reg(G.waters, {p}); return p; }
+    if(t === 35){
+      p.kind = 'none'; mat.transparent = true; mat.opacity = live ? 0 : .22; m.castShadow = false; if(live) m.visible = false;
+      const cm = mkCar(parseInt(String(col).replace('#', ''), 16) || 0xc4281c), dir = ((b[9] | 0) % 4 + 4) % 4, ang = [Math.PI / 2, 0, -Math.PI / 2, Math.PI][dir], gy = b[1] - b[4] / 2;
+      cm.position.set(b[0], gy, b[2]); cm.rotation.y = ang; G.scene.add(cm); p.carMesh = cm;
+      if(live) reg(G.cars, {p, mesh:cm, x:b[0], y:gy, z:b[2], ang});
+      return p;
+    }
     if(t === 33 || t === 34){
       p.kind = 'none'; const skin = new THREE.MeshLambertMaterial({color:'#f2c9a0'}), dark = new THREE.MeshBasicMaterial({color:0x111111});
       const head = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.7, 1.7), skin); head.position.y = b[4] / 2 + .85; m.add(head);
@@ -2204,7 +2217,7 @@ const Engine = (function(){
   function sDrop(p){
     if(p.light) G.lightCount = Math.max(0, G.lightCount - 1); (p.lists || []).forEach(l => { const i = l[0].indexOf(l[1]); if(i >= 0) l[0].splice(i, 1); }); p.lists = null;
     let mi = G.movers.indexOf(p); if(mi >= 0) G.movers.splice(mi, 1); mi = G.vanishers.indexOf(p); if(mi >= 0) G.vanishers.splice(mi, 1);
-    G.scene.remove(p.mesh); try{ p.mesh.geometry.dispose(); }catch(e){} let i = G.colliders.indexOf(p); if(i >= 0) G.colliders.splice(i, 1); i = G.killers.indexOf(p); if(i >= 0) G.killers.splice(i, 1);
+    if(p.carMesh) G.scene.remove(p.carMesh); G.scene.remove(p.mesh); try{ p.mesh.geometry.dispose(); }catch(e){} let i = G.colliders.indexOf(p); if(i >= 0) G.colliders.splice(i, 1); i = G.killers.indexOf(p); if(i >= 0) G.killers.splice(i, 1);
     if(G.pm.get(p.brick) === p) G.pm.delete(p.brick);
   }
   function sRebuild(b){ const p = sPart(b); if(!p) return; sDrop(p); G.brickParts[G.brickParts.indexOf(p)] = partFromBrick(b); }
@@ -2453,7 +2466,7 @@ const Engine = (function(){
     }
     const t = b[7] | 0, beh = t ? PT_DESC[t] : b[6] === 1 ? 'Lava: kills players' : b[6] === 0 ? 'Finish: reach it to win' : 'Normal brick';
     let extra = '';
-    if(t === 4 || t === 5) extra = '<label class="pr"><span>Rises</span><select data-q="par">' + DIRN.map((n, i) => '<option value="' + i + '"' + (i === (bpar(b) % 4) ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>';
+    if(t === 4 || t === 5 || t === 35) extra = '<label class="pr"><span>' + (t === 35 ? 'Facing' : 'Rises') + '</span><select data-q="par">' + DIRN.map((n, i) => '<option value="' + i + '"' + (i === (bpar(b) % 4) ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>';
     else if(t === 22 || t === 24) extra = '<label class="pr"><span>Link ID</span><input type="number" min="0" max="99" step="1" data-q="par" value="' + bpar(b) + '"></label>';
     else if(t === 23) extra = '<label class="pr"><span>Link ID</span><input type="number" min="0" max="99" step="1" data-q="par" value="' + bpar(b) + '"></label>';
     else if(t === 21) extra = '<label class="pr"><span>Action</span><select data-q="par">' + SCRIPT_ACTS.map(a => '<option value="' + a[0] + '"' + (a[0] === bpar(b) ? ' selected' : '') + '>' + a[1] + '</option>').join('') + '</select></label><label class="pr"><span>Text / amount</span><input type="text" maxlength="60" data-q="txt" value="' + esc(btxt(b)) + '"></label><p class="sh">Message: the text. Points: a number 1-100 (points are for fun, not tokens). Sound: pick from the Sound Button list.</p>';
@@ -3137,7 +3150,7 @@ const Engine = (function(){
     ensureAudio();
     envDefaultsReset(); const game = opts.game; abort = new AbortController(); const sig = {signal:abort.signal};
     { const oR = opts.onReward, oE = opts.onEvent; if(oR && !oR.__g) opts.onReward = Object.assign((...a) => { if(G && G.flew) return; return oR(...a); }, {__g:1}); if(oE && !oE.__g) opts.onEvent = Object.assign((...a) => { if(G && G.flew) return; return oE(...a); }, {__g:1}); }
-    G = {opts, game, state:'intro', T:0, tR:0, acc:0, lastSec:-1, colliders:[], killers:[], movers:[], vanishers:[], trigs:[], doors:[], npcs:[], waters:[], zones:[], doorT:{}, tpCool:0, zoneIdx:-2, bgm:-1, spinners:[], pads:[], debris:[], ents:[], bots:[], keys:new Set(), typing:false, jumpBtn:false, joy:{id:null, vx:0, vy:0, ox:0, oy:0}, look:{id:null, x:0, y:0, sx:0, sy:0}, yaw:0, pitch:.38, zoom:game.kind === 'studio' ? 40 : 16, camDist:80, cf:{x:0, y:8, z:-40}, camBlend:0, sound:true, music:-1, heard:-1, mt:0, won:false, checkpoint:null, ray:new THREE.Raycaster()};
+    G = {opts, game, state:'intro', T:0, tR:0, acc:0, lastSec:-1, colliders:[], killers:[], movers:[], vanishers:[], trigs:[], doors:[], npcs:[], waters:[], cars:[], zones:[], doorT:{}, tpCool:0, zoneIdx:-2, bgm:-1, spinners:[], pads:[], debris:[], ents:[], bots:[], keys:new Set(), typing:false, jumpBtn:false, joy:{id:null, vx:0, vy:0, ox:0, oy:0}, look:{id:null, x:0, y:0, sx:0, sy:0}, yaw:0, pitch:.38, zoom:game.kind === 'studio' ? 40 : 16, camDist:80, cf:{x:0, y:8, z:-40}, camBlend:0, sound:true, music:-1, heard:-1, mt:0, won:false, checkpoint:null, ray:new THREE.Raycaster()};
     makeScene(); G.qual = getQual(); applyQual();
     const builder = game.kind === 'obby' && game.gen ? (() => buildGenObby(game.gen)) : ({obby:buildObby, tower:buildTower, arena:buildArena, town:buildTown, studio:buildStudio, custom:buildStudio, coins:buildCoinIsland, restaurant:buildRestaurant, drive:buildDrive, tiledrop:buildTileDrop, maze:buildMaze, lavarise:buildLavaRise, zombie:buildZombie, hideseek:buildHideSeek, golf:buildGolf, tycoon:buildTycoon, ctf:buildCTF, coaster:buildCoaster})[game.kind]; builder();
     const root = document.getElementById('gameRoot'); root.textContent = ''; root.appendChild(canvas); root.insertAdjacentHTML('beforeend', hudHtml(game.kind)); { const tn = document.getElementById('gTopName'); if(tn) tn.textContent = opts.user.name; chatMsg('sys', 'Please type / for a list of commands'); } root.hidden = false; document.body.classList.add('in-game');
@@ -3200,7 +3213,8 @@ const Engine = (function(){
       if(!e.repeat && !G.typing && myLvl() >= 2 && G.game.kind !== 'studio' && G.state === 'play'){ if(e.code === 'KeyG'){ G.fly = !G.fly; if(G.fly) G.flew = true; toast(G.fly ? 'Fly on' : 'Fly off', G.fly ? 'Space = up, C = down. Rewards are off this round.' : ''); } if(e.code === 'KeyV'){ G.inv = !G.inv; toast(G.inv ? 'Invisible on' : 'Invisible off', G.inv ? 'Players cannot see you. Staff can.' : ''); } }
       if(e.code === 'KeyI') G.zoom = Math.max(4, G.zoom - 3); if(e.code === 'KeyO') G.zoom = Math.min(G.game.kind === 'studio' ? 120 : 60, G.zoom + 3);
       if(/^Digit[1-9]$/.test(e.code)) equip(+e.code.slice(5) - 1);
-      if(G.car && !e.repeat){ if(e.code === 'KeyR') carReset(); if(e.code === 'KeyH') sfx.horn(); }
+      if(G.cars && G.cars.length && !e.repeat && !G.typing && G.state === 'play' && G.sMode !== 'edit' && e.code === 'KeyE') carToggle();
+      if(G.car && !e.repeat){ if(e.code === 'KeyR' && !G.car.studio) carReset(); if(e.code === 'KeyH') sfx.horn(); }
       if(G.R && !e.repeat){ if(e.code === 'KeyE') rInteract(); if(e.code === 'KeyQ') dropTray(); }
       if(G.game.kind === 'studio') sKey(e);
     }, sig);
@@ -3282,7 +3296,7 @@ function mkWriter(path, data, delay){
   return () => { clearTimeout(t); t = setTimeout(flush, delay || 500); };
 }
 let save = () => {}, pubSave = () => {};
-function pubData(){ return {name:U.name, nameLower:U.name.toLowerCase(), avatar:U.avatar, pet:U.pet || '', desc:U.desc || '', joined:U.created, owned:U.owned, badges:U.badges, stats:U.stats, visits:U.visits || {}, places:U.places.length}; }
+function pubData(){ return {name:U.name, nameLower:U.name.toLowerCase(), avatar:U.avatar, pet:U.pet || '', desc:U.desc || '', joined:U.created, owned:U.owned, pets:U.pets || [], badges:U.badges, stats:U.stats, visits:U.visits || {}, places:U.places.length}; }
 function persist(){ save(); pubSave(); }
 
 /* ---- helpers over shared data ---- */
@@ -3401,7 +3415,7 @@ function applySales(){
 function applyAcceptedTrades(){
   if(!U) return; TRADEDOCS.forEach(t => {
     if(t.from === MYID && t.status === 'accepted' && !t.applied){
-      t.applied = true; t.give.forEach(id => { const i = U.owned.indexOf(id); if(i >= 0){ U.owned.splice(i, 1); unwearAll(id); } }); t.get.forEach(id => { if(U.owned.indexOf(id) < 0) U.owned.push(id); });
+      t.applied = true; applyTradeSide(t.give, t.get);
       persist(); DB.doc('trades/' + t.id).update({applied:true}).catch(() => {}); toast(nameOf(t.to) + ' accepted your trade!');
     }
   });
@@ -3592,6 +3606,7 @@ function applySite(){
 setInterval(() => { try{ const ov = document.getElementById('siteDown'); if(ov && ov.dataset.until){ const left = +ov.dataset.until - Date.now(); if(left <= 0) applySite(); else { const el = ov.querySelector('.siteLeft'); if(el) el.textContent = 'Back in ' + clockTxt(left); } } }catch(e){} }, 1000);
 setInterval(() => { try{ if(U && (document.getElementById('siteDown') || (SITEDOC && SITEDOC.until) || LOCKS.some(l => l.until))) applySite(); }catch(e){} }, 20000);
 const isGuestMe = () => !!(window.__ME && window.__ME.guest);
+const GUEST_LOCKED = {wearItem:1, color:1, randomColors:1, resetAvatar:1, scaleReset:1};
 function guestBox(){ return isGuestMe() ? '<div class="box" style="border-left:4px solid #e0a000"><b>You are playing as a guest.</b> <span class="muted">Save your account so you do not lose your stuff, and so you can log in on other devices.</span> <a class="btn green small" data-act="saveGuest" style="margin-left:6px">Save My Account</a></div>' : ''; }
 function saveGuestModal(){
   modal('Save Your Account', '<p style="margin-top:0">Pick a username and password. Everything you have now stays with you.</p><label class="f" for="sgU">Username</label><input id="sgU" maxlength="20" autocomplete="username" placeholder="3 to 20 letters, numbers or _"><label class="f" for="sgP">Password</label><input id="sgP" type="password" autocomplete="new-password" placeholder="At least 6 characters"><div id="sgE" style="color:#e2231a;min-height:20px;margin-top:6px"></div>', [{label:'Save', cls:'green', keep:true, fn:async () => {
@@ -3772,7 +3787,7 @@ function renderAvatar(){
     + '<div class="av-right"><div class="box"><div class="sec-h"><span>Body Scale</span><a data-act="scaleReset">Reset</a></div><label class="f" for="scH" style="margin-top:0">Height <b id="scHv">' + Math.round(((U.avatar.scale || {}).h || 1) * 100) + '%</b></label><input id="scH" type="range" min="85" max="115" step="1" value="' + Math.round(((U.avatar.scale || {}).h || 1) * 100) + '" data-scale="h" style="width:100%"><label class="f" for="scW">Width <b id="scWv">' + Math.round(((U.avatar.scale || {}).w || 1) * 100) + '%</b></label><input id="scW" type="range" min="85" max="115" step="1" value="' + Math.round(((U.avatar.scale || {}).w || 1) * 100) + '" data-scale="w" style="width:100%"><p class="muted" style="font-size:12px;margin:8px 0 0">Make your avatar taller, shorter, slimmer or wider. Everyone in the game sees it. Your hitbox stays the same.</p></div><div class="box"><div class="sec-h"><span>Currently Wearing</span></div>' + (wearing.length ? '<div class="chips">' + wearing.map(it => '<span class="chip">' + itemImg(it).replace('<img', '<img style="width:34px;height:34px"') + esc(it.name) + ' <a data-act="wearItem" data-i="' + it.id + '" title="Take off" aria-label="Take off ' + esc(it.name) + '">&times;</a></span>').join('') + '</div>' : '<p class="muted" style="margin:0">Nothing is worn. Buy items in the <a href="#/catalog">Catalog</a>.</p>') + '</div>'
     + '<div class="box"><div class="tabs">' + ['hat', 'face', 'shirt', 'pants', 'gear'].map(t => '<a href="#/avatar?tab=' + t + '" class="' + (tab === t ? 'on' : '') + '">' + TYPE_NAMES[t] + '</a>').join('') + '</div>' + (owned.length ? '<div class="gcards">' + owned.map(it => '<div class="gcard item"><div class="im">' + itemImg(it) + (isWorn(it.id) ? '<span class="worn">WORN</span>' : '') + '</div><b>' + esc(it.name) + '</b><a class="btn small ' + (isWorn(it.id) ? 'neutral' : '') + '" data-act="wearItem" data-i="' + it.id + '">' + (isWorn(it.id) ? 'Take Off' : 'Wear') + '</a></div>').join('') + '</div>' : '<p class="muted">You do not own any ' + TYPE_NAMES[tab].toLowerCase() + ' yet. <a href="#/catalog?cat=' + tab + '">Browse the Catalog</a></p>') + '</div></div></div>');
 }
-document.addEventListener('input', e => { const t = e.target; if(!(t && t.dataset && t.dataset.scale) || !U) return; const k = t.dataset.scale; U.avatar.scale = U.avatar.scale || {h:1, w:1}; U.avatar.scale[k] = (+t.value || 100) / 100; const l = $('#sc' + k.toUpperCase() + 'v'); if(l) l.textContent = t.value + '%'; redrawAvatar(); });
+document.addEventListener('input', e => { const t = e.target; if(!(t && t.dataset && t.dataset.scale) || !U) return; if(isGuestMe()){ t.value = 100; toast('Sign up to customize your avatar.', true); return; } const k = t.dataset.scale; U.avatar.scale = U.avatar.scale || {h:1, w:1}; U.avatar.scale[k] = (+t.value || 100) / 100; const l = $('#sc' + k.toUpperCase() + 'v'); if(l) l.textContent = t.value + '%'; redrawAvatar(); });
 document.addEventListener('change', e => { const t = e.target; if(t && t.dataset && t.dataset.scale && U) persist(); });
 function redrawAvatar(){ const i = $('#avBig'); if(i) i.src = avatarThumb(U.avatar, 'full', avAngle); }
 
@@ -3849,7 +3864,9 @@ function composeModal(toId, subj){
 
 /* ===================== TRADE ===================== */
 function sumVal(ids){ return ids.reduce((s, id) => s + itemValue(ITEM_BY_ID[id]), 0); }
-function tradeChips(ids){ return '<div class="chips">' + ids.map(id => '<span class="chip">' + itemImg(ITEM_BY_ID[id]).replace('<img', '<img style="width:34px;height:34px"') + esc(ITEM_BY_ID[id].name) + '</span>').join('') + '</div><div class="status" style="margin-top:4px">Value: ' + tokp(sumVal(ids)) + '</div>'; }
+const isPetT = x => typeof x === 'string' && x.indexOf('pet:') === 0;
+function tradeChips(ids){ return '<div class="chips">' + ids.map(id => isPetT(id) ? '<span class="chip">' + (PET_BY_ID[id.slice(4)] ? petIcon(PET_BY_ID[id.slice(4)], 34) + esc(PET_BY_ID[id.slice(4)].n) + ' (pet)' : 'Pet') + '</span>' : '<span class="chip">' + itemImg(ITEM_BY_ID[id]).replace('<img', '<img style="width:34px;height:34px"') + esc(ITEM_BY_ID[id].name) + '</span>').join('') + '</div><div class="status" style="margin-top:4px">Value: ' + tokp(sumVal(ids.filter(x => !isPetT(x)))) + '</div>'; }
+const petLbl = pid => { const p = PET_BY_ID[pid]; return p ? '<label><input type="checkbox" value="pet:' + pid + '">' + petIcon(p, 48) + esc(p.n) + '<br><span class="muted">Pet</span></label>' : ''; };
 function renderTrade(q){
   const tab = q.tab || 'in', inb = TRADEDOCS.filter(t => t.to === MYID && t.status === 'pending'), out = TRADEDOCS.filter(t => t.from === MYID && t.status === 'pending');
   const list = (tab === 'done' ? TRADEDOCS.filter(t => t.status !== 'pending') : tab === 'out' ? out : inb).sort((a, b) => b.t - a.t);
@@ -3859,12 +3876,13 @@ function renderTrade(q){
 function tradeModal(toId){
   const fr = friendIds(); if(!fr.length){ toast('You need a friend to trade with.', true); return; }
   const mine = U.owned.filter(id => ITEM_BY_ID[id] && ITEM_BY_ID[id].price > 0);
-  if(!mine.length){ toast('You do not own any tradable items yet. Buy something in the Catalog first.', true); return; }
+  const minePets = (U.pets || []).filter(x => PET_BY_ID[x]);
+  if(!mine.length && !minePets.length){ toast('You do not own any tradable items or pets yet.', true); return; }
   const tradable = id => (prof(id).owned || []).filter(x => ITEM_BY_ID[x] && ITEM_BY_ID[x].price > 0);
-  const theirs = id => { const l = tradable(id); return l.length ? l.map(x => { const it = ITEM_BY_ID[x]; return '<label><input type="checkbox" value="' + x + '">' + itemImg(it) + esc(it.name) + '<br>' + tokp(itemValue(it)) + '</label>'; }).join('') : '<span class="muted">They do not own any tradable items.</span>'; };
+  const theirs = id => { const l = tradable(id), pl = prof(id).pets || []; return (l.length || pl.length) ? l.map(x => { const it = ITEM_BY_ID[x]; return '<label><input type="checkbox" value="' + x + '">' + itemImg(it) + esc(it.name) + '<br>' + tokp(itemValue(it)) + '</label>'; }).join('') + pl.map(petLbl).join('') : '<span class="muted">They do not own any tradable items or pets.</span>'; };
   const start = toId && fr.indexOf(toId) >= 0 ? toId : fr[0];
-  modal('Send Trade', '<label class="f" for="trWho" style="margin-top:0">Trade with</label><select id="trWho">' + fr.map(f => '<option value="' + f + '"' + (f === start ? ' selected' : '') + '>' + esc(nameOf(f)) + '</option>').join('') + '</select><label class="f">Your items to give</label><div class="selitems" id="trMine">' + mine.map(id => { const it = ITEM_BY_ID[id]; return '<label><input type="checkbox" value="' + id + '">' + itemImg(it) + esc(it.name) + '<br>' + tokp(itemValue(it)) + '</label>'; }).join('') + '</div><label class="f">Items you want from them</label><div class="selitems" id="trTheirs">' + theirs(start) + '</div><div class="err" id="trErr"></div>', [{label:'Cancel', cls:'neutral'}, {label:'Send Trade', fn:() => {
-    const give = $$('#trMine input:checked').map(i => +i.value), get = $$('#trTheirs input:checked').map(i => +i.value), to = $('#trWho').value;
+  modal('Send Trade', '<label class="f" for="trWho" style="margin-top:0">Trade with</label><select id="trWho">' + fr.map(f => '<option value="' + f + '"' + (f === start ? ' selected' : '') + '>' + esc(nameOf(f)) + '</option>').join('') + '</select><label class="f">Your items to give</label><div class="selitems" id="trMine">' + mine.map(id => { const it = ITEM_BY_ID[id]; return '<label><input type="checkbox" value="' + id + '">' + itemImg(it) + esc(it.name) + '<br>' + tokp(itemValue(it)) + '</label>'; }).join('') + minePets.map(petLbl).join('') + '</div><label class="f">Items and pets you want from them</label><div class="selitems" id="trTheirs">' + theirs(start) + '</div><div class="err" id="trErr"></div>', [{label:'Cancel', cls:'neutral'}, {label:'Send Trade', fn:() => {
+    const num = v => v.indexOf('pet:') === 0 ? v : +v, give = $$('#trMine input:checked').map(i => num(i.value)), get = $$('#trTheirs input:checked').map(i => num(i.value)), to = $('#trWho').value;
     if(!give.length || !get.length){ $('#trErr').textContent = 'Pick at least one item on each side.'; return false; }
     DB.collection('trades').add({from:MYID, to, give, get, status:'pending', applied:false, t:Date.now()}).then(() => toast('Trade sent to ' + nameOf(to) + '.')).catch(() => toast('Could not send the trade.', true));
     go('trade?tab=out');
@@ -3873,11 +3891,16 @@ function tradeModal(toId){
 }
 function tradeAccept(id){
   const t = TRADEDOCS.find(x => x.id === id); if(!t || t.status !== 'pending') return;
-  const senderOwns = (P[t.from] && P[t.from].owned || []);
-  if(!t.get.every(x => U.owned.indexOf(x) >= 0)){ DB.doc('trades/' + id).update({status:'cancelled'}).catch(() => {}); toast('You no longer own the requested item.', true); return; }
-  if(!t.give.every(x => senderOwns.indexOf(x) >= 0)){ DB.doc('trades/' + id).update({status:'cancelled'}).catch(() => {}); toast('They no longer own the offered item.', true); return; }
-  t.get.forEach(x => { const i = U.owned.indexOf(x); if(i >= 0) U.owned.splice(i, 1); unwearAll(x); }); t.give.forEach(x => { if(U.owned.indexOf(x) < 0) U.owned.push(x); });
+  const senderOwns = (P[t.from] && P[t.from].owned || []), senderPets = (P[t.from] && P[t.from].pets || []);
+  const has = (x, items, pets) => isPetT(x) ? pets.indexOf(x.slice(4)) >= 0 : items.indexOf(x) >= 0;
+  if(!t.get.every(x => has(x, U.owned, U.pets || []))){ DB.doc('trades/' + id).update({status:'cancelled'}).catch(() => {}); toast('You no longer own the requested item.', true); return; }
+  if(!t.give.every(x => has(x, senderOwns, senderPets))){ DB.doc('trades/' + id).update({status:'cancelled'}).catch(() => {}); toast('They no longer own the offered item.', true); return; }
+  applyTradeSide(t.get, t.give);
   persist(); DB.doc('trades/' + id).update({status:'accepted'}).then(() => toast('Trade accepted! Check your inventory.')).catch(() => toast('Trade could not be saved.', true));
+}
+function applyTradeSide(lose, gain){
+  lose.forEach(x => { if(isPetT(x)){ const k = x.slice(4), i = U.pets.indexOf(k); if(i >= 0) U.pets.splice(i, 1); if(U.pet === k) U.pet = ''; } else { const i = U.owned.indexOf(x); if(i >= 0){ U.owned.splice(i, 1); unwearAll(x); } } });
+  gain.forEach(x => { if(isPetT(x)){ const k = x.slice(4); if(U.pets.indexOf(k) < 0) U.pets.push(k); } else if(U.owned.indexOf(x) < 0) U.owned.push(x); });
 }
 
 /* ===================== GROUPS ===================== */
@@ -4580,7 +4603,7 @@ const ACTIONS = {
   coManage:el => { const p = U.places[+el.dataset.p], c = p && COPLACES.find(x => x.id === p.co); if(!c){ toast('Loading, try again in a moment.', true); return; }
     modal('Co-building: ' + p.name, '<p style="margin:0 0 8px">Friends who can edit this place:</p>' + coPicker(c.eds), [{label:'Stop Co-building', cls:'neutral', fn:() => { DB.doc('cplaces/' + c.id).delete().catch(() => {}); delete p.co; persist(); render(); }}, {label:'Save', fn:() => { const ids = Array.prototype.map.call(document.querySelectorAll('.cock:checked'), x => x.value).slice(0, 7); DB.doc('cplaces/' + c.id).update({eds:[MYID].concat(ids)}).then(() => toast('Saved.')).catch(() => toast('Could not save.', true)); }}]); },
   coEdit:el => playGame(4, {co:el.dataset.id}),
-  newPlace:() => { if(U.places.length >= 4){ toast('You can have at most 4 places.', true); return; }
+  newPlace:() => { if(U.places.length >= 12){ toast('You can have at most 12 places.', true); return; } if(JSON.stringify(U).length > 600000){ toast('Your account is almost full. Delete a place you do not need first.', true); return; }
     modal('New Place', '<p style="margin:0 0 8px">Start from a template. You can change everything afterwards.</p><div class="tpls">' + TEMPLATES.map((t, i) => '<label class="tpl"><input type="radio" name="tpl" value="' + t.id + '"' + (i === 0 ? ' checked' : '') + '><span class="ti">' + t.icon + '</span><span><b>' + esc(t.name) + '</b><br><span class="muted">' + esc(t.desc) + '</span></span></label>').join('') + '</div>', [{label:'Cancel', cls:'neutral'}, {label:'Create', fn:() => {
       const el = document.querySelector('input[name=tpl]:checked'), id = el ? el.value : 'base', t = templateData(id), tn = TEMPLATES.find(x => x.id === id);
       U.places.push({name:(id === 'base' ? 'Place ' : tn.name + ' ') + (U.places.length + 1), bricks:t.bricks, env:t.env || undefined}); persist(); render(); toast('Created from the ' + tn.name + ' template.');
@@ -4593,7 +4616,7 @@ const ACTIONS = {
 };
 document.addEventListener('click', e => {
   if(!e.target.closest('.hbtn')){ const a = $('#balDrop'), b = $('#menuDrop'); if(a) a.hidden = true; if(b) b.hidden = true; }
-  const t = e.target.closest('[data-act]'); if(!t) return; const fn = ACTIONS[t.dataset.act]; if(fn){ e.preventDefault(); fn(t); }
+  const t = e.target.closest('[data-act]'); if(!t) return; if(U && isGuestMe() && GUEST_LOCKED[t.dataset.act]){ e.preventDefault(); toast('Sign up to customize your avatar.', true); saveGuestModal(); return; } const fn = ACTIONS[t.dataset.act]; if(fn){ e.preventDefault(); fn(t); }
 });
 document.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.classList && e.target.classList.contains('msgrow')) ACTIONS.openMsg(e.target); if(e.key === 'Escape' && !$('#modal').hidden) closeModal(); });
 $('#searchf').addEventListener('submit', e => { e.preventDefault(); const v = $('#q').value.trim(); if(v) go('search?q=' + encodeURIComponent(v)); });

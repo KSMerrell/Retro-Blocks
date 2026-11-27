@@ -696,7 +696,7 @@ const PETS = [
  {id:'unicorn', n:'Unicorn', e:'🦄', r:2}, {id:'dragon', n:'Dragon', e:'🐲', r:2}, {id:'owl', n:'Owl', e:'🦉', r:2},
  {id:'robot', n:'Robo-Pal', e:'🤖', r:3}, {id:'ghost', n:'Ghost', e:'👻', r:3},
  {id:'snowman', n:'Snowman', e:'⛄', r:2, ev:'winter'}, {id:'reindeer', n:'Reindeer', e:'🦌', r:3, ev:'winter'},
- {id:'ghost', n:'Ghost', e:'👻', r:2, ev:'halloween'}, {id:'bat', n:'Bat', e:'🦇', r:3, ev:'halloween'},
+ {id:'spook', n:'Spooky Ghost', e:'🎃', r:2, ev:'halloween'}, {id:'bat', n:'Bat', e:'🦇', r:3, ev:'halloween'},
  {id:'turkey', n:'Turkey', e:'🦃', r:2, ev:'thanksgiving'}, {id:'squirrel', n:'Squirrel', e:'🐿️', r:3, ev:'thanksgiving'},
  {id:'eagle', n:'Eagle', e:'🦅', r:2, ev:'july4'}, {id:'grizzly', n:'Grizzly', e:'🐻', r:3, ev:'july4'},
  {id:'lovebird', n:'Lovebird', e:'🦜', r:2, ev:'valentine'}, {id:'swan', n:'Swan', e:'🦢', r:3, ev:'valentine'},
@@ -966,6 +966,147 @@ function gameThumb(game, w, h){
   else if(game.kind === 'coins'){ for(let i = 0; i < 7; i++){ const cx = w * (.12 + i * .13), cy = h * (.7 - (i % 3) * .14); g.fillStyle = '#a67c00'; g.beginPath(); g.arc(cx, cy + 2, u * .75, 0, 6.3); g.fill(); g.fillStyle = '#ffd23c'; g.beginPath(); g.arc(cx, cy, u * .75, 0, 6.3); g.fill(); g.fillStyle = '#fff3b0'; g.fillRect(cx - u * .12, cy - u * .4, u * .24, u * .8); } }
   else if(game.kind === 'studio' || game.kind === 'custom'){ for(let i = 0; i < 5; i++) for(let j = 0; j <= 4 - i; j++) brick(w * .22 + (i * .5 + j) * u * 1.7, h * .8 - i * u * .62, u * 1.6, u * .6, cols[(i + j) % 7]); }
   return _thumbs[key] = cv.toDataURL('image/png');
+}
+
+/* ================= 3D pets: little blocky creatures that follow you ================= */
+function _leg(w, h, c, x, top, z){ const g = new THREE.Group(); g.position.set(x, top, z); g.add(_box(w, h, w, c, 0, -h / 2, 0)); return g; }
+function _sph(r, c, x, y, z, sx, sy, sz){ const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), _M(c)); m.position.set(x, y, z); m.scale.set(sx || 1, sy || 1, sz || 1); m.castShadow = true; return m; }
+const PET_LOOK = {
+ puppy:{t:'q', c:'#d9a85c', b:'#f4e2bd', ear:'flop', ec:'#8a5a2a', tail:'up', s:.9},
+ kitty:{t:'q', c:'#8d8f99', b:'#e6e6ea', ear:'point', ec:'#8d8f99', tail:'up', tc:'#6c6e77', s:.85, stripe:'#6c6e77'},
+ frog:{t:'q', c:'#4fbf5a', b:'#c8f0a8', ear:'none', tail:'none', s:.75, eyetop:1, lc:'#3a9c45'},
+ bunny:{t:'q', c:'#f4f1ee', b:'#ffd9e3', ear:'long', ec:'#f4f1ee', tail:'stub', tc:'#ffffff', s:.8},
+ fox:{t:'q', c:'#e8742a', b:'#fff4e6', ear:'point', ec:'#3a2418', tail:'bushy', tc:'#e8742a', tt:'#ffffff', s:.9, lc:'#3a2418'},
+ panda:{t:'q', c:'#f6f6f6', ear:'round', ec:'#1a1a1a', tail:'stub', patch:'#1a1a1a', lc:'#1a1a1a', band:'#1a1a1a', s:1},
+ penguin:{t:'b', c:'#22252c', belly:'#f4f4f4', beak:'#f0a030', feet:'#f0a030', s:.9, wing:'#22252c', tailc:'#22252c'},
+ piglet:{t:'q', c:'#f7a8bd', b:'#e8879f', ear:'flop', ec:'#e8879f', tail:'curl', tc:'#e8879f', s:.85, sn:'#e8879f'},
+ unicorn:{t:'q', c:'#fbf4ff', ear:'point', ec:'#fbf4ff', tail:'bushy', tc:'#e86ac8', horn:'#f5cd30', mane:'#8ad0ff', s:1.05, tall:1},
+ dragon:{t:'q', c:'#3dae5c', b:'#e8d27a', ear:'none', tail:'long', tc:'#3dae5c', horn:'#f2e6b8', wings:'#d6483a', spikes:'#d6483a', s:1, lc:'#2d8a47', fly:1},
+ owl:{t:'b', c:'#8a6a45', belly:'#d9c39a', beak:'#f0a030', feet:'#f0a030', bigeyes:1, tuft:'#6b4f30', s:.9, wing:'#6b4f30', tailc:'#6b4f30'},
+ robot:{t:'robot'}, ghost:{t:'ghost', c:'#f5f8ff'}, spook:{t:'ghost', c:'#c9b8f5', hat:1},
+ snowman:{t:'snow'},
+ reindeer:{t:'q', c:'#a8743c', b:'#f4e2bd', ear:'point', ec:'#a8743c', tail:'stub', tc:'#fff', antler:'#d9c39a', rednose:1, s:1.05, tall:1, lc:'#6b4a24'},
+ bat:{t:'bat'},
+ turkey:{t:'b', c:'#7a4a24', belly:'#a8743c', beak:'#f0a030', feet:'#d9902a', wattle:1, fan:['#a8461c', '#d9822b', '#f2c14b', '#d9822b', '#a8461c'], s:1.05, wing:'#5a3416', neck:'#d9a0a0'},
+ squirrel:{t:'q', c:'#b0703a', b:'#f1d6b0', ear:'point', ec:'#b0703a', tail:'tall', tc:'#b0703a', s:.75},
+ eagle:{t:'b', c:'#6b4a2a', belly:'#7a5430', headc:'#fafafa', beak:'#f5cd30', feet:'#f5cd30', wing:'#4a3018', fly:1, bigwing:1, s:1, tailc:'#fafafa'},
+ grizzly:{t:'q', c:'#6b4a2e', b:'#8a6440', ear:'round', ec:'#6b4a2e', tail:'stub', s:1.3, lc:'#55391f', sn:'#a07a52'},
+ lovebird:{t:'b', c:'#3fbf6a', belly:'#9be08a', headc:'#e84a4a', beak:'#f5cd30', feet:'#d9902a', wing:'#2a9a50', fly:1, s:.7, tailc:'#2a9a50'},
+ swan:{t:'b', c:'#ffffff', belly:'#f2f2f7', beak:'#f08a2a', feet:'#2a2a2a', neckLen:1.1, wing:'#eef0f6', s:1.05, tailc:'#ffffff'},
+ lamb:{t:'q', c:'#f7f4ec', h:'#3a3236', ear:'flop', ec:'#3a3236', tail:'stub', tc:'#f7f4ec', s:1, lc:'#3a3236', wool:1},
+ chick:{t:'b', c:'#ffe14a', belly:'#fff3a0', beak:'#f08a2a', feet:'#f08a2a', s:.7, wing:'#f2c030', tailc:'#ffe14a'},
+ duckling:{t:'b', c:'#ffd84a', belly:'#fff0a0', beak:'#f08a2a', feet:'#f08a2a', flatbill:1, s:.75, wing:'#f2c030', tailc:'#ffd84a'},
+ poodle:{t:'q', c:'#f2efe9', ear:'flop', ec:'#e6e1d8', tail:'pom', tc:'#f2efe9', puff:'#f2efe9', s:.9, lc:'#f2efe9', sn:'#f2efe9'},
+ peacock:{t:'b', c:'#1f7fd0', belly:'#2fa0d8', beak:'#d9c08a', feet:'#8a7a5a', neckLen:.8, fan:['#1f9a7a', '#2fb890', '#d7b03a', '#2fb890', '#1f9a7a', '#2fb890', '#1f9a7a'], wing:'#1a6aa8', tuft:'#2fb890', s:1, bigfan:1}
+};
+function _eyes(h, z, y, dx, o){ [-1, 1].forEach(sd => { h.add(_box(.13, .15, .06, '#111', sd * dx, y, z)); }); }
+function _buildQuad(o, g, P){
+  const s = o.s || 1, c = o.c, hc = o.h || c, lc = o.lc || c;
+  g.add(_box(.95 * s, .8 * s, 1.5 * s, c, 0, .95 * s, 0));
+  if(o.wool){ g.add(_box(1.1 * s, .95 * s, 1.35 * s, c, 0, 1 * s, 0)); }
+  if(o.b) g.add(_box(.97 * s, .28 * s, 1.0 * s, o.b, 0, .68 * s, .1 * s));
+  if(o.band) g.add(_box(.99 * s, .82 * s, .42 * s, o.band, 0, .95 * s, .45 * s));
+  if(o.stripe) [-.4, 0, .4].forEach(z => g.add(_box(.97 * s, .1 * s, .1 * s, o.stripe, 0, 1.3 * s, z * s)));
+  const lt = .62 * s, fy = lt;
+  [[-.3, .5], [.3, .5], [-.3, -.5], [.3, -.5]].forEach((p, i) => { const l = _leg(.3 * s, lt, lc, p[0] * s, fy, p[1] * s); g.add(l); P.legs.push(l); });
+  const hy = (o.tall ? 1.75 : 1.5) * s, hz = (o.tall ? .8 : .85) * s;
+  const h = new THREE.Group(); h.position.set(0, hy, hz); g.add(h);
+  if(o.tall){ g.add(_box(.5 * s, .9 * s, .55 * s, c, 0, 1.45 * s, .65 * s)); }
+  h.add(_box(.82 * s, .72 * s, .78 * s, hc, 0, 0, 0));
+  if(o.patch) [-1, 1].forEach(sd => h.add(_box(.24 * s, .26 * s, .05, o.patch, sd * .2 * s, .08 * s, .4 * s)));
+  if(o.eyetop){ [-1, 1].forEach(sd => { h.add(_box(.26 * s, .26 * s, .26 * s, '#fff', sd * .24 * s, .42 * s, .1 * s)); h.add(_box(.13 * s, .13 * s, .08, '#111', sd * .24 * s, .42 * s, .25 * s)); }); }
+  else _eyes(h, .4 * s, .1 * s, .2 * s);
+  const sn = o.sn || o.b || hc;
+  h.add(_box(.42 * s, .26 * s, .28 * s, sn, 0, -.14 * s, .5 * s));
+  h.add(_box(.15 * s, .1 * s, .1, o.rednose ? '#e03030' : '#222', 0, -.05 * s, .66 * s, o.rednose ? '#802020' : null));
+  const e = o.ec || hc;
+  if(o.ear === 'point') [-1, 1].forEach(sd => h.add(_box(.22 * s, .32 * s, .12 * s, e, sd * .26 * s, .5 * s, -.05 * s)));
+  else if(o.ear === 'flop') [-1, 1].forEach(sd => h.add(_box(.14 * s, .42 * s, .26 * s, e, sd * .48 * s, .02 * s, -.02 * s)));
+  else if(o.ear === 'long') [-1, 1].forEach(sd => h.add(_box(.17 * s, .72 * s, .12 * s, e, sd * .2 * s, .68 * s, -.05 * s)));
+  else if(o.ear === 'round') [-1, 1].forEach(sd => h.add(_box(.26 * s, .26 * s, .12 * s, e, sd * .34 * s, .44 * s, -.05 * s)));
+  if(o.horn) h.add(_box(.12 * s, .55 * s, .12 * s, o.horn, 0, .62 * s, .12 * s, o.horn === '#f5cd30' ? '#a07a10' : null));
+  if(o.puff) h.add(_box(.5 * s, .36 * s, .5 * s, o.puff, 0, .5 * s, 0));
+  if(o.antler) [-1, 1].forEach(sd => { h.add(_box(.1, .6 * s, .1, o.antler, sd * .22 * s, .68 * s, -.05)); h.add(_box(.1, .1, .35 * s, o.antler, sd * .22 * s, .8 * s, .1)); h.add(_box(.1, .35 * s, .1, o.antler, sd * .34 * s, .96 * s, -.05)); });
+  if(o.mane) g.add(_box(.2 * s, .5 * s, .9 * s, o.mane, 0, 1.5 * s, .35 * s));
+  if(o.spikes) [-.5, -.15, .2, .55].forEach(z => g.add(_box(.14 * s, .22 * s, .22 * s, o.spikes, 0, 1.45 * s, z * s)));
+  const tc = o.tc || c; let t = null;
+  if(o.tail === 'up') t = _box(.16 * s, .55 * s, .16 * s, tc, 0, 1.4 * s, -.78 * s);
+  else if(o.tail === 'stub') t = _box(.24 * s, .24 * s, .24 * s, tc, 0, 1.2 * s, -.8 * s);
+  else if(o.tail === 'curl') t = _box(.14 * s, .14 * s, .22 * s, tc, 0, 1.3 * s, -.82 * s);
+  else if(o.tail === 'pom') t = _box(.3 * s, .3 * s, .3 * s, tc, 0, 1.35 * s, -.85 * s);
+  else if(o.tail === 'tall') t = _box(.42 * s, .95 * s, .48 * s, tc, 0, 1.6 * s, -.85 * s);
+  else if(o.tail === 'bushy'){ t = _box(.38 * s, .36 * s, .75 * s, tc, 0, 1.15 * s, -1.05 * s); if(o.tt) t.add(_box(.4 * s, .38 * s, .22 * s, o.tt, 0, 0, -.4 * s)); }
+  else if(o.tail === 'long'){ t = new THREE.Group(); t.position.set(0, 1.1 * s, -.75 * s); t.add(_box(.3 * s, .3 * s, .75 * s, tc, 0, 0, -.35 * s)); t.add(_box(.18 * s, .18 * s, .7 * s, tc, 0, 0, -1 * s)); }
+  if(t){ g.add(t); P.tail = t; }
+  if(o.wings){ [-1, 1].forEach(sd => { const w = new THREE.Group(); w.position.set(sd * .5 * s, 1.25 * s, 0); w.add(_box(1.05 * s, .06, .8 * s, o.wings, sd * .52 * s, 0, 0)); g.add(w); P.wings.push({m:w, sd}); }); }
+}
+function _buildBird(o, g, P){
+  const s = o.s || 1, c = o.c, hc = o.headc || c;
+  g.add(_box(.9 * s, .95 * s, .85 * s, c, 0, .95 * s, 0));
+  if(o.belly) g.add(_box(.8 * s, .75 * s, .1, o.belly, 0, .9 * s, .45 * s));
+  [-1, 1].forEach(sd => { const l = _leg(.12 * s, .42 * s, o.feet || '#d9902a', sd * .22 * s, .42 * s, .05 * s); g.add(l); P.legs.push(l); g.add(_box(.28 * s, .08, .38 * s, o.feet || '#d9902a', sd * .22 * s, .04, .12 * s)); });
+  const nl = (o.neckLen || 0) * s, hy = 1.65 * s + nl, hz = .2 * s;
+  if(nl){ g.add(_box(.24 * s, nl + .3 * s, .24 * s, o.neck || c, 0, 1.4 * s + nl / 2, .2 * s)); }
+  const h = new THREE.Group(); h.position.set(0, hy, hz); g.add(h);
+  h.add(_box(.58 * s, .52 * s, .55 * s, hc, 0, 0, 0));
+  if(o.bigeyes){ [-1, 1].forEach(sd => { h.add(_box(.24 * s, .24 * s, .06, '#fff', sd * .16 * s, .06 * s, .29 * s)); h.add(_box(.12 * s, .12 * s, .07, '#111', sd * .16 * s, .06 * s, .31 * s)); }); }
+  else _eyes(h, .29 * s, .1 * s, .17 * s);
+  if(o.flatbill) h.add(_box(.34 * s, .1 * s, .36 * s, o.beak, 0, -.1 * s, .42 * s));
+  else if(o.bigeyes) h.add(_box(.12 * s, .16 * s, .14 * s, o.beak, 0, -.08 * s, .32 * s));
+  else { h.add(_box(.2 * s, .14 * s, .3 * s, o.beak || '#f0a030', 0, -.07 * s, .4 * s)); if(o.headc === '#fafafa') h.add(_box(.12 * s, .16 * s, .1, o.beak, 0, -.16 * s, .55 * s)); }
+  if(o.wattle) h.add(_box(.1 * s, .22 * s, .1, '#d6302a', 0, -.22 * s, .3 * s));
+  if(o.tuft) [-1, 1].forEach(sd => h.add(_box(.12 * s, .26 * s, .12 * s, o.tuft, sd * .2 * s, .38 * s, 0)));
+  const wl = o.bigwing ? 1.1 : .6;
+  [-1, 1].forEach(sd => { const w = new THREE.Group(); w.position.set(sd * .48 * s, 1.15 * s, 0); w.add(_box(.12 * s, wl * s, .62 * s, o.wing || c, sd * .06 * s, -wl * s / 2 + .1, 0)); g.add(w); P.wings.push({m:w, sd, rest:.25}); });
+  if(o.fan){ const t = new THREE.Group(); t.position.set(0, 1.0 * s, -.45 * s); o.fan.forEach((col, i) => { const a = (i - (o.fan.length - 1) / 2) * (o.bigfan ? .36 : .42); const f = _box(.22 * s, (o.bigfan ? 1.5 : 1.0) * s, .08, col, 0, 0, 0); f.position.set(Math.sin(a) * (o.bigfan ? .85 : .6) * s, Math.cos(a) * (o.bigfan ? .85 : .6) * s - .2, -.1 - Math.abs(i - (o.fan.length - 1) / 2) * .03); f.rotation.z = -a; t.add(f); }); g.add(t); P.tail = t; }
+  else { const t = _box(.42 * s, .14, .5 * s, o.tailc || c, 0, .85 * s, -.62 * s); g.add(t); P.tail = t; }
+}
+function _buildSpecial(o, g, P){
+  if(o.t === 'snow'){
+    g.add(_sph(.62, '#ffffff', 0, .62, 0)); g.add(_sph(.46, '#ffffff', 0, 1.4, 0)); g.add(_sph(.34, '#ffffff', 0, 2.0, 0));
+    g.add(_box(.8, .14, .8, '#d6302a', 0, 1.75, 0)); g.add(_box(.12, .12, .4, '#f08a2a', 0, 2.0, .38));
+    [-1, 1].forEach(sd => { g.add(_box(.08, .08, .06, '#111', sd * .13, 2.1, .3)); }); [0, 1, 2].forEach(i => g.add(_box(.08, .08, .06, '#111', 0, 1.5 - i * .25, .45 - i * .02)));
+    g.add(_cyl(.3, .3, .06, '#222', 0, 2.3, 0, 12)); g.add(_cyl(.2, .2, .32, '#222', 0, 2.48, 0, 12));
+    [-1, 1].forEach(sd => g.add(_box(.7, .08, .08, '#6b4a24', sd * .8, 1.5, 0))); P.bobAmt = .12;
+  } else if(o.t === 'robot'){
+    g.add(_box(.95, .9, .7, '#aeb7c4', 0, 1.0, 0)); g.add(_box(.5, .3, .05, '#2a2f38', 0, 1.05, .36)); g.add(_box(.12, .12, .06, '#d6302a', -.12, 1.05, .39, '#801010')); g.add(_box(.12, .12, .06, '#3ad65c', .12, 1.05, .39, '#10802a'));
+    const h = _box(.75, .6, .65, '#c9d1dc', 0, 1.8, 0); g.add(h); h.add(_box(.55, .18, .05, '#4ad8ff', 0, .04, .34, '#2090b0'));
+    g.add(_box(.06, .35, .06, '#6a727e', 0, 2.25, 0)); g.add(_box(.16, .16, .16, '#d6302a', 0, 2.48, 0, '#801010'));
+    [-1, 1].forEach(sd => { const a = new THREE.Group(); a.position.set(sd * .6, 1.4, 0); a.add(_box(.2, .7, .22, '#8a929e', 0, -.3, 0)); g.add(a); P.arms = P.arms || []; P.arms.push({m:a, sd}); const l = _leg(.3, .5, '#6a727e', sd * .25, .55, 0); g.add(l); P.legs.push(l); });
+  } else if(o.t === 'ghost'){
+    const b = _box(.95, 1.1, .75, o.c, 0, 1.3, 0); g.add(b); b.material.transparent = true; b.material.opacity = .88;
+    [-.32, 0, .32].forEach((x, i) => { const f = _box(.3, .3, .72, o.c, x, .62 + (i % 2) * -.05, 0); f.material.transparent = true; f.material.opacity = .88; g.add(f); P.flap = P.flap || []; P.flap.push(f); });
+    [-1, 1].forEach(sd => { g.add(_box(.16, .28, .05, '#111', sd * .22, 1.5, .39)); g.add(_box(.18, .18, .18, o.c, sd * .6, 1.2, 0)); }); g.add(_box(.26, .12, .05, '#111', 0, 1.15, .39));
+    if(o.hat){ g.add(_cyl(.5, .5, .06, '#3a1f4d', 0, 1.88, 0, 12)); g.add(_cyl(.05, .3, .5, '#3a1f4d', 0, 2.15, 0, 12)); g.add(_box(.62, .1, .62, '#e8761c', 0, 1.93, 0)); }
+    P.fly = 1; P.bobAmt = .15;
+  } else if(o.t === 'bat'){
+    g.add(_box(.55, .55, .45, '#3a2a4a', 0, 1.2, 0)); const h = _box(.5, .45, .42, '#4a3a5a', 0, 1.7, 0); g.add(h);
+    [-1, 1].forEach(sd => { h.add(_box(.16, .3, .1, '#4a3a5a', sd * .16, .32, 0)); h.add(_box(.1, .1, .05, '#ff4040', sd * .12, .04, .22, '#aa2020')); });
+    h.add(_box(.08, .1, .04, '#fafafa', -.07, -.14, .22)); h.add(_box(.08, .1, .04, '#fafafa', .07, -.14, .22));
+    [-1, 1].forEach(sd => { const w = new THREE.Group(); w.position.set(sd * .28, 1.35, 0); w.add(_box(1.1, .05, .7, '#5a3a6a', sd * .55, 0, 0)); w.add(_box(.5, .05, .4, '#5a3a6a', sd * 1.15, 0, .05)); g.add(w); P.wings.push({m:w, sd, rest:0}); });
+    P.fly = 1; P.flapSpd = 16;
+  }
+}
+const _petCache = {};
+function buildPet(id){
+  const o = PET_LOOK[id]; if(!o) return null;
+  const g = new THREE.Group(), P = {group:g, legs:[], wings:[], tail:null, fly:!!o.fly, bobAmt:0, flapSpd:8, t:0};
+  if(o.t === 'q') _buildQuad(o, g, P); else if(o.t === 'b') _buildBird(o, g, P); else _buildSpecial(o, g, P);
+  if(o.fly) P.fly = 1;
+  return P;
+}
+function petAnim(P, t, moving){
+  const sw = moving ? Math.sin(t * 13) * .7 : 0;
+  P.legs.forEach((l, i) => { l.rotation.x = (i === 0 || i === 3) ? sw : -sw; });
+  P.wings.forEach(w => { const sp = P.fly ? (P.flapSpd || 14) : 6, amp = P.fly ? .7 : (moving ? .35 : .08); w.m.rotation.z = w.sd * ((w.rest || 0) + Math.sin(t * sp) * amp); });
+  if(P.tail && P.tail.rotation) P.tail.rotation.y = Math.sin(t * 8) * (moving ? .5 : .25);
+  if(P.arms) P.arms.forEach(a => { a.m.rotation.x = a.sd * (moving ? sw * .8 : 0); });
+  if(P.flap) P.flap.forEach((f, i) => { f.position.y = .62 + Math.sin(t * 4 + i * 2) * .08; });
+}
+function petThumb(id){
+  const key = 'pet' + id; if(_thumbs[key]) return _thumbs[key];
+  if(!thumbInit()) return '';
+  try{ const P = buildPet(id); if(!P) return ''; petAnim(P, 0, false); return _thumbs[key] = thumbRender(P.group, [0, 1.15, 0], 6.8, .65, 1.1); }catch(e){ return ''; }
 }
 
 /* ===================== game engine ===================== */
@@ -2783,13 +2924,27 @@ const Engine = (function(){
     G.T += dt; G.xpT = (G.xpT || 0) + dt; if(G.xpT >= 30){ G.xpT = 0; G.opts.onEvent && G.opts.onEvent('tick'); } worldStep(dt); stepPlayer(dt);
   }
   /* pets and emote icons */
-  function setPet(e, emoji){
-    emoji = emoji || ''; if((e.petEm || '') === emoji) return; if(e.petSp){ G.scene.remove(e.petSp); e.petSp = null; } e.petEm = emoji;
-    if(emoji){ e.petSp = emojiSprite(emoji, 3.4); e.petSp.position.set(e.x - 3, e.y + 2.5, e.z - 3); G.scene.add(e.petSp); }
+  function petIdOf(k){ if(!k) return ''; if(PET_LOOK[k]) return k; const p = PETS.find(q => q.e === k); return p ? p.id : ''; }
+  function setPet(e, key){
+    key = key || ''; if((e.petEm || '') === key) return; if(e.petSp){ G.scene.remove(e.petSp); e.petSp = null; e.petP = null; } e.petEm = key;
+    if(!key) return;
+    let id = petIdOf(key), P = null; try{ P = id ? buildPet(id) : null; }catch(err){ P = null; }
+    if(P){ e.petP = P; e.petSp = P.group; } else e.petSp = emojiSprite(key, 3.4);
+    e.petSp.position.set(e.x - 3, e.y, e.z - 3); G.scene.add(e.petSp);
   }
   function showEmo(e, emoji){ if(!e) return; if(e.emoSp) G.scene.remove(e.emoSp); e.emoSp = emojiSprite(emoji, 5); e.emoSp.position.set(e.x, e.y + 9, e.z); G.scene.add(e.emoSp); e.emoT = 3; }
   function petEmoStep(e, dt){
-    if(e.petSp){ const f = 1 - Math.exp(-6 * dt), tx = e.x - Math.sin(e.face || 0) * 4 + Math.cos(e.face || 0) * 2.5, tz = e.z - Math.cos(e.face || 0) * 4 - Math.sin(e.face || 0) * 2.5, ty = e.y + 2.4 + Math.sin(G.T * 5 + (e.x | 0)) * .35, p = e.petSp.position; p.x += (tx - p.x) * f; p.y += (ty - p.y) * f; p.z += (tz - p.z) * f; e.petSp.visible = !e.dead; }
+    if(e.petSp){ const P = e.petP, p = e.petSp.position, f = 1 - Math.exp(-(P ? 4 : 6) * dt), tx = e.x - Math.sin(e.face || 0) * 4 + Math.cos(e.face || 0) * 2.5, tz = e.z - Math.cos(e.face || 0) * 4 - Math.sin(e.face || 0) * 2.5;
+      if(P){
+        if(Math.hypot(tx - p.x, tz - p.z) > 30){ p.set(tx, e.y, tz); }
+        const ox = p.x, oz = p.z; p.x += (tx - p.x) * f; p.z += (tz - p.z) * f;
+        P.sp = (P.sp || 0) * .85 + (Math.hypot(p.x - ox, p.z - oz) / Math.max(dt, .001)) * .15; const mv = P.sp > 1.4;
+        let ty = e.y + (P.fly ? 2.4 + Math.sin(G.T * 3 + (e.x | 0)) * .3 : 0); if(mv && !P.fly) ty += Math.abs(Math.sin(G.T * 11)) * .18; if(P.bobAmt) ty += Math.abs(Math.sin(G.T * 3)) * P.bobAmt;
+        p.y += (ty - p.y) * (1 - Math.exp(-12 * dt));
+        const want = mv ? Math.atan2(p.x - ox, p.z - oz) : (e.face || 0); let dr = want - e.petSp.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); e.petSp.rotation.y += dr * (1 - Math.exp(-8 * dt));
+        petAnim(P, G.T, mv || !!P.fly);
+      } else { const ty = e.y + 2.4 + Math.sin(G.T * 5 + (e.x | 0)) * .35; p.x += (tx - p.x) * f; p.y += (ty - p.y) * f; p.z += (tz - p.z) * f; }
+      e.petSp.visible = !e.dead; }
     if(e.emoSp){ e.emoT -= dt; if(e.emoT <= 0){ G.scene.remove(e.emoSp); e.emoSp = null; } else { e.emoSp.position.set(e.x, e.y + 9 + (3 - e.emoT) * .6, e.z); e.emoSp.visible = !e.dead; } }
   }
   function playEmo(id){
@@ -3799,6 +3954,7 @@ const EGG_NAME = {winter:'Winter Egg', halloween:'Halloween Egg', thanksgiving:'
 function eggRows(){
   return Object.keys(EVENTS).filter(k => eventOn(k)).map(k => '<div class="lrow"><div class="grow"><b>' + EGG_NAME[k] + '</b><div class="status">' + PETS.filter(p => p.ev === k).map(p => p.n).join(' or ') + '. Only during the ' + EVENTS[k].name + ' event.</div></div><a class="btn green" data-act="buyEgg" data-k="' + k + '">' + tokp(60) + ' Hatch</a></div>').join('');
 }
+function petIcon(p, px){ const u = petThumb(p.id); return u ? '<img src="' + u + '" alt="' + esc(p.n) + '" width="' + px + '" height="' + px + '" style="display:block;margin:0 auto;image-rendering:auto">' : '<div style="font-size:' + Math.round(px * .7) + 'px;line-height:1.2">' + p.e + '</div>'; }
 function buyEgg(kind){
   const winter = kind !== 'basic', cost = winter ? 60 : 40;
   if(winter && !eventOn(kind)){ toast('That egg is not available right now.', true); return; }
@@ -3806,7 +3962,7 @@ function buyEgg(kind){
   const pool = PETS.filter(p => winter ? p.ev === kind : !p.ev), w = pool.map(p => winter ? (p.r === 3 ? 25 : 75) : RARITY_W[p.r] / pool.filter(q => q.r === p.r).length);
   let r = Math.random() * w.reduce((a, b) => a + b, 0), pick = pool[0]; for(let i = 0; i < pool.length; i++){ r -= w[i]; if(r <= 0){ pick = pool[i]; break; } }
   U.tokens -= cost; const dup = U.pets.indexOf(pick.id) >= 0; if(dup) U.tokens += 10; else U.pets.push(pick.id); if(U.pets.length >= 5) giveBadge('petlover'); persist(); refreshChrome();
-  modal(dup ? 'Duplicate!' : 'You hatched a ' + pick.n + '!', '<div style="text-align:center"><div style="font-size:84px;line-height:1.2">' + pick.e + '</div><b>' + pick.n + '</b><div class="muted">' + RARITY[pick.r] + (dup ? ' &middot; You already had this one, so you got 10 tokens back.' : '') + '</div></div>', [{label:'Nice!', cls:'green', fn:() => { render(); }}]);
+  modal(dup ? 'Duplicate!' : 'You hatched a ' + pick.n + '!', '<div style="text-align:center">' + petIcon(pick, 200) + '<b>' + pick.n + '</b><div class="muted">' + RARITY[pick.r] + (dup ? ' &middot; You already had this one, so you got 10 tokens back.' : '') + '</div></div>', [{label:'Nice!', cls:'green', fn:() => { render(); }}]);
 }
 function renderPets(){
   const tab = route().query.tab || 'pets', on = t => tab === t ? 'on' : '', ev = eventOn('winter');
@@ -3814,7 +3970,7 @@ function renderPets(){
   let body;
   if(tab === 'shop') body = '<div class="box"><div class="sec-h"><span>Egg Shop</span></div><p class="muted" style="margin-top:0">Hatch a random pet. Your pet follows you in every game and other players can see it. Duplicates give 10 tokens back.</p><div class="lrow"><div class="grow"><b>Mystery Egg</b><div class="status">Common 60% &middot; Uncommon 28% &middot; Rare 10% &middot; Epic 2%</div></div><a class="btn green" data-act="buyEgg" data-k="basic">' + tokp(40) + ' Hatch</a></div>' + eggRows() + '</div>';
   else if(tab === 'emotes') body = '<div class="box"><div class="sec-h"><span>Emotes</span></div><p class="muted" style="margin-top:0">In a game, press the face button at the top left (or type /e name in chat; free ones: dance, wave, cheer, bounce, point, salute, shrug) to pop an emote over your head.</p>' + EMOTES.filter(e => !e.ev || eventOn(e.ev) || U.emotes.indexOf(e.id) >= 0).map(e => '<div class="lrow"><div class="grow"><span style="font-size:28px;vertical-align:middle">' + e.e + '</span> <b>' + e.n + '</b> <span class="muted">/e ' + e.id + '</span></div>' + (U.emotes.indexOf(e.id) >= 0 ? '<span class="btn neutral small" style="cursor:default">Owned</span>' : '<a class="btn green small" data-act="buyEmote" data-e="' + e.id + '">' + tokp(e.price) + ' Buy</a>') + '</div>').join('') + '</div>';
-  else body = '<div class="box"><div class="sec-h"><span>My Pets (' + U.pets.length + ' of ' + PETS.filter(p => !p.ev).length + '+)</span></div>' + (U.pets.length ? '<div class="pets">' + PETS.filter(p => U.pets.indexOf(p.id) >= 0).map(p => '<div class="pet' + (U.pet === p.id ? ' on' : '') + '"><div class="em">' + p.e + '</div><b>' + p.n + '</b><div class="muted" style="font-size:12px">' + RARITY[p.r] + (p.ev ? ' &middot; Event' : '') + '</div><a class="btn small" style="margin-top:6px" data-act="equipPet" data-p="' + p.id + '">' + (U.pet === p.id ? 'Put Away' : 'Bring Along') + '</a></div>').join('') + '</div>' : '<p class="muted" style="margin:0">You do not have a pet yet. Visit the <a href="#/pets?tab=shop">Egg Shop</a>.</p>') + '</div>';
+  else body = '<div class="box"><div class="sec-h"><span>My Pets (' + U.pets.length + ' of ' + PETS.filter(p => !p.ev).length + '+)</span></div>' + (U.pets.length ? '<div class="pets">' + PETS.filter(p => U.pets.indexOf(p.id) >= 0).map(p => '<div class="pet' + (U.pet === p.id ? ' on' : '') + '"><div class="em">' + petIcon(p, 110) + '</div><b>' + p.n + '</b><div class="muted" style="font-size:12px">' + RARITY[p.r] + (p.ev ? ' &middot; Event' : '') + '</div><a class="btn small" style="margin-top:6px" data-act="equipPet" data-p="' + p.id + '">' + (U.pet === p.id ? 'Put Away' : 'Bring Along') + '</a></div>').join('') + '</div>' : '<p class="muted" style="margin:0">You do not have a pet yet. Visit the <a href="#/pets?tab=shop">Egg Shop</a>.</p>') + '</div>';
   setApp('<h1 class="page-h">Pets &amp; Emotes</h1>' + tabs + body);
 }
 const SEASON = [{a:25}, {emote:'snow'}, {a:50}, {item:'Frosty Beanie'}, {a:75}, {item:'Cozy Sweater'}, {pet:'snowman'}, {item:'Snow Pants'}, {a:100}, {item:'Frost Hoodie', pet:'reindeer', a:150}], SEASON_XP = 100, SEASON_DAY_CAP = 300;
@@ -4144,7 +4300,7 @@ async function playGame(gid, opt){
   if(s.cancel){ if(nr) nr.leave().catch(() => {}); return; }
   U.stats.visits++; U.visits[gid] = (U.visits[gid] || 0) + 1; U.recent = [gid].concat(U.recent.filter(x => x !== gid)).slice(0, 6); persist();
   const leave = () => { if(nr) nr.leave().catch(() => {}); setLobby(null); };
-  const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar)), owned:U.owned.slice(), petEm:(PET_BY_ID[U.pet] || {}).e || '', emotes:(U.emotes || []).slice()}, seed:hashStr(roomName), serverName:solo ? '' : (typeof server === 'string' ? 'Private server' : 'Server ' + server), place:place ? {bricks:place.bricks, env:place.env} : null,
+  const ok = Engine.start({game:g, user:{name:U.name, avatar:JSON.parse(JSON.stringify(U.avatar)), owned:U.owned.slice(), petEm:(PET_BY_ID[U.pet] || {}).id || '', emotes:(U.emotes || []).slice()}, seed:hashStr(roomName), serverName:solo ? '' : (typeof server === 'string' ? 'Private server' : 'Server ' + server), place:place ? {bricks:place.bricks, env:place.env} : null,
     net:nr ? {room:nr, myId:MYID, nameOf, isBlocked} : null,
     resume:(g.gen && g.gen.milestone && U.prog && U.prog[gid]) || 0, tycoon:g.kind === 'tycoon' ? (U.tyc || null) : null,
     onReward:(kind, amt) => { if(kind === 'tokens'){ U.tokens += amt; s.earned += amt; U.stats.earned = (U.stats.earned || 0) + amt; if(g.kind === 'town' || g.kind === 'coins') U.stats.coins += amt; save(); } },

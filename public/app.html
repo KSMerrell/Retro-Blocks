@@ -600,6 +600,30 @@ const ITEM_DEFS = [
  ['shirt','Cozy Sweater',35,'R',{c1:'#c4281c',c2:'#287f47',p:'stripes'},'Winter event item. Red and green stripes, extra itchy.',0,'winter'],
  ['shirt','Frost Hoodie',50,'R',{c1:'#9fd3ff',c2:'#6aa8d8',p:'hood'},'Winter event item. A hoodie the color of fresh ice.',0,'winter'],
  ['pants','Snow Pants',30,'R',{c:'#e8f6ff',s:'#9fc4e0'},'Winter event item. Built for snowball fights.',0,'winter'],
+ ['hat','Pumpkin Wizard Hat',70,'R',{k:'wiz',c:'#e8761c'},'Halloween event item. A pointy hat the color of a ripe pumpkin.',0,'halloween'],
+ ['hat','Spooky Top Hat',60,'R',{k:'top',c:'#3a1f4d'},'Halloween event item. Purple, tall and a little haunted.',0,'halloween'],
+ ['shirt','Skeleton Shirt',40,'R',{c1:'#15151b',c2:'#f2f3f3',p:'skull'},'Halloween event item. Rattles when you run. Not really.',0,'halloween'],
+ ['pants','Witch Pants',30,'R',{c:'#4b2a66',s:'#2a1738'},'Halloween event item. Great for broomstick season.',0,'halloween'],
+ ['hat','Pilgrim Hat',55,'R',{k:'top',c:'#4a3320'},'Thanksgiving event item. A tall brown hat for the big feast.',0,'thanksgiving'],
+ ['hat','Harvest Fedora',65,'R',{k:'fedora',c:'#b8651b'},'Thanksgiving event item. The color of autumn leaves.',0,'thanksgiving'],
+ ['shirt','Turkey Sweater',40,'R',{c1:'#8a4b1f',c2:'#d9822b',p:'stripes'},'Thanksgiving event item. Warm, brown and full of stuffing.',0,'thanksgiving'],
+ ['pants','Autumn Pants',30,'R',{c:'#9a5a24',s:'#6b3a14'},'Thanksgiving event item. Cozy corduroy colors.',0,'thanksgiving'],
+ ['hat','Firework Cap',45,'R',{k:'cap',c:'#c4281c'},'4th of July event item. Red and ready for the show.',0,'july4'],
+ ['hat','Patriot Top Hat',70,'R',{k:'top',c:'#24449c'},'4th of July event item. Tall, blue and proud.',0,'july4'],
+ ['shirt','Stars and Stripes Tee',40,'R',{c1:'#ffffff',c2:'#c4281c',p:'stripes'},'4th of July event item. Red and white stripes for the parade.',0,'july4'],
+ ['pants','Fireworks Pants',30,'R',{c:'#24449c',s:'#162a66'},'4th of July event item. Deep blue like the night sky.',0,'july4'],
+ ['hat','Heart Crown',80,'R',{k:'crown',c:'#ff6fae'},'Valentine event item. A sweet pink crown for someone special.',0,'valentine'],
+ ['hat','Cupid Halo',70,'R',{k:'halo',c:'#ffb3d1'},'Valentine event item. Floats above you. Aim not included.',0,'valentine'],
+ ['shirt','Rose Shirt',40,'R',{c1:'#ff8fb8',c2:'#c4281c',p:'stripes'},'Valentine event item. Pink with red roses colors.',0,'valentine'],
+ ['pants','Love Pants',30,'R',{c:'#e04a86',s:'#a82e62'},'Valentine event item. Bold and bright.',0,'valentine'],
+ ['hat','Pastel Beanie',35,'R',{k:'bean',c:'#b8e6c4'},'Easter event item. Soft spring green.',0,'easter'],
+ ['hat','Egg Hunter Cap',45,'R',{k:'cap',c:'#ffd45e'},'Easter event item. Perfect for finding hidden eggs.',0,'easter'],
+ ['shirt','Spring Shirt',40,'R',{c1:'#ffd1e8',c2:'#b8e6c4',p:'stripes'},'Easter event item. Pink and mint stripes.',0,'easter'],
+ ['pants','Pastel Pants',30,'R',{c:'#c8b8f0',s:'#9b88d0'},'Easter event item. Soft lilac.',0,'easter'],
+ ['hat','Party Top Hat',90,'R',{k:'top',c:'#f5cd30'},'New Year event item. Shiny gold for the countdown.',0,'newyear'],
+ ['hat','Midnight Crown',120,'R',{k:'crown',c:'#2a2f6e'},'New Year event item. Deep blue with a midnight shine.',0,'newyear'],
+ ['shirt','Confetti Shirt',40,'R',{c1:'#1b2a5e',c2:'#f5cd30',p:'stripes'},'New Year event item. Navy and gold.',0,'newyear'],
+ ['pants','Sparkle Pants',30,'R',{c:'#232a66',s:'#f5cd30'},'New Year event item. Ready to dance at midnight.',0,'newyear'],
  ['hat','Short Brown Hair',0,'R',{k:'hair',c:'#5a3a22'},'Neat short hair. Free for everyone.'],
  ['hat','Brown Ponytail',0,'R',{k:'pony',c:'#5a3a22'},'A swishy ponytail with a pink tie. Free for everyone.'],
  ['gear','Ban Hammer',0,'R',{k:'banhammer'},'Staff only. Mods and above get this in every game. Face a player and click to ban them.',0,'staff']
@@ -618,21 +642,40 @@ const FREE_FACE = ITEMS.find(i => i.type === 'face' && i.price === 0).id;
 
 /* ===================== games ===================== */
 /* seasonal events: items and games tagged with an event only show while it is on */
-const EVENTS = {winter:{name:'Winter Wonderland', from:Date.UTC(2026, 10, 20), to:Date.UTC(2027, 0, 15), end:'January 15'}};
+const EVENTS = {
+ winter:{name:'Winter Wonderland', icon:'❄', win:y => [Date.UTC(y, 10, 20), Date.UTC(y + 1, 0, 16)]},
+ halloween:{name:'Halloween', icon:'🎃', win:y => [Date.UTC(y, 9, 15), Date.UTC(y, 10, 3)], game:31, color:'#e8761c', blurb:'Creep through the haunted <b>Haunted Hollow</b> obby, grab spooky hats and shirts, and hatch a Ghost or a Bat from the Halloween Egg.'},
+ thanksgiving:{name:'Thanksgiving', icon:'🦃', win:y => { const d = new Date(Date.UTC(y, 10, 1)), th = 1 + ((4 - d.getUTCDay() + 7) % 7) + 21; return [Date.UTC(y, 10, 15), Date.UTC(y, 10, th + 4)]; }, game:32, color:'#b8651b', blurb:'Hop across the <b>Harvest Run</b> obby, dress up in autumn gear, and hatch a Turkey or a Squirrel from the Thanksgiving Egg.'},
+ july4:{name:'4th of July', icon:'🎆', win:y => [Date.UTC(y, 5, 28), Date.UTC(y, 6, 9)], game:33, color:'#24449c', blurb:'Light up the <b>Firework Festival</b> obby, wear red, white and blue, and hatch an Eagle or a Grizzly from the Fireworks Egg.'},
+ valentine:{name:'Valentine’s Day', icon:'💖', win:y => [Date.UTC(y, 1, 7), Date.UTC(y, 1, 16)], game:34, color:'#e04a86', blurb:'Float through the <b>Sweetheart Sprint</b> obby, grab pink hearts gear, and hatch a Lovebird or a Swan from the Love Egg.'},
+ easter:{name:'Easter', icon:'🐰', win:y => { const a = y % 19, b = Math.floor(y / 100), c = y % 100, dd = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - dd - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return [Date.UTC(y, mo - 1, da - 8), Date.UTC(y, mo - 1, da + 2)]; }, game:35, color:'#7bc99a', blurb:'Hunt through the <b>Egg Hunt Hop</b> obby, wear pastel gear, and hatch a Lamb or a Duckling from the Spring Egg.'},
+ newyear:{name:'New Year', icon:'🎊', win:y => [Date.UTC(y, 11, 26), Date.UTC(y + 1, 0, 3)], game:36, color:'#d7a920', blurb:'Count down in the <b>Midnight Countdown</b> obby, wear gold and navy, and hatch a Poodle or a Peacock from the Party Egg.'}
+};
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+/* every event repeats each year: pick the window that is on now, or the next one coming */
+Object.keys(EVENTS).forEach(k => { const e = EVENTS[k], now = Date.now(), y = new Date().getUTCFullYear();
+  for(let yy = y - 1; yy <= y + 1; yy++){ const w = e.win(yy); e.from = w[0]; e.to = w[1]; if(now < w[1]) break; }
+  const last = new Date(e.to - 86400000); e.end = MONTHS[last.getUTCMonth()] + ' ' + last.getUTCDate(); });
 const eventOn = k => { const e = EVENTS[k], t = Date.now(); return !!e && t >= e.from && t < e.to; };
 const PETS = [
  {id:'puppy', n:'Puppy', e:'🐶', r:0}, {id:'kitty', n:'Kitty', e:'🐱', r:0}, {id:'frog', n:'Froggy', e:'🐸', r:0}, {id:'chick', n:'Chick', e:'🐥', r:0}, {id:'bunny', n:'Bunny', e:'🐰', r:0},
  {id:'fox', n:'Fox', e:'🦊', r:1}, {id:'panda', n:'Panda', e:'🐼', r:1}, {id:'penguin', n:'Penguin', e:'🐧', r:1}, {id:'piglet', n:'Piglet', e:'🐷', r:1},
  {id:'unicorn', n:'Unicorn', e:'🦄', r:2}, {id:'dragon', n:'Dragon', e:'🐲', r:2}, {id:'owl', n:'Owl', e:'🦉', r:2},
  {id:'robot', n:'Robo-Pal', e:'🤖', r:3}, {id:'ghost', n:'Ghost', e:'👻', r:3},
- {id:'snowman', n:'Snowman', e:'⛄', r:2, ev:'winter'}, {id:'reindeer', n:'Reindeer', e:'🦌', r:3, ev:'winter'}
+ {id:'snowman', n:'Snowman', e:'⛄', r:2, ev:'winter'}, {id:'reindeer', n:'Reindeer', e:'🦌', r:3, ev:'winter'},
+ {id:'ghost', n:'Ghost', e:'👻', r:2, ev:'halloween'}, {id:'bat', n:'Bat', e:'🦇', r:3, ev:'halloween'},
+ {id:'turkey', n:'Turkey', e:'🦃', r:2, ev:'thanksgiving'}, {id:'squirrel', n:'Squirrel', e:'🐿️', r:3, ev:'thanksgiving'},
+ {id:'eagle', n:'Eagle', e:'🦅', r:2, ev:'july4'}, {id:'grizzly', n:'Grizzly', e:'🐻', r:3, ev:'july4'},
+ {id:'lovebird', n:'Lovebird', e:'🦜', r:2, ev:'valentine'}, {id:'swan', n:'Swan', e:'🦢', r:3, ev:'valentine'},
+ {id:'lamb', n:'Lamb', e:'🐑', r:2, ev:'easter'}, {id:'duckling', n:'Duckling', e:'🦆', r:3, ev:'easter'},
+ {id:'poodle', n:'Poodle', e:'🐩', r:2, ev:'newyear'}, {id:'peacock', n:'Peacock', e:'🦚', r:3, ev:'newyear'}
 ];
 const PET_BY_ID = {}; PETS.forEach(p => PET_BY_ID[p.id] = p);
 const RARITY = ['Common', 'Uncommon', 'Rare', 'Epic'], RARITY_W = [60, 28, 10, 2];
 const EMOTES = [
  {id:'heart', n:'Heart', e:'❤️', price:0}, {id:'laugh', n:'Laugh', e:'😂', price:0}, {id:'thumbs', n:'Thumbs Up', e:'👍', price:0},
  {id:'cool', n:'Cool', e:'😎', price:30}, {id:'fire', n:'Fire', e:'🔥', price:30}, {id:'wow', n:'Wow', e:'😮', price:30}, {id:'cry', n:'Cry', e:'😭', price:30},
- {id:'party', n:'Party', e:'🎉', price:40}, {id:'star', n:'Star', e:'⭐', price:50}, {id:'skull', n:'Skull', e:'💀', price:50}, {id:'snow', n:'Snowflake', e:'❄️', price:60, ev:'winter'}
+ {id:'party', n:'Party', e:'🎉', price:40}, {id:'star', n:'Star', e:'⭐', price:50}, {id:'skull', n:'Skull', e:'💀', price:50}, {id:'snow', n:'Snowflake', e:'❄️', price:60, ev:'winter'}, {id:'pumpkin', n:'Pumpkin', e:'🎃', price:60, ev:'halloween'}, {id:'gobble', n:'Gobble', e:'🦃', price:60, ev:'thanksgiving'}, {id:'boom', n:'Fireworks', e:'🎆', price:60, ev:'july4'}, {id:'love', n:'Sparkling Heart', e:'💖', price:60, ev:'valentine'}, {id:'egg', n:'Egg', e:'🥚', price:60, ev:'easter'}, {id:'confetti', n:'Confetti', e:'🎊', price:60, ev:'newyear'}
 ];
 const EMO_BY_ID = {}; EMOTES.forEach(x => EMO_BY_ID[x.id] = x);
 const GAMES_ALL = [
@@ -660,6 +703,18 @@ const GAMES_ALL = [
   desc:'Stand on the colored floor while tiles flash and fall into the lava. The longer you survive, the faster they fall. Reach 30 seconds for 2 tokens and 60 seconds for 4 tokens. Everyone in the server sees the same tiles fall.'},
  {id:13, kind:'obby', event:'winter', gen:{seed:37, len:40, every:10, hard:.45, name:'Frostbite Frenzy', pal:[0xbfe6ff,0xffffff,0x8fc7ff,0xff6f6f,0x7fdc9b,0xffe08a], ground:0xeaf6ff, sky:['#7fa9de','#f2f8ff']}, name:'Frostbite Frenzy', creator:'Retro Blox', color:['#8fc7ff','#274b82'], max:12,
   desc:'Winter event! Race across icy bricks, sliding beams and vanishing snow tiles to reach the gold finish. Four checkpoints along the way. Only here for the Winter Wonderland event, so play it before it melts away.'},
+ {id:31, kind:'obby', event:'halloween', gen:{seed:3101, len:40, every:10, hard:.45, name:'Haunted Hollow', pal:[0xe8761c,0x4b2a66,0x2a1738,0x8be04a,0xf5cd30,0x9a9a9a], ground:0x1d1428, sky:['#1a0f2a','#5a2d6e']}, name:'Haunted Hollow', creator:'Retro Blox', color:['#e8761c','#2a1738'], max:12,
+  desc:'Halloween event! Sneak through a haunted graveyard of glowing pumpkin bricks, vanishing coffin tiles and narrow beams. Four checkpoints on the way to the gold finish. Only here for Halloween.'},
+ {id:32, kind:'obby', event:'thanksgiving', gen:{seed:3201, len:40, every:10, hard:.45, name:'Harvest Run', pal:[0xd9822b,0x8a4b1f,0xb8651b,0xe8c26a,0x9a5a24,0xf2dca0], ground:0xd8b878, sky:['#e8a860','#fbe6b8']}, name:'Harvest Run', creator:'Retro Blox', color:['#b8651b','#4a2a10'], max:12,
+  desc:'Thanksgiving event! Run across a giant autumn farm of hay bales, falling leaves and pie-crust bridges to reach the feast table. Four checkpoints. Only here for Thanksgiving.'},
+ {id:33, kind:'obby', event:'july4', gen:{seed:3301, len:40, every:10, hard:.45, name:'Firework Festival', pal:[0xc4281c,0xffffff,0x24449c,0xf5cd30,0xc4281c,0x24449c], ground:0x1a2450, sky:['#0e1a4a','#5a78c8']}, name:'Firework Festival', creator:'Retro Blox', color:['#24449c','#c4281c'], max:12,
+  desc:'4th of July event! Jump over red, white and blue bricks under a sky full of fireworks to reach the gold finish. Four checkpoints. Only here for the 4th of July.'},
+ {id:34, kind:'obby', event:'valentine', gen:{seed:3401, len:40, every:10, hard:.45, name:'Sweetheart Sprint', pal:[0xff6fae,0xffb3d1,0xe04a86,0xffffff,0xc4281c,0xffd1e8], ground:0xffe3ef, sky:['#ff9ec4','#fff0f6']}, name:'Sweetheart Sprint', creator:'Retro Blox', color:['#e04a86','#7a1f4a'], max:12,
+  desc:'Valentine event! Skip across candy-pink bricks, sliding heart beams and vanishing tiles to reach the gold finish. Four checkpoints. Only here for Valentine\'s Day.'},
+ {id:35, kind:'obby', event:'easter', gen:{seed:3501, len:40, every:10, hard:.45, name:'Egg Hunt Hop', pal:[0xb8e6c4,0xffd1e8,0xc8b8f0,0xffd45e,0xa8d8ff,0xffffff], ground:0xcdeec4, sky:['#9bd8ff','#f2fff0']}, name:'Egg Hunt Hop', creator:'Retro Blox', color:['#7bc99a','#2a6b4a'], max:12,
+  desc:'Easter event! Hop over pastel eggs, bouncy bunny hills and vanishing tiles to reach the gold finish. Four checkpoints. Only here for Easter.'},
+ {id:36, kind:'obby', event:'newyear', gen:{seed:3601, len:40, every:10, hard:.45, name:'Midnight Countdown', pal:[0xf5cd30,0x1b2a5e,0xffffff,0xc4a3ff,0x232a66,0xf5cd30], ground:0x141a40, sky:['#0a0f2e','#3a4a9e']}, name:'Midnight Countdown', creator:'Retro Blox', color:['#d7a920','#1b2a5e'], max:12,
+  desc:'New Year event! Race the clock across gold and midnight-blue bricks to reach the finish before the countdown ends. Four checkpoints. Only here for the New Year.'},
  {id:12, kind:'coaster', name:'Thunder Rail Coaster', creator:'Retro Blox', color:['#e0589a','#1f3b73'], max:16,
   desc:'Welcome to the theme park! Walk to the station, step on the glowing pad and ride a huge roller coaster with a lift hill, big drops and fast hills. Every finished ride earns 3 tokens. Look around for the Ferris wheel and the carousel.'},
  {id:14, kind:'obby', gen:{seed:1001, len:594, every:6, hard:.4, ramp:[.1, .95], rise:.18, long:true, milestone:25, reward:200, stageLabel:'Stage', palEvery:10, name:'Mega Obby: 100 Stages',
@@ -3686,11 +3741,15 @@ function onInvite(by, g, code){
   if(Engine.active()){ pendingInvite = {by, g, code}; toast(nameOf(by) + ' invited you to play ' + g.name + '. Leave this game to join.'); return; }
   modal(nameOf(by) + ' invited you', '<p style="margin:0"><b>' + esc(nameOf(by)) + '</b> is playing <b>' + esc(g.name) + '</b> on a private server. Want to join?</p>', [{label:'No thanks', cls:'neutral'}, {label:'Join', cls:'green', fn:() => { playGame(g.id, {server:code}); }}]);
 }
+const EGG_NAME = {winter:'Winter Egg', halloween:'Halloween Egg', thanksgiving:'Thanksgiving Egg', july4:'Fireworks Egg', valentine:'Love Egg', easter:'Spring Egg', newyear:'Party Egg'};
+function eggRows(){
+  return Object.keys(EVENTS).filter(k => eventOn(k)).map(k => '<div class="lrow"><div class="grow"><b>' + EGG_NAME[k] + '</b><div class="status">' + PETS.filter(p => p.ev === k).map(p => p.n).join(' or ') + '. Only during the ' + EVENTS[k].name + ' event.</div></div><a class="btn green" data-act="buyEgg" data-k="' + k + '">' + tokp(60) + ' Hatch</a></div>').join('');
+}
 function buyEgg(kind){
-  const winter = kind === 'winter', cost = winter ? 60 : 40;
-  if(winter && !eventOn('winter')){ toast('The Winter Egg is not available right now.', true); return; }
+  const winter = kind !== 'basic', cost = winter ? 60 : 40;
+  if(winter && !eventOn(kind)){ toast('That egg is not available right now.', true); return; }
   if(U.tokens < cost){ toast('You do not have enough tokens.', true); return; }
-  const pool = PETS.filter(p => winter ? p.ev === 'winter' : !p.ev), w = pool.map(p => winter ? (p.r === 3 ? 25 : 75) : RARITY_W[p.r] / pool.filter(q => q.r === p.r).length);
+  const pool = PETS.filter(p => winter ? p.ev === kind : !p.ev), w = pool.map(p => winter ? (p.r === 3 ? 25 : 75) : RARITY_W[p.r] / pool.filter(q => q.r === p.r).length);
   let r = Math.random() * w.reduce((a, b) => a + b, 0), pick = pool[0]; for(let i = 0; i < pool.length; i++){ r -= w[i]; if(r <= 0){ pick = pool[i]; break; } }
   U.tokens -= cost; const dup = U.pets.indexOf(pick.id) >= 0; if(dup) U.tokens += 10; else U.pets.push(pick.id); if(U.pets.length >= 5) giveBadge('petlover'); persist(); refreshChrome();
   modal(dup ? 'Duplicate!' : 'You hatched a ' + pick.n + '!', '<div style="text-align:center"><div style="font-size:84px;line-height:1.2">' + pick.e + '</div><b>' + pick.n + '</b><div class="muted">' + RARITY[pick.r] + (dup ? ' &middot; You already had this one, so you got 10 tokens back.' : '') + '</div></div>', [{label:'Nice!', cls:'green', fn:() => { render(); }}]);
@@ -3699,7 +3758,7 @@ function renderPets(){
   const tab = route().query.tab || 'pets', on = t => tab === t ? 'on' : '', ev = eventOn('winter');
   const tabs = '<div class="box" style="padding:0"><div class="tabs" style="margin:0;border-bottom:0"><a href="#/pets" class="' + on('pets') + '">My Pets</a><a href="#/pets?tab=shop" class="' + on('shop') + '">Egg Shop</a><a href="#/pets?tab=emotes" class="' + on('emotes') + '">Emotes</a></div></div>';
   let body;
-  if(tab === 'shop') body = '<div class="box"><div class="sec-h"><span>Egg Shop</span></div><p class="muted" style="margin-top:0">Hatch a random pet. Your pet follows you in every game and other players can see it. Duplicates give 10 tokens back.</p><div class="lrow"><div class="grow"><b>Mystery Egg</b><div class="status">Common 60% &middot; Uncommon 28% &middot; Rare 10% &middot; Epic 2%</div></div><a class="btn green" data-act="buyEgg" data-k="basic">' + tokp(40) + ' Hatch</a></div>' + (ev ? '<div class="lrow"><div class="grow"><b>Winter Egg</b><div class="status">Snowman or Reindeer. Only during the Winter Wonderland event.</div></div><a class="btn green" data-act="buyEgg" data-k="winter">' + tokp(60) + ' Hatch</a></div>' : '') + '</div>';
+  if(tab === 'shop') body = '<div class="box"><div class="sec-h"><span>Egg Shop</span></div><p class="muted" style="margin-top:0">Hatch a random pet. Your pet follows you in every game and other players can see it. Duplicates give 10 tokens back.</p><div class="lrow"><div class="grow"><b>Mystery Egg</b><div class="status">Common 60% &middot; Uncommon 28% &middot; Rare 10% &middot; Epic 2%</div></div><a class="btn green" data-act="buyEgg" data-k="basic">' + tokp(40) + ' Hatch</a></div>' + eggRows() + '</div>';
   else if(tab === 'emotes') body = '<div class="box"><div class="sec-h"><span>Emotes</span></div><p class="muted" style="margin-top:0">In a game, press the face button at the top left (or type /e name in chat; free ones: dance, wave, cheer, bounce, point, salute, shrug) to pop an emote over your head.</p>' + EMOTES.filter(e => !e.ev || eventOn(e.ev) || U.emotes.indexOf(e.id) >= 0).map(e => '<div class="lrow"><div class="grow"><span style="font-size:28px;vertical-align:middle">' + e.e + '</span> <b>' + e.n + '</b> <span class="muted">/e ' + e.id + '</span></div>' + (U.emotes.indexOf(e.id) >= 0 ? '<span class="btn neutral small" style="cursor:default">Owned</span>' : '<a class="btn green small" data-act="buyEmote" data-e="' + e.id + '">' + tokp(e.price) + ' Buy</a>') + '</div>').join('') + '</div>';
   else body = '<div class="box"><div class="sec-h"><span>My Pets (' + U.pets.length + ' of ' + PETS.filter(p => !p.ev).length + '+)</span></div>' + (U.pets.length ? '<div class="pets">' + PETS.filter(p => U.pets.indexOf(p.id) >= 0).map(p => '<div class="pet' + (U.pet === p.id ? ' on' : '') + '"><div class="em">' + p.e + '</div><b>' + p.n + '</b><div class="muted" style="font-size:12px">' + RARITY[p.r] + (p.ev ? ' &middot; Event' : '') + '</div><a class="btn small" style="margin-top:6px" data-act="equipPet" data-p="' + p.id + '">' + (U.pet === p.id ? 'Put Away' : 'Bring Along') + '</a></div>').join('') + '</div>' : '<p class="muted" style="margin:0">You do not have a pet yet. Visit the <a href="#/pets?tab=shop">Egg Shop</a>.</p>') + '</div>';
   setApp('<h1 class="page-h">Pets &amp; Emotes</h1>' + tabs + body);
@@ -3714,9 +3773,13 @@ function seasonHtml(){
     + SEASON.map((r, i) => { const done = s.claimed.indexOf(i) >= 0, ready = !done && s.xp >= (i + 1) * SEASON_XP; return '<div class="pt' + (done ? ' done' : ready ? ' ready' : '') + '"><b>' + (i + 1) + '</b><span>' + esc(seasonRewardTxt(r)) + '</span>' + (done ? '<em>Claimed</em>' : ready ? '<a class="btn green small" data-act="claimSeason" data-t="' + i + '">Claim</a>' : '<em>' + ((i + 1) * SEASON_XP - s.xp) + ' XP</em>') + '</div>'; }).join('')
     + '</div><p class="muted" style="font-size:12px;margin:8px 0 0">Earn XP by playing (5 every 30 seconds), winning games (+30) and your daily reward (+50). Up to ' + SEASON_DAY_CAP + ' XP a day.</p></div>';
 }
-function eventBanner(){
+function winterBanner(){
   if(!eventOn('winter')) return ''; const left = Math.max(0, Math.ceil((EVENTS.winter.to - Date.now()) / 86400000));
   return '<div class="box evt"><div class="sec-h"><span>&#10052; Winter Wonderland is here!</span><span class="muted" style="font-size:13px">' + left + ' days left</span></div><p style="margin:0 0 8px">Play the limited-time <b>Frostbite Frenzy</b> obby, grab winter hats, sweaters and pants in the Catalog, and hatch the Snowman or Reindeer from the Winter Egg. Everything melts away on ' + EVENTS.winter.end + '.</p><a class="btn small" href="#/game/13">Play Frostbite Frenzy</a> <a class="btn neutral small" href="#/catalog">Winter items</a> <a class="btn neutral small" href="#/pets?tab=shop">Winter Egg</a>' + seasonHtml() + '</div>';
+}
+function eventBanner(){
+  return winterBanner() + Object.keys(EVENTS).filter(k => k !== 'winter' && eventOn(k)).map(k => { const e = EVENTS[k], left = Math.max(1, Math.ceil((e.to - Date.now()) / 86400000));
+    return '<div class="box evt" style="border-top:4px solid ' + e.color + '"><div class="sec-h"><span>' + e.icon + ' ' + e.name + ' is here!</span><span class="muted" style="font-size:13px">' + left + ' day' + (left === 1 ? '' : 's') + ' left</span></div><p style="margin:0 0 8px">' + e.blurb + ' Everything goes away after ' + e.end + '.</p><a class="btn small" href="#/game/' + e.game + '">Play now</a> <a class="btn neutral small" href="#/catalog">' + e.name + ' items</a> <a class="btn neutral small" href="#/pets?tab=shop">Event Egg</a></div>'; }).join('');
 }
 
 /* ---- leaderboards ---- */

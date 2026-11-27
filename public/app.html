@@ -4326,6 +4326,34 @@ async function playGame(gid, opt){
   else if(!solo) setLobby({g:gid, s:server});
 }
 
+
+/* ===================== music player (songs by Finobe, played from /music) ===================== */
+const TRACKS = [{f:'crossroads-times', n:'Crossroads Times'}, {f:'noob-alert', n:'Noob Alert'}, {f:'training-day', n:'Training Day'}, {f:'metal-bricks', n:'Metal Bricks'}, {f:'robloxs-last-stand', n:'ROBLOX\u2019s Last Stand'}];
+const MUS = {a:null, i:0, on:false, vol:.5};
+try{ const v = parseFloat(localStorage.getItem('rbmvol')); if(v >= 0 && v <= 1) MUS.vol = v; const k = parseInt(localStorage.getItem('rbmtrack'), 10); if(k >= 0 && k < TRACKS.length) MUS.i = k; }catch(e){}
+function musInit(){ if(MUS.a) return; MUS.a = new Audio(); MUS.a.preload = 'none'; MUS.a.volume = MUS.vol; MUS.a.addEventListener('ended', () => musNext()); MUS.a.addEventListener('error', () => { MUS.on = false; musUi(); }); }
+function musPlay(i){
+  musInit(); if(i != null) MUS.i = ((i % TRACKS.length) + TRACKS.length) % TRACKS.length;
+  const src = '/music/' + TRACKS[MUS.i].f + '.mp3'; if(!MUS.a.src || MUS.a.src.indexOf(src) < 0) MUS.a.src = src;
+  MUS.a.volume = MUS.vol; MUS.on = true; try{ localStorage.setItem('rbmusic', '1'); localStorage.setItem('rbmtrack', String(MUS.i)); }catch(e){}
+  const p = MUS.a.play(); if(p && p.catch) p.catch(() => { MUS.on = false; musUi(); }); musUi();
+}
+function musPause(){ if(MUS.a) MUS.a.pause(); MUS.on = false; try{ localStorage.setItem('rbmusic', '0'); }catch(e){} musUi(); }
+function musNext(){ musPlay(MUS.i + 1); }
+function musToggle(){ if(MUS.on) musPause(); else musPlay(); }
+function musUi(){
+  const n = $('#musNow'); if(n) n.textContent = (MUS.on ? '\u266A Playing: ' : 'Paused: ') + TRACKS[MUS.i].n;
+  const pp = $('#musPP'); if(pp) pp.textContent = MUS.on ? 'Pause' : 'Play';
+  $$('#musList [data-i]').forEach(b => { const on = +b.dataset.i === MUS.i; b.classList.toggle('on', on); });
+}
+function musModal(){
+  modal('Music', '<p class="muted" style="margin:0 0 8px">Pick a song. It keeps playing while you browse and in games. In a game, press <b>M</b> to pause or play.</p><div id="musNow" style="font-weight:700;margin-bottom:8px"></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><a class="btn small neutral" data-act="musPrev">&laquo; Back</a><a class="btn small" id="musPP" data-act="musToggle">Play</a><a class="btn small neutral" data-act="musSkip">Next &raquo;</a><label style="margin-left:auto;font-size:13px">Volume <input type="range" id="musVol" min="0" max="100" value="' + Math.round(MUS.vol * 100) + '" style="vertical-align:middle;width:110px"></label></div><div id="musList">' + TRACKS.map((t, i) => '<div class="lrow"><div class="grow"><b>' + esc(t.n) + '</b></div><a class="btn small neutral" data-act="musPick" data-i="' + i + '">Play</a></div>').join('') + '</div><p class="muted" style="font-size:12px;margin:10px 0 0">Music by Finobe &middot; <a href="https://finobe.bandcamp.com" target="_blank" rel="noopener">finobe.bandcamp.com</a></p>', [{label:'Close', cls:'neutral'}]);
+  const v = $('#musVol'); if(v) v.addEventListener('input', () => { MUS.vol = v.value / 100; if(MUS.a) MUS.a.volume = MUS.vol; try{ localStorage.setItem('rbmvol', String(MUS.vol)); }catch(e){} });
+  musUi();
+}
+document.addEventListener('keydown', e => { if(e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || !U || !Engine.active()) return; const t = e.target; if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return; musToggle(); toast(MUS.on ? '\u266A ' + TRACKS[MUS.i].n : 'Music paused'); });
+(function(){ let started = false; const go = () => { if(started) return; started = true; document.removeEventListener('pointerdown', go, true); document.removeEventListener('keydown', go, true); try{ if(localStorage.getItem('rbmusic') === '1') musPlay(); }catch(e){} }; document.addEventListener('pointerdown', go, true); document.addEventListener('keydown', go, true); })();
+
 /* ===================== chat & party (live, friends who are online) ===================== */
 const CHATS = {}; let chatsLoaded = false; let cpOpen = [];
 const chatKey = () => 'rbchats_' + String(MYID || (U && U.name) || '').toLowerCase();
@@ -4405,7 +4433,8 @@ const ACTIONS = {
   noticeTo:el => { const id = el.dataset.n; modal('Send notice to ' + nameOf(id), '<label class="f" for="ntQ" style="margin-top:0">Message</label><input id="ntQ" maxlength="300" placeholder="Please be kind in chat.">', [{label:'Cancel', cls:'neutral'}, {label:'Send', cls:'green', fn:() => { const t = ($('#ntQ').value || '').trim(); if(!t){ toast('Type a message first.', true); return false; } DB.collection('notices').add({to:id, from:MYID, text:t, t:Date.now()}).then(() => toast('Notice sent.')).catch(() => toast('Could not send.', true)); }}]); },
   botToggle:() => { if(!isAdminMe()) return; DB.doc('site/bots').set({on:!BOTCFG.on, n:BOTCFG.n, t:Date.now()}).then(() => toast(BOTCFG.on ? 'Bots are off.' : 'Bots are on.')).catch(() => toast('Could not change bots.', true)); },
   botCount:el => { if(!isAdminMe()) return; DB.doc('site/bots').set({on:BOTCFG.on, n:Math.max(1, Math.min(10, BOTCFG.n + +el.dataset.d)), t:Date.now()}).catch(() => toast('Could not change bots.', true)); },
-  showMusic:() => { const m = $('#menuDrop'); if(m) m.hidden = true; modal('Music', '<p class="muted" style="margin:0 0 8px">Press play and keep listening while you browse. The music keeps playing until you close this window.</p><div style="position:relative;padding-top:56.25%"><iframe src="https://www.youtube.com/embed/videoseries?list=PLya__OBTLMkONuQDu0kHDCrml2xuEINSi" title="Retro Blox music playlist" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>', [{label:'Close', cls:'neutral'}]); },
+  musToggle:() => musToggle(), musSkip:() => musNext(), musPrev:() => musPlay(MUS.i - 1), musPick:el => musPlay(+el.dataset.i),
+  showMusic:() => { const m = $('#menuDrop'); if(m) m.hidden = true; musModal(); },
   showRules:() => { const m = $('#menuDrop'); if(m) m.hidden = true; modal('Rules', RULES_HTML, [{label:'I understand', cls:''}]); },
   setRole:() => { if(myLvl() < 3) return; const nm = ($('#rlName').value || '').trim(), r = $('#rlRole').value, id = nm && findByName(nm);
     if(!id) return toast('No player named "' + nm + '".', true); if(id === MYID) return toast('You cannot change your own rank.', true); if(lvlOf(id) >= myLvl()) return toast('You cannot change the rank of someone at or above yours.', true);

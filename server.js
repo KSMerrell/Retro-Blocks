@@ -292,7 +292,7 @@ function onUpgrade(req, socket){
 }
 
 /* ---------------- http ---------------- */
-const MIME = {'.html':'text/html; charset=utf-8', '.js':'text/javascript', '.png':'image/png', '.webmanifest':'application/manifest+json', '.json':'application/json', '.svg':'image/svg+xml', '.ico':'image/x-icon'};
+const MIME = {'.html':'text/html; charset=utf-8', '.js':'text/javascript', '.png':'image/png', '.webmanifest':'application/manifest+json', '.json':'application/json', '.svg':'image/svg+xml', '.mp3':'audio/mpeg', '.ico':'image/x-icon'};
 const APP = () => fs.readFileSync(path.join(PUB, 'app.html'), 'utf8');
 function json(res, code, obj){ res.writeHead(code, {'Content-Type':'application/json', 'Cache-Control':'no-store'}); res.end(JSON.stringify(obj)); }
 function body(req, cb){ let b = ''; req.on('data', c => { b += c; if(b.length > 10000) req.destroy(); }); req.on('end', () => { try{ cb(JSON.parse(b || '{}')); }catch(e){ cb(null); } }); }
@@ -397,6 +397,11 @@ const server = http.createServer((req, res) => {
   }
   const f = path.join(PUB, path.normalize(url).replace(/^(\.\.[\/\\])+/, ''));
   if(!f.startsWith(PUB) || f.endsWith('app.html') || f.endsWith('login.html')){ res.writeHead(404); return res.end('Not found'); }
+  if(f.endsWith('.mp3')){ fs.stat(f, (er, st) => { if(er || !st.isFile()){ res.writeHead(404); return res.end('Not found'); }
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || ''); let a = 0, b = st.size - 1, code = 200;
+    if(m){ if(m[1] !== '') a = +m[1]; if(m[2] !== '') b = Math.min(+m[2], st.size - 1); if(m[1] === '' && m[2] !== ''){ a = Math.max(0, st.size - +m[2]); b = st.size - 1; } if(a > b || a >= st.size){ res.writeHead(416, {'Content-Range':'bytes */' + st.size}); return res.end(); } code = 206; }
+    const h = {'Content-Type':'audio/mpeg', 'Accept-Ranges':'bytes', 'Content-Length':b - a + 1, 'Cache-Control':'public, max-age=86400'}; if(code === 206) h['Content-Range'] = 'bytes ' + a + '-' + b + '/' + st.size;
+    res.writeHead(code, h); fs.createReadStream(f, {start:a, end:b}).pipe(res); }); return; }
   fs.readFile(f, (err, buf) => { if(err){ res.writeHead(404); return res.end('Not found'); } res.writeHead(200, {'Content-Type':MIME[path.extname(f)] || 'application/octet-stream', 'Cache-Control':'public, max-age=3600'}); res.end(buf); });
 });
 server.on('upgrade', onUpgrade);

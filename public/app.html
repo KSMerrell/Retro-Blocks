@@ -516,6 +516,39 @@ html.dark .sec-h{color:var(--ink)}
 #gTy,#gCtf{position:absolute;left:50%;transform:translateX(-50%);top:calc(48px + env(safe-area-inset-top,0px));background:rgba(0,0,0,.68);color:#fff;padding:5px 14px;font-weight:800;font-size:16px;pointer-events:none;z-index:6;white-space:nowrap}
 #gTy:empty{display:none}
 
+/* ---- seasonal site themes (body.th-<event>) ---- */
+body.th-halloween{--bar:#1d1428;--blue:#e8761c;--blue-d:#b85a10;--acc:#e8761c}
+html:not(.dark) body.th-halloween{--page:#f1e2d2;--link:#a84e0a;--line:#d8c0a4}
+body.th-thanksgiving{--bar:#5a3315;--blue:#d9822b;--blue-d:#a85f16;--acc:#d9822b}
+html:not(.dark) body.th-thanksgiving{--page:#f3e3c6;--link:#8f4f0e;--line:#d8c4a0}
+body.th-july4{--bar:#162a66;--blue:#2f5fd0;--blue-d:#1f44a0;--acc:#c4281c}
+html:not(.dark) body.th-july4{--page:#e6ecf8;--link:#1f44a0;--line:#c3cce2}
+body.th-valentine{--bar:#a82e62;--blue:#e04a86;--blue-d:#b02e66;--acc:#ff6fae}
+html:not(.dark) body.th-valentine{--page:#ffe9f2;--link:#b02e66;--line:#f0c4d6}
+body.th-easter{--bar:#4f9c75;--blue:#7a64c8;--blue-d:#5a46a8;--acc:#ffd45e}
+html:not(.dark) body.th-easter{--page:#eaf7ee;--link:#5a46a8;--line:#c4e0cf}
+body.th-newyear{--bar:#141a40;--blue:#b58a10;--blue-d:#8a6608;--acc:#f5cd30}
+html:not(.dark) body.th-newyear{--page:#e8e9f4;--link:#8a6608;--line:#cfd0e4}
+body.th-winter{--bar:#1d3a5e;--blue:#3b9be0;--blue-d:#2a78b8;--acc:#9fd3ff}
+html:not(.dark) body.th-winter{--page:#e1eef8;--link:#2a78b8;--line:#bcd4e8}
+body[class*=th-] #hdr{border-bottom:3px solid var(--acc)}
+body[class*=th-] #hdr nav a:hover,body[class*=th-] #hdr nav a.on{background:rgba(255,255,255,.14)}
+body[class*=th-] .btn:hover{filter:brightness(1.12);background:var(--blue)}
+body[class*=th-] #side a.on{background:color-mix(in srgb,var(--blue) 14%,#fff);color:var(--blue-d)}
+body[class*=th-] #side a.on svg{fill:var(--blue-d)}
+body[class*=th-] .tabs a.on{box-shadow:inset 0 3px 0 var(--blue)}
+html:not(.dark) body[class*=th-] .box{border-top:3px solid var(--acc)}
+body[class*=th-] .evt{background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 22%,#fff),#fff);border-color:var(--acc)}
+html:not(.dark) body[class*=th-] .page-h{color:var(--bar)}
+body.th-july4 #hdr{border-bottom:0;box-shadow:0 3px 0 #fff,0 6px 0 #c4281c}
+body.th-newyear #hdr{box-shadow:0 0 14px rgba(245,205,48,.55)}
+.evbadge{font-size:20px;margin-right:6px;line-height:1;cursor:default;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
+#evfx{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:45}
+#evfx i{position:absolute;top:-40px;font-style:normal;opacity:.75;animation:evfall linear infinite;will-change:transform}
+@keyframes evfall{0%{transform:translate3d(0,-40px,0) rotate(0)}100%{transform:translate3d(var(--dx,30px),110vh,0) rotate(360deg)}}
+body.in-game #evfx{display:none}
+@media (prefers-reduced-motion:reduce){#evfx{display:none}}
+
 </style><script>try{if(localStorage.rbtheme==="dark")document.documentElement.classList.add("dark")}catch(e){}</script></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
@@ -3290,7 +3323,28 @@ function allPeople(){ return Object.keys(P).filter(id => id !== MYID && P[id].na
 
 /* ===================== chrome ===================== */
 function unreadN(){ return MSGDOCS.filter(m => m.to === MYID && !U.read[m.id] && !U.gone[m.id]).length; }
+
+/* ---- seasonal site theme: colors, a badge by the logo and gently falling decorations ---- */
+const EV_FX = {halloween:['🎃','🦇','👻'], thanksgiving:['🍂','🍁','🦃'], july4:['🎆','⭐','🎇'], valentine:['💖','💗','🌹'], easter:['🥚','🌸','🐰'], newyear:['🎊','✨','🎉'], winter:['❄️','❄️','⛄']};
+function themeKey(){
+  try{ if(localStorage.getItem('rbevtheme') === 'off') return ''; }catch(e){}
+  const on = Object.keys(EVENTS).filter(eventOn).sort((a, b) => (EVENTS[a].to - EVENTS[a].from) - (EVENTS[b].to - EVENTS[b].from));
+  return on[0] || '';
+}
+function applyEvTheme(){
+  const k = themeKey(), cur = document.body.dataset.th || '';
+  if(k === cur) return; document.body.dataset.th = k;
+  Array.from(document.body.classList).forEach(c => { if(c.indexOf('th-') === 0) document.body.classList.remove(c); });
+  let fx = document.getElementById('evfx'); if(fx) fx.remove();
+  let bd = document.getElementById('evbadge'); if(bd) bd.remove();
+  if(!k) return; document.body.classList.add('th-' + k);
+  const lg = document.querySelector('#hdr .logo'); if(lg){ bd = document.createElement('span'); bd.id = 'evbadge'; bd.className = 'evbadge'; bd.title = EVENTS[k].name; bd.textContent = EVENTS[k].icon; lg.after(bd); }
+  fx = document.createElement('div'); fx.id = 'evfx'; fx.setAttribute('aria-hidden', 'true');
+  const em = EV_FX[k] || ['✨']; let h = ''; for(let i = 0; i < 14; i++) h += '<i style="left:' + Math.round(Math.random() * 98) + '%;font-size:' + (14 + Math.round(Math.random() * 14)) + 'px;animation-duration:' + (9 + Math.round(Math.random() * 10)) + 's;animation-delay:-' + Math.round(Math.random() * 18) + 's;--dx:' + (Math.round(Math.random() * 120) - 60) + 'px">' + em[i % em.length] + '</i>';
+  fx.innerHTML = h; document.body.appendChild(fx);
+}
 function refreshChrome(){
+  applyEvTheme();
   const out = !U;
   $('#mainnav').hidden = out; $('#side').hidden = out; $('#cp').hidden = out;
   const cur = route().parts[0] || '';

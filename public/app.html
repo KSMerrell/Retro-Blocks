@@ -549,6 +549,8 @@ body.th-newyear #hdr{box-shadow:0 0 14px rgba(245,205,48,.55)}
 body.in-game #evfx{display:none}
 @media (prefers-reduced-motion:reduce){#evfx{display:none}}
 
+.cpwin .cb .me{position:relative}.cpwin .cb .dmx{display:none;margin-left:6px;color:#c00;font-weight:700;cursor:pointer}.cpwin .cb .me:hover .dmx{display:inline}
+
 </style><script>try{if(localStorage.rbtheme==="dark")document.documentElement.classList.add("dark")}catch(e){}</script></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
@@ -633,6 +635,9 @@ const ITEM_DEFS = [
  ['shirt','Cozy Sweater',35,'R',{c1:'#c4281c',c2:'#287f47',p:'stripes'},'Winter event item. Red and green stripes, extra itchy.',0,'winter'],
  ['shirt','Frost Hoodie',50,'R',{c1:'#9fd3ff',c2:'#6aa8d8',p:'hood'},'Winter event item. A hoodie the color of fresh ice.',0,'winter'],
  ['pants','Snow Pants',30,'R',{c:'#e8f6ff',s:'#9fc4e0'},'Winter event item. Built for snowball fights.',0,'winter'],
+ ['hat','Short Brown Hair',0,'R',{k:'hair',c:'#5a3a22'},'Neat short hair. Free for everyone.'],
+ ['hat','Brown Ponytail',0,'R',{k:'pony',c:'#5a3a22'},'A swishy ponytail with a pink tie. Free for everyone.'],
+ ['gear','Ban Hammer',0,'R',{k:'banhammer'},'Staff only. Mods and above get this in every game. Face a player and click to ban them.',0,'staff'],
  ['hat','Pumpkin Wizard Hat',70,'R',{k:'wiz',c:'#e8761c'},'Halloween event item. A pointy hat the color of a ripe pumpkin.',0,'halloween'],
  ['hat','Spooky Top Hat',60,'R',{k:'top',c:'#3a1f4d'},'Halloween event item. Purple, tall and a little haunted.',0,'halloween'],
  ['shirt','Skeleton Shirt',40,'R',{c1:'#15151b',c2:'#f2f3f3',p:'skull'},'Halloween event item. Rattles when you run. Not really.',0,'halloween'],
@@ -657,12 +662,11 @@ const ITEM_DEFS = [
  ['hat','Midnight Crown',120,'R',{k:'crown',c:'#2a2f6e'},'New Year event item. Deep blue with a midnight shine.',0,'newyear'],
  ['shirt','Confetti Shirt',40,'R',{c1:'#1b2a5e',c2:'#f5cd30',p:'stripes'},'New Year event item. Navy and gold.',0,'newyear'],
  ['pants','Sparkle Pants',30,'R',{c:'#232a66',s:'#f5cd30'},'New Year event item. Ready to dance at midnight.',0,'newyear'],
- ['hat','Short Brown Hair',0,'R',{k:'hair',c:'#5a3a22'},'Neat short hair. Free for everyone.'],
- ['hat','Brown Ponytail',0,'R',{k:'pony',c:'#5a3a22'},'A swishy ponytail with a pink tie. Free for everyone.'],
- ['gear','Ban Hammer',0,'R',{k:'banhammer'},'Staff only. Mods and above get this in every game. Face a player and click to ban them.',0,'staff']
+ ['shirt','RetroBlox Guest Shirt',0,'R',{c1:'#0b0b0d',c2:'#ffffff',p:'guest'},'The shirt every guest wears. Sign up to do more.',0,'staff']
 ];
 const ITEMS = ITEM_DEFS.map((d, i) => ({id:i+1, type:d[0], name:d[1], price:d[2], cur:d[3], s:d[4], desc:d[5], val:d[6] || 0, ltd:!!d[6],
   creator:'Retro Blox', updated:Date.now() - i*86400000*3, ev:d[7] || '', rel:d[8] || 0, staff:d[7] === 'staff'}));
+const GUEST_SHIRT = ITEMS.find(i => i.name === 'RetroBlox Guest Shirt').id;
 const HAIR_BOY = ITEMS.find(i => i.name === 'Short Brown Hair').id, HAIR_GIRL = ITEMS.find(i => i.name === 'Brown Ponytail').id;
 const WEEK_MS = 7 * 86400000;
 /* event items stay in the shop until their event ends; weekly limited items leave a week after they release */
@@ -813,12 +817,15 @@ const _ugcImgs = {}, _ugcReady = {};
 function ugcImg(item){ if(!_ugcImgs[item.id]){ const im = new Image(); im.onload = () => { _ugcReady[item.id] = true; if(typeof onUgcLoad === 'function') onUgcLoad(item.id); }; im.src = item.s.img; _ugcImgs[item.id] = im; } return _ugcImgs[item.id]; }
 function shirtTex(item){
   const s = item.s; if(s.p === 'img') ugcImg(item);
-  return canvasTex('shirt' + item.id + (s.p === 'img' && _ugcReady[item.id] ? 'r' : ''), 128, (g, N) => {
+  return canvasTex('shirt' + item.id + (s.p === 'img' && _ugcReady[item.id] ? 'r' : ''), s.p === 'guest' ? 256 : 128, (g, N) => {
     g.fillStyle = s.c1; g.fillRect(0, 0, N, N);
     if(s.p === 'img'){ if(_ugcReady[item.id]) g.drawImage(_ugcImgs[item.id], 0, 0, N, N); }
     if(s.p === 'stripes'){ g.fillStyle = s.c2; for(let y = 8; y < N; y += 32) g.fillRect(0, y, N, 16); }
     else if(s.p === 'hood'){ g.fillStyle = s.c2; g.fillRect(0, 0, N, 14); g.fillRect(30, 76, 68, 34); g.fillStyle = s.c1; g.fillRect(32, 78, 64, 30); g.fillStyle = '#e8e8e8'; g.fillRect(50, 14, 3, 34); g.fillRect(75, 14, 3, 34); }
     else if(s.p === 'skull'){ g.fillStyle = s.c2; g.beginPath(); g.arc(64, 54, 24, 0, 6.3); g.fill(); g.fillRect(50, 70, 28, 24); g.fillStyle = s.c1; g.beginPath(); g.arc(54, 54, 7, 0, 6.3); g.arc(74, 54, 7, 0, 6.3); g.fill(); g.fillRect(60, 68, 8, 8); g.fillRect(56, 84, 3, 10); g.fillRect(63, 84, 3, 10); g.fillRect(70, 84, 3, 10); }
+    else if(s.p === 'guest'){ const u = N / 128; g.fillStyle = '#fff'; g.beginPath(); g.moveTo(34 * u, 12 * u); g.lineTo(94 * u, 12 * u); g.lineTo(94 * u, 44 * u); g.lineTo(34 * u, 44 * u); g.closePath(); g.fill();
+      g.font = '900 ' + Math.round(30 * u) + 'px Arial,Helvetica,sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillStyle = '#e2231a'; g.fillText('R', 52 * u, 29 * u); g.fillStyle = '#0d69ac'; g.fillText('B', 76 * u, 29 * u);
+      g.fillStyle = '#fff'; g.font = '700 ' + Math.round(13 * u) + 'px Arial,Helvetica,sans-serif'; ['Playing as a', 'RetroBlox guest', 'Sign up to', 'do more'].forEach((t, i) => g.fillText(t, 64 * u, (62 + i * 15) * u)); }
     else if(s.p === 'logo'){ g.fillStyle = s.c2; g.fillRect(36, 40, 56, 30); g.fillStyle = '#f2f3f3'; g.fillRect(40, 44, 48, 22); g.fillStyle = s.c2; for(let i = 0; i < 3; i++) g.fillRect(44 + i * 16, 36, 8, 5); g.fillRect(44, 50, 40, 10); }
     else if(s.p === 'tux'){ g.fillStyle = s.c2; g.beginPath(); g.moveTo(40, 0); g.lineTo(88, 0); g.lineTo(64, 90); g.closePath(); g.fill(); g.fillStyle = '#c4281c'; g.beginPath(); g.moveTo(64, 14); g.lineTo(46, 4); g.lineTo(46, 26); g.closePath(); g.moveTo(64, 14); g.lineTo(82, 4); g.lineTo(82, 26); g.closePath(); g.fill(); }
     else if(s.p === 'pizza'){ g.fillStyle = '#e8a33c'; g.beginPath(); g.moveTo(24, 34); g.lineTo(104, 34); g.lineTo(64, 108); g.closePath(); g.fill(); g.fillStyle = s.c2; [[52, 50], [76, 52], [64, 72], [60, 90]].forEach(p => { g.beginPath(); g.arc(p[0], p[1], 6, 0, 6.3); g.fill(); }); }
@@ -878,6 +885,7 @@ function buildAvatar(cfg){
   A.legL = limb(1, 2, 1, legc || c.ll, -.5, 2); A.legR = limb(1, 2, 1, legc || c.rl, .5, 2);
   (cfg.hats || []).forEach(id => { const it = ITEM_BY_ID[id]; if(it) A.group.add(buildHat(it, A)); });
   if(cfg.gear && ITEM_BY_ID[cfg.gear]){ const it = ITEM_BY_ID[cfg.gear]; A.gearItem = it; A.gearObj = buildGear(it, A); A.gearObj.position.set(0, -1.85, 0); A.armR.add(A.gearObj); }
+  const sc = cfg.scale; if(sc){ const cl = v => Math.max(.85, Math.min(1.15, +v || 1)); A.group.scale.set(cl(sc.w), cl(sc.h), cl(sc.w)); }
   return A;
 }
 function setGear(A, itemId){
@@ -3351,7 +3359,8 @@ function startSubs(){
     ROOM.presence({pg:null}).catch(() => {});
     ROOM.onPeers(ch => { const o = {}; ch.peers.forEach(p => { if(p.kind === 'viewer' && p.by){ o[p.by] = Object.assign({}, o[p.by] || {}, p.presence || {}); } }); ONLINE = o; queueRender(); });
     ROOM.on('invite', m => { if(m.isMe) return; const d = m.data || {}; if(d.to !== MYID || isBlocked(m.by)) return; const g = gameById(d.g); if(!g || !/^p[a-z0-9]{6}$/.test(String(d.s))) return; onInvite(m.by, g, d.s); });
-    ROOM.on('dm', m => { if(m.isMe) return; const d = m.data || {}; if(d.to !== MYID || isBlocked(m.by)) return; receiveDM(m.by, String(d.t || '').slice(0, 100)); });
+    ROOM.on('dm', m => { if(m.isMe) return; const d = m.data || {}; if(d.to !== MYID || isBlocked(m.by)) return; receiveDM(m.by, String(d.t || '').slice(0, 100), String(d.i || '').slice(0, 20)); });
+    ROOM.on('dmdel', m => { if(m.isMe) return; const d = m.data || {}; if(d.to !== MYID || !d.i) return; const L = CHATS[m.by]; if(!L) return; CHATS[m.by] = L.filter(x => x.i !== String(d.i).slice(0, 20) || x.me); saveChats(); if(U && !Engine.active()) renderCP(); });
   }
 }
 function setLobby(pg){ if(ROOM) ROOM.presence({pg}).catch(() => {}); }
@@ -3389,11 +3398,13 @@ function applyAcceptedTrades(){
 
 /* ---- identity & onboarding ---- */
 function guestAvatar(g){ const a = DEFAULT_AVATAR(); if(g === 'girl'){ a.c.t = '#e0589a'; a.c.ll = '#6b327c'; a.c.rl = '#6b327c'; a.hats = [HAIR_GIRL]; } else a.hats = [HAIR_BOY]; return a; }
+function guestOutfit(a){ a = a || DEFAULT_AVATAR(); const k = '#0b0b0d'; a.c.t = k; a.c.la = k; a.c.ra = k; a.c.ll = k; a.c.rl = k; a.shirt = GUEST_SHIRT; a.pants = 0; return a; }
 function newState(name){
   const g = window.__ME && window.__ME.gender, hair = g === 'girl' ? HAIR_GIRL : g === 'boy' ? HAIR_BOY : 0;
-  return {name, created:Date.now(), tokens:150, tix:50, lastDaily:0, pets:[], pet:'', emotes:['heart', 'laugh', 'thumbs'], streak:0, lastDay:'', lb:{}, owned:hair ? [FREE_FACE, hair] : [FREE_FACE], avatar:g ? guestAvatar(g) : DEFAULT_AVATAR(), favs:[], places:[{name:'My First Place', bricks:[]}], recent:[], best:{}, badges:['welcome'], stats:{visits:0, kills:0, coins:0, wins:0, deaths:0}, visits:{}, desc:'', read:{}, gone:{}};
+  return {name, created:Date.now(), tokens:150, tix:50, lastDaily:0, pets:[], pet:'', emotes:['heart', 'laugh', 'thumbs'], streak:0, lastDay:'', lb:{}, owned:hair ? [FREE_FACE, hair] : [FREE_FACE], avatar:window.__ME && window.__ME.guest ? guestOutfit(g ? guestAvatar(g) : DEFAULT_AVATAR()) : g ? guestAvatar(g) : DEFAULT_AVATAR(), favs:[], places:[{name:'My First Place', bricks:[]}], recent:[], best:{}, badges:['welcome'], stats:{visits:0, kills:0, coins:0, wins:0, deaths:0}, visits:{}, desc:'', read:{}, gone:{}};
 }
-function migrate(){ const d = {pets:[], pet:'', emotes:['heart', 'laugh', 'thumbs'], streak:0, lastDay:'', lb:{}, tokens:0, tix:0, lastDaily:0, owned:[FREE_FACE], favs:[], places:[{name:'My First Place', bricks:[]}], recent:[], best:{}, badges:[], stats:{visits:0, kills:0, coins:0, wins:0, deaths:0}, visits:{}, desc:'', read:{}, gone:{}}; Object.keys(d).forEach(k => { if(U[k] === undefined) U[k] = d[k]; }); }
+function migrate(){ const d = {pets:[], pet:'', emotes:['heart', 'laugh', 'thumbs'], streak:0, lastDay:'', lb:{}, tokens:0, tix:0, lastDaily:0, owned:[FREE_FACE], favs:[], places:[{name:'My First Place', bricks:[]}], recent:[], best:{}, badges:[], stats:{visits:0, kills:0, coins:0, wins:0, deaths:0}, visits:{}, desc:'', read:{}, gone:{}}; Object.keys(d).forEach(k => { if(U[k] === undefined) U[k] = d[k]; });
+  if(window.__ME && window.__ME.guest && !U.guestOutfit){ U.guestOutfit = 1; U.avatar = guestOutfit(U.avatar); if(U.owned.indexOf(GUEST_SHIRT) < 0) U.owned.push(GUEST_SHIRT); } }
 async function claimName(name){
   const ref = DB.doc('names/' + name.toLowerCase());
   const lease = await ref.acquire({holder:MYID, ttlMs:5000}); if(!lease.acquired) return false;
@@ -3510,7 +3521,7 @@ function refreshChrome(){
   $('#hright').innerHTML = '<a class="hbtn" href="#/friends?tab=requests" title="Friend requests">' + ico('friends').replace('<svg', '<svg width="20" height="20" fill="#fff"') + (reqN ? '<span class="badge-n">' + reqN + '</span>' : '') + '</a>'
     + '<a class="hbtn" href="#/messages" title="Messages">' + ico('messages').replace('<svg', '<svg width="20" height="20" fill="#fff"') + (un ? '<span class="badge-n">' + un + '</span>' : '') + '</a>'
     + '<div style="position:relative;height:100%"><button class="hbtn" data-act="toggleBal" aria-haspopup="true"><i class="tok"></i>' + U.tokens + '</button><div class="drop" id="balDrop" hidden><div><i class="tok"></i> <b>' + U.tokens + '</b> Tokens</div><div><i class="tix"></i> <b>' + U.tix + '</b> Tickets</div><a href="#/tokens">Get Tokens</a></div></div>'
-    + '<div style="position:relative;height:100%"><button class="hbtn" data-act="toggleMenu" aria-haspopup="true" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/></svg> <span style="font-size:13px">' + esc(U.name) + '</span></button><div class="drop" id="menuDrop" hidden><a data-act="showRules"><b>Rules</b></a><a data-act="showStaff">Staff Team</a><a href="#/pets">Pets &amp; Emotes</a><a href="#/settings">Settings</a>' + (window.__ME && window.__ME.lvl >= 1 ? '<a href="#/admin">Staff Tools</a>' : '') + '<a href="#/profile/' + encodeURIComponent(U.name) + '">My Profile</a><a data-act="openSwitch">Switch Account</a><a data-act="logout">Log Out</a>' + (isStandalone() ? '' : '<a data-act="installApp">Install App</a>') + '</div></div>';
+    + '<div style="position:relative;height:100%"><button class="hbtn" data-act="toggleMenu" aria-haspopup="true" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/></svg> <span style="font-size:13px">' + esc(U.name) + '</span></button><div class="drop" id="menuDrop" hidden><a data-act="showRules"><b>Rules</b></a><a data-act="showMusic"><b>Music</b></a><a data-act="showStaff">Staff Team</a><a href="#/pets">Pets &amp; Emotes</a><a href="#/settings">Settings</a>' + (window.__ME && window.__ME.lvl >= 1 ? '<a href="#/admin">Staff Tools</a>' : '') + '<a href="#/profile/' + encodeURIComponent(U.name) + '">My Profile</a><a data-act="openSwitch">Switch Account</a><a data-act="logout">Log Out</a>' + (isStandalone() ? '' : '<a data-act="installApp">Install App</a>') + '</div></div>';
   const items = [['home', 'Home'], ['profile', 'Profile'], ['messages', 'Messages', un], ['friends', 'Friends', reqN], ['avatar', 'Avatar'], ['inventory', 'Inventory'], ['trade', 'Trade', trN], ['groups', 'Groups'], ['feed', 'My Feed'], ['blog', 'Blog'], ['tokens', 'Shop']];
   $('#side').innerHTML = items.map(i => { const target = i[0] === 'profile' ? 'profile/' + encodeURIComponent(U.name) : i[0]; const on = cur === i[0] || (i[0] === 'groups' && cur === 'group'); return '<a href="#/' + target + '" class="' + (on ? 'on' : '') + '">' + ico(i[0] === 'tokens' ? 'shop' : i[0]) + i[1] + (i[2] ? '<span class="cnt">' + i[2] + '</span>' : '') + '</a>'; }).join('');
   renderCP();
@@ -3719,9 +3730,11 @@ function renderAvatar(){
   const owned = U.owned.map(id => ITEM_BY_ID[id]).filter(i => i && i.type === tab);
   const wearing = U.avatar.hats.concat([U.avatar.face, U.avatar.shirt, U.avatar.pants, U.avatar.gear]).filter(id => id && !(id === FREE_FACE)).map(id => ITEM_BY_ID[id]).filter(Boolean);
   setApp('<h1 class="page-h">Avatar</h1><div class="av-wrap"><div class="av-left box"><div class="av-stage"><img id="avBig" src="' + avatarThumb(U.avatar, 'full', avAngle) + '" alt="Your avatar"><button class="rot l" data-act="rot" data-d="-1" aria-label="Rotate left">&#8249;</button><button class="rot r" data-act="rot" data-d="1" aria-label="Rotate right">&#8250;</button></div><div class="bodyc">' + PARTS.map(p => '<button data-act="part" data-p="' + p[0] + '" class="' + (avPart === p[0] ? 'on' : '') + '"><i style="background:' + U.avatar.c[p[0]] + '"></i>' + p[1] + '</button>').join('') + '</div><div class="pal">' + BRICK_COLORS.map(c => '<button data-act="color" data-c="' + c[1] + '" style="background:' + c[1] + '" title="' + c[0] + '" aria-label="' + c[0] + '"></button>').join('') + '</div><p class="muted" style="font-size:12px;margin:8px 0 0">Pick a body part, then a color. Shirts and pants cover body colors.</p><div style="margin-top:10px"><a class="btn neutral small" data-act="randomColors">Random Colors</a> <a class="btn neutral small" data-act="resetAvatar">Reset Avatar</a></div></div>'
-    + '<div class="av-right"><div class="box"><div class="sec-h"><span>Currently Wearing</span></div>' + (wearing.length ? '<div class="chips">' + wearing.map(it => '<span class="chip">' + itemImg(it).replace('<img', '<img style="width:34px;height:34px"') + esc(it.name) + ' <a data-act="wearItem" data-i="' + it.id + '" title="Take off" aria-label="Take off ' + esc(it.name) + '">&times;</a></span>').join('') + '</div>' : '<p class="muted" style="margin:0">Nothing is worn. Buy items in the <a href="#/catalog">Catalog</a>.</p>') + '</div>'
+    + '<div class="av-right"><div class="box"><div class="sec-h"><span>Body Scale</span><a data-act="scaleReset">Reset</a></div><label class="f" for="scH" style="margin-top:0">Height <b id="scHv">' + Math.round(((U.avatar.scale || {}).h || 1) * 100) + '%</b></label><input id="scH" type="range" min="85" max="115" step="1" value="' + Math.round(((U.avatar.scale || {}).h || 1) * 100) + '" data-scale="h" style="width:100%"><label class="f" for="scW">Width <b id="scWv">' + Math.round(((U.avatar.scale || {}).w || 1) * 100) + '%</b></label><input id="scW" type="range" min="85" max="115" step="1" value="' + Math.round(((U.avatar.scale || {}).w || 1) * 100) + '" data-scale="w" style="width:100%"><p class="muted" style="font-size:12px;margin:8px 0 0">Make your avatar taller, shorter, slimmer or wider. Everyone in the game sees it. Your hitbox stays the same.</p></div><div class="box"><div class="sec-h"><span>Currently Wearing</span></div>' + (wearing.length ? '<div class="chips">' + wearing.map(it => '<span class="chip">' + itemImg(it).replace('<img', '<img style="width:34px;height:34px"') + esc(it.name) + ' <a data-act="wearItem" data-i="' + it.id + '" title="Take off" aria-label="Take off ' + esc(it.name) + '">&times;</a></span>').join('') + '</div>' : '<p class="muted" style="margin:0">Nothing is worn. Buy items in the <a href="#/catalog">Catalog</a>.</p>') + '</div>'
     + '<div class="box"><div class="tabs">' + ['hat', 'face', 'shirt', 'pants', 'gear'].map(t => '<a href="#/avatar?tab=' + t + '" class="' + (tab === t ? 'on' : '') + '">' + TYPE_NAMES[t] + '</a>').join('') + '</div>' + (owned.length ? '<div class="gcards">' + owned.map(it => '<div class="gcard item"><div class="im">' + itemImg(it) + (isWorn(it.id) ? '<span class="worn">WORN</span>' : '') + '</div><b>' + esc(it.name) + '</b><a class="btn small ' + (isWorn(it.id) ? 'neutral' : '') + '" data-act="wearItem" data-i="' + it.id + '">' + (isWorn(it.id) ? 'Take Off' : 'Wear') + '</a></div>').join('') + '</div>' : '<p class="muted">You do not own any ' + TYPE_NAMES[tab].toLowerCase() + ' yet. <a href="#/catalog?cat=' + tab + '">Browse the Catalog</a></p>') + '</div></div></div>');
 }
+document.addEventListener('input', e => { const t = e.target; if(!(t && t.dataset && t.dataset.scale) || !U) return; const k = t.dataset.scale; U.avatar.scale = U.avatar.scale || {h:1, w:1}; U.avatar.scale[k] = (+t.value || 100) / 100; const l = $('#sc' + k.toUpperCase() + 'v'); if(l) l.textContent = t.value + '%'; redrawAvatar(); });
+document.addEventListener('change', e => { const t = e.target; if(t && t.dataset && t.dataset.scale && U) persist(); });
 function redrawAvatar(){ const i = $('#avBig'); if(i) i.src = avatarThumb(U.avatar, 'full', avAngle); }
 
 /* ===================== INVENTORY ===================== */
@@ -4314,19 +4327,23 @@ async function playGame(gid, opt){
 }
 
 /* ===================== chat & party (live, friends who are online) ===================== */
-const CHATS = {}; let cpOpen = []; let cpMin = (() => { try{ return localStorage.getItem('bbCpMin') !== '0'; }catch(e){ return true; } })();
-function receiveDM(from, text){ text = cleanText(text); if(!text) return; (CHATS[from] = CHATS[from] || []).push({me:false, t:text}); if(cpOpen.indexOf(from) < 0){ cpOpen.push(from); if(cpOpen.length > 2) cpOpen.shift(); } if(U && !Engine.active()) renderCP(); }
+const CHATS = {}; let chatsLoaded = false; let cpOpen = [];
+const chatKey = () => 'rbchats_' + String(MYID || (U && U.name) || '').toLowerCase();
+function loadChats(){ if(chatsLoaded || !U) return; chatsLoaded = true; try{ const o = JSON.parse(localStorage.getItem(chatKey()) || '{}'); Object.keys(o).forEach(k => { if(!CHATS[k]) CHATS[k] = o[k]; }); }catch(e){} }
+function saveChats(){ if(!U) return; try{ const o = {}; Object.keys(CHATS).forEach(k => { if(CHATS[k].length) o[k] = CHATS[k].slice(-100); }); localStorage.setItem(chatKey(), JSON.stringify(o)); }catch(e){} }
+const newMsgId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7); let cpMin = (() => { try{ return localStorage.getItem('bbCpMin') !== '0'; }catch(e){ return true; } })();
+function receiveDM(from, text, mid){ text = cleanText(text); if(!text) return; loadChats(); (CHATS[from] = CHATS[from] || []).push({me:false, t:text, i:String(mid || newMsgId())}); saveChats(); if(cpOpen.indexOf(from) < 0){ cpOpen.push(from); if(cpOpen.length > 2) cpOpen.shift(); } if(U && !Engine.active()) renderCP(); }
 function renderCP(){
-  const el = $('#cp'); if(!U){ el.innerHTML = ''; return; }
+  const el = $('#cp'); if(!U){ el.innerHTML = ''; return; } loadChats();
   const fr = friendIds().sort((a, b) => isOnline(b) - isOnline(a));
-  const wins = cpOpen.map(id => { const msgs = CHATS[id] || []; return '<div class="cpwin" data-w="' + id + '"><div class="ch" data-act="cpClose" data-n="' + id + '"><span>' + esc(nameOf(id)) + '</span><span>&times;</span></div><div class="cb" id="cb' + id + '">' + msgs.map(m => '<div class="' + (m.me ? 'me' : 'th') + '">' + esc(m.t) + '</div>').join('') + '</div><input type="text" maxlength="100" placeholder="' + (isOnline(id) ? 'Send a message' : 'Offline. Use Messages instead') + '" data-chat="' + id + '" aria-label="Message ' + esc(nameOf(id)) + '"></div>'; }).join('');
+  const wins = cpOpen.map(id => { const msgs = CHATS[id] || []; return '<div class="cpwin" data-w="' + id + '"><div class="ch" data-act="cpClose" data-n="' + id + '"><span>' + esc(nameOf(id)) + '</span><span>&times;</span></div><div class="cb" id="cb' + id + '">' + msgs.map(m => '<div class="' + (m.me ? 'me' : 'th') + '">' + esc(m.t) + (m.me && m.i ? ' <a class="dmx" data-act="dmDel" data-n="' + id + '" data-i="' + m.i + '" title="Delete this message" aria-label="Delete message">&times;</a>' : '') + '</div>').join('') + '</div><input type="text" maxlength="100" placeholder="' + (isOnline(id) ? 'Send a message' : 'Offline. Use Messages instead') + '" data-chat="' + id + '" aria-label="Message ' + esc(nameOf(id)) + '"></div>'; }).join('');
   const act = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.chat : null, actVal = act ? document.activeElement.value : '';
   el.innerHTML = wins + '<div class="cpwin" id="cpmain"><div class="ch" data-act="cpToggle"><span>Chat &amp; Party</span><span>' + (cpMin ? '&#9650;' : '&#9660;') + '</span></div>' + (cpMin ? '' : '<div class="cb">' + (fr.length ? fr.map(id => '<a data-act="cpOpen" data-n="' + id + '">' + uImg(id, 'head') + '<span>' + esc(nameOf(id)) + '<small>' + statusOf(id) + '</small></span></a>').join('') : '<p class="muted" style="padding:8px;font-size:12px;margin:0">Add friends to chat with them here.</p>') + '</div>') + '</div>';
   cpOpen.forEach(id => { const cb = $('#cb' + id); if(cb) cb.scrollTop = cb.scrollHeight; });
   if(act){ const inp = $('[data-chat="' + act + '"]'); if(inp){ inp.value = actVal; inp.focus(); } }
 }
 document.addEventListener('keydown', e => {
-  const t = e.target; if(e.key === 'Enter' && t.dataset && t.dataset.chat){ const id = t.dataset.chat, v = t.value.trim(); if(!v) return; if(muteLeftMs()){ toast(muteText(), true); return; } if(badText(v)){ toast('That message has words that are not allowed.', true); return; } if(!isOnline(id) || !ROOM){ toast(nameOf(id) + ' is offline. Send a message instead.', true); return; } (CHATS[id] = CHATS[id] || []).push({me:true, t:v}); t.value = ''; ROOM.emit('dm', {to:id, t:v}).catch(() => {}); renderCP(); }
+  const t = e.target; if(e.key === 'Enter' && t.dataset && t.dataset.chat){ const id = t.dataset.chat, v = t.value.trim(); if(!v) return; if(muteLeftMs()){ toast(muteText(), true); return; } if(badText(v)){ toast('That message has words that are not allowed.', true); return; } if(!isOnline(id) || !ROOM){ toast(nameOf(id) + ' is offline. Send a message instead.', true); return; } loadChats(); const mid = newMsgId(); (CHATS[id] = CHATS[id] || []).push({me:true, t:v, i:mid}); saveChats(); t.value = ''; ROOM.emit('dm', {to:id, t:v, i:mid}).catch(() => {}); renderCP(); }
 });
 
 /* ===================== actions ===================== */
@@ -4388,6 +4405,7 @@ const ACTIONS = {
   noticeTo:el => { const id = el.dataset.n; modal('Send notice to ' + nameOf(id), '<label class="f" for="ntQ" style="margin-top:0">Message</label><input id="ntQ" maxlength="300" placeholder="Please be kind in chat.">', [{label:'Cancel', cls:'neutral'}, {label:'Send', cls:'green', fn:() => { const t = ($('#ntQ').value || '').trim(); if(!t){ toast('Type a message first.', true); return false; } DB.collection('notices').add({to:id, from:MYID, text:t, t:Date.now()}).then(() => toast('Notice sent.')).catch(() => toast('Could not send.', true)); }}]); },
   botToggle:() => { if(!isAdminMe()) return; DB.doc('site/bots').set({on:!BOTCFG.on, n:BOTCFG.n, t:Date.now()}).then(() => toast(BOTCFG.on ? 'Bots are off.' : 'Bots are on.')).catch(() => toast('Could not change bots.', true)); },
   botCount:el => { if(!isAdminMe()) return; DB.doc('site/bots').set({on:BOTCFG.on, n:Math.max(1, Math.min(10, BOTCFG.n + +el.dataset.d)), t:Date.now()}).catch(() => toast('Could not change bots.', true)); },
+  showMusic:() => { const m = $('#menuDrop'); if(m) m.hidden = true; modal('Music', '<p class="muted" style="margin:0 0 8px">Press play and keep listening while you browse. The music keeps playing until you close this window.</p><div style="position:relative;padding-top:56.25%"><iframe src="https://www.youtube.com/embed/videoseries?list=PLya__OBTLMkONuQDu0kHDCrml2xuEINSi" title="Retro Blox music playlist" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>', [{label:'Close', cls:'neutral'}]); },
   showRules:() => { const m = $('#menuDrop'); if(m) m.hidden = true; modal('Rules', RULES_HTML, [{label:'I understand', cls:''}]); },
   setRole:() => { if(myLvl() < 3) return; const nm = ($('#rlName').value || '').trim(), r = $('#rlRole').value, id = nm && findByName(nm);
     if(!id) return toast('No player named "' + nm + '".', true); if(id === MYID) return toast('You cannot change your own rank.', true); if(lvlOf(id) >= myLvl()) return toast('You cannot change the rank of someone at or above yours.', true);
@@ -4484,6 +4502,8 @@ const ACTIONS = {
     }}]); },
   renamePlace:el => { const p = U.places[+el.dataset.p]; modal('Rename Place', '<input id="rnP" type="text" maxlength="30" value="' + esc(p.name) + '">', [{label:'Cancel', cls:'neutral'}, {label:'Save', fn:() => { const v = $('#rnP').value.trim(); if(!v) return false; p.name = v; persist(); render(); }}]); },
   delPlace:el => { const i = +el.dataset.p; confirmBox('Delete Place', 'Delete <b>' + esc(U.places[i].name) + '</b>? This cannot be undone.' + (placeGame(U.places[i]) ? ' Its published game will be unpublished.' : ''), 'Delete', () => { const g = placeGame(U.places[i]); if(g) DB.doc('games/' + g.id).delete().catch(() => {}); U.places.splice(i, 1); persist(); render(); }, 'red'); },
+  dmDel:el => { const id = el.dataset.n, mid = el.dataset.i; loadChats(); CHATS[id] = (CHATS[id] || []).filter(m => m.i !== mid); saveChats(); if(ROOM && isOnline(id)) ROOM.emit('dmdel', {to:id, i:mid}).catch(() => {}); renderCP(); },
+  scaleReset:() => { if(U.avatar.scale){ delete U.avatar.scale; persist(); render(); } },
   cpToggle:() => { cpMin = !cpMin; try{ localStorage.setItem('bbCpMin', cpMin ? '1' : '0'); }catch(e){} renderCP(); }, cpOpen:el => { const id = el.dataset.n; if(cpOpen.indexOf(id) < 0) cpOpen.push(id); if(cpOpen.length > 2) cpOpen.shift(); renderCP(); const i = $('[data-chat="' + id + '"]'); if(i) i.focus(); }, cpClose:el => { cpOpen = cpOpen.filter(x => x !== el.dataset.n); renderCP(); }
 };
 document.addEventListener('click', e => {

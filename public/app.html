@@ -2795,7 +2795,7 @@ const Engine = (function(){
     if(G.R){ P.cd = .25; rInteract(); return; }
     const k = P.tool; if(!k) return;
     if(k === 'sword'){ P.swing = .38; P.cd = .45; P.hitDone = false; G.swingCount++; sfx.swing(); }
-    else if(k === 'boombox'){ const n = G.music + 1, idx = n >= TRACKS.length ? -1 : n; ownMusic(idx); P.cd = .4; sfx.equip(); if(idx >= 0){ toast('\u266A ' + TRACKS[idx].n, 'Click the boombox again for the next song'); chatMsg('info', 'Boombox: now playing ' + TRACKS[idx].n + '.'); } else { toast('Boombox off', ''); chatMsg('info', 'Boombox: stopped.'); } }
+    else if(k === 'boombox'){ const n = G.music < 4 ? 4 : G.music + 1, idx = n >= TRACKS.length ? -1 : n; ownMusic(idx); P.cd = .4; sfx.equip(); if(idx >= 0){ toast('\u266A ' + TRACKS[idx].n, 'Click the boombox again for the next song'); chatMsg('info', 'Boombox: now playing ' + TRACKS[idx].n + '.'); } else { toast('Boombox off', ''); chatMsg('info', 'Boombox: stopped.'); } }
     else if(k === 'pizza'){ P.boost = 5; P.cd = 2.5; sfx.eat(); P.hp = Math.min(P.max, P.hp + 35); updateHP(); chatMsg('info', 'Yum! Pizza gives you energy.'); P.swing = .5; G.swingCount++; }
     else if(k === 'lemon'){ P.boost = 6; P.cd = 3; sfx.drink(); P.hp = Math.min(P.max, P.hp + 30); updateHP(); chatMsg('info', 'Sour but refreshing. Speed boost!'); P.swing = .5; G.swingCount++; }
     else if(k === 'cola'){ P.boost = 8; P.cd = 3; sfx.drink(); P.hp = Math.min(P.max, P.hp + 25); updateHP(); chatMsg('info', 'Glug glug. Speed boost!'); P.swing = .5; G.swingCount++; }

@@ -551,6 +551,8 @@ body.in-game #evfx{display:none}
 
 .cpwin .cb .me{position:relative}.cpwin .cb .dmx{display:none;margin-left:6px;color:#c00;font-weight:700;cursor:pointer}.cpwin .cb .me:hover .dmx{display:inline}
 
+.logo{position:relative}.evhat{position:absolute;left:-7px;top:-13px;font-size:20px;line-height:1;transform:rotate(-18deg);pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
+
 </style><script>try{if(localStorage.rbtheme==="dark")document.documentElement.classList.add("dark")}catch(e){}</script></head><body>
 <div id="shell">
   <header id="hdr"><div class="hwrap">
@@ -3534,6 +3536,7 @@ function unreadN(){ return MSGDOCS.filter(m => m.to === MYID && !U.read[m.id] &&
 
 /* ---- seasonal site theme: colors, a badge by the logo and gently falling decorations ---- */
 const EV_FX = {halloween:['🎃','🦇','👻'], thanksgiving:['🍂','🍁','🦃'], july4:['🎆','⭐','🎇'], valentine:['💖','💗','🌹'], easter:['🥚','🌸','🐰'], newyear:['🎊','✨','🎉'], winter:['❄️','❄️','⛄']};
+const EV_HAT = {winter:'\uD83C\uDF85', halloween:'\uD83C\uDF83', thanksgiving:'\uD83C\uDF42', july4:'\uD83C\uDF86', valentine:'\uD83D\uDC96', easter:'\uD83D\uDC23', newyear:'\uD83C\uDF8A'};
 function themeKey(){
   try{ if(localStorage.getItem('rbevtheme') === 'off') return ''; }catch(e){}
   const on = Object.keys(EVENTS).filter(eventOn).sort((a, b) => (EVENTS[a].to - EVENTS[a].from) - (EVENTS[b].to - EVENTS[b].from));
@@ -3544,9 +3547,9 @@ function applyEvTheme(){
   if(k === cur) return; document.body.dataset.th = k;
   Array.from(document.body.classList).forEach(c => { if(c.indexOf('th-') === 0) document.body.classList.remove(c); });
   let fx = document.getElementById('evfx'); if(fx) fx.remove();
-  let bd = document.getElementById('evbadge'); if(bd) bd.remove();
+  let bd = document.getElementById('evbadge'); if(bd) bd.remove(); { const h0 = document.getElementById('evhat'); if(h0) h0.remove(); }
   if(!k) return; document.body.classList.add('th-' + k);
-  const lg = document.querySelector('#hdr .logo'); if(lg){ bd = document.createElement('span'); bd.id = 'evbadge'; bd.className = 'evbadge'; bd.title = EVENTS[k].name; bd.textContent = EVENTS[k].icon; lg.after(bd); }
+  const lg = document.querySelector('#hdr .logo'); if(lg){ bd = document.createElement('span'); bd.id = 'evbadge'; bd.className = 'evbadge'; bd.title = EVENTS[k].name; bd.textContent = EVENTS[k].icon; lg.after(bd); const hat = document.createElement('span'); hat.id = 'evhat'; hat.className = 'evhat'; hat.textContent = EV_HAT[k] || EVENTS[k].icon; lg.appendChild(hat); }
   fx = document.createElement('div'); fx.id = 'evfx'; fx.setAttribute('aria-hidden', 'true');
   const em = EV_FX[k] || ['✨']; let h = ''; for(let i = 0; i < 14; i++) h += '<i style="left:' + Math.round(Math.random() * 98) + '%;font-size:' + (14 + Math.round(Math.random() * 14)) + 'px;animation-duration:' + (9 + Math.round(Math.random() * 10)) + 's;animation-delay:-' + Math.round(Math.random() * 18) + 's;--dx:' + (Math.round(Math.random() * 120) - 60) + 'px">' + em[i % em.length] + '</i>';
   fx.innerHTML = h; document.body.appendChild(fx);

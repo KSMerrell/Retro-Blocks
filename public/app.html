@@ -554,6 +554,10 @@ body.in-game #evfx{display:none}
 .logo{position:relative}.evhat{position:absolute;left:-7px;top:-13px;font-size:20px;line-height:1;transform:rotate(-18deg);pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
 .evtag{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;border-radius:9px;background:rgba(255,255,255,.2);color:#fff;white-space:nowrap}
 @media (max-width:900px){.evtag{display:none}}
+body.th-winter .hmark{background:none;padding:0;border-radius:0;height:40px;margin:-4px 0}
+body.th-winter .hword{filter:none;height:25px}
+body.th-winter .evbadge{display:none}
+@media (max-width:760px){body.th-winter .hmark{height:34px}}
 
 </style><script>try{if(localStorage.rbtheme==="dark")document.documentElement.classList.add("dark")}catch(e){}</script></head><body>
 <div id="shell">
@@ -3551,8 +3555,9 @@ function applyEvTheme(){
   Array.from(document.body.classList).forEach(c => { if(c.indexOf('th-') === 0) document.body.classList.remove(c); });
   let fx = document.getElementById('evfx'); if(fx) fx.remove();
   let bd = document.getElementById('evbadge'); if(bd) bd.remove(); { const h0 = document.getElementById('evhat'); if(h0) h0.remove(); const t0 = document.getElementById('evtag'); if(t0) t0.remove(); if(!k) try{ document.title = 'Retro Blox'; }catch(e){} }
+  document.querySelectorAll('img.hmark, img.hword, img.wm').forEach(im => { const o = im.dataset.o || (im.dataset.o = im.getAttribute('src')); im.setAttribute('src', k === 'winter' ? (im.classList.contains('hmark') ? '/mark_winter.png' : '/word_winter.png') : o); });
   if(!k) return; document.body.classList.add('th-' + k);
-  const lg = document.querySelector('#hdr .logo'); if(lg){ bd = document.createElement('span'); bd.id = 'evbadge'; bd.className = 'evbadge'; bd.title = EVENTS[k].name; bd.textContent = EVENTS[k].icon; lg.after(bd); const hat = document.createElement('span'); hat.id = 'evhat'; hat.className = 'evhat'; hat.textContent = EV_HAT[k] || EVENTS[k].icon; lg.appendChild(hat); const tg = document.createElement('span'); tg.id = 'evtag'; tg.className = 'evtag'; tg.textContent = EV_TAG[k] || ''; lg.appendChild(tg); try{ document.title = 'Retro Blox \u00B7 ' + EVENTS[k].name; }catch(e){} }
+  const lg = document.querySelector('#hdr .logo'); if(lg){ bd = document.createElement('span'); bd.id = 'evbadge'; bd.className = 'evbadge'; bd.title = EVENTS[k].name; bd.textContent = EVENTS[k].icon; lg.after(bd); const hat = document.createElement('span'); hat.id = 'evhat'; if(k === 'winter') hat.hidden = true; hat.className = 'evhat'; hat.textContent = EV_HAT[k] || EVENTS[k].icon; lg.appendChild(hat); const tg = document.createElement('span'); tg.id = 'evtag'; tg.className = 'evtag'; tg.textContent = EV_TAG[k] || ''; lg.appendChild(tg); try{ document.title = 'Retro Blox \u00B7 ' + EVENTS[k].name; }catch(e){} }
   fx = document.createElement('div'); fx.id = 'evfx'; fx.setAttribute('aria-hidden', 'true');
   const em = EV_FX[k] || ['✨']; let h = ''; for(let i = 0; i < 14; i++) h += '<i style="left:' + Math.round(Math.random() * 98) + '%;font-size:' + (14 + Math.round(Math.random() * 14)) + 'px;animation-duration:' + (9 + Math.round(Math.random() * 10)) + 's;animation-delay:-' + Math.round(Math.random() * 18) + 's;--dx:' + (Math.round(Math.random() * 120) - 60) + 'px">' + em[i % em.length] + '</i>';
   fx.innerHTML = h; document.body.appendChild(fx);

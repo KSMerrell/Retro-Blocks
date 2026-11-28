@@ -722,6 +722,8 @@ const GAMES_ALL = [
   desc:'A friendly town for chatting, collecting coins and hanging out with real people. Type /e dance or /e wave to show some moves. Every coin you collect is worth 1 token.'},
  {id:3, kind:'arena', name:'Sword Arena', creator:'Retro Blox', color:['#e65a3a','#6b1d0e'], max:16,
   desc:'Grab your sword and fight the other players on the arena floor. Click to swing. Every knockout earns you 2 tokens. Watch your health bar in the top right.'},
+ {id:37, kind:'arena', team:true, name:'Team Sword Battle', creator:'Retro Blox', color:['#3a7be6','#e63a3a'], max:16,
+  desc:'Red team versus Blue team on the sword arena. You are put on a team automatically, you cannot hurt your teammates, and the diamond over each head shows which side a player is on. Every knockout earns you 2 tokens.'},
  {id:4, kind:'studio', name:'Brick Builder Studio', creator:'Retro Blox', color:['#f2b705','#a36a00'], max:1,
   desc:'Build anything. Click to place bricks, press E to switch to delete mode, R to rotate, and pick a brick size and color from the toolbar. Your creation is saved to your place.'},
  {id:5, kind:'tower', name:'Sky Tower Obby', creator:'Retro Blox', color:['#8e5bd9','#2c1670'], max:12,
@@ -1181,8 +1183,8 @@ const Engine = (function(){
      lead:['0 . 4 . 7 . 4 . 7 . 9 . 7 . 4 .', '5 . 9 . 12 . 9 . 12 . 14 . 12 . 9 .', '7 . 11 . 14 . 11 . 14 . 16 . 14 . 11 .', '12 . 11 . 9 . 7 . 4 . 7 . 0 . . .'],
      roots:[0, 5, 7, 0], chord:[0, 4, 7], cp:[4, 12], bass:'r . . . 5 . . . r . . . 5 . . .', k:'x.......x.......', s:'....x.......x...', h:'x...x...x...x...'}
 ,
-    {n:'Crossroads Times', file:'/music/crossroads-times.mp3'}, {n:'Noob Alert', file:'/music/noob-alert.mp3'}, {n:'Training Day', file:'/music/training-day.mp3'},
-    {n:'Metal Bricks', file:'/music/metal-bricks.mp3'}, {n:'ROBLOX\u2019s Last Stand', file:'/music/robloxs-last-stand.mp3'}
+    {n:'Sunny Plaza', file:'/music/sunny-plaza.mp3'}, {n:'Brick Hill Groove', file:'/music/brick-hill-groove.mp3'}, {n:'Hero Run', file:'/music/hero-run.mp3'},
+    {n:'Blocky Boss', file:'/music/blocky-boss.mp3'}, {n:'Night Lobby', file:'/music/night-lobby.mp3'}
   ];
   const DEFAULT_BGM = {obby:6, tower:6, lavarise:6, tiledrop:5, maze:8, coins:4, town:4, tycoon:4, restaurant:4, coaster:4, golf:4, drive:7, zombie:7, ctf:7, arena:7, hideseek:5};
   let M = null, noiseBuf = null;
@@ -2646,6 +2648,8 @@ const Engine = (function(){
     let nx = null; G.colliders.forEach(c => { if(c.kind === 'check' && c.stage > st && (!nx || c.stage < nx.stage)) nx = c; });
     if(!nx) G.colliders.forEach(c => { if(c.kind === 'goal') nx = c; });
     if(nx){ const fin = {x:nx.cx, z:nx.cz, y:nx.maxy, r:1.1}; return botHop(e, fin) || fin; }
+    if(G.lr){ let h = null; G.colliders.forEach(c => { if(c.maxy > e.y + .5 && c.maxy < e.y + 4.2 && Math.hypot(c.cx - e.x, c.cz - e.z) < 16 && (!h || c.maxy > h.maxy)) h = c; }); if(h) return {x:h.cx, z:h.cz, y:h.maxy, r:1.2}; }
+    if(G.td && G.td.tiles.length){ const act = G.td.tiles.filter(t => t.p.active && t.p.mesh && t.p.mesh.visible !== false); if(act.length){ const t = act[Math.floor(Math.random() * act.length)].p; if(t.cx !== undefined) return {x:t.cx, z:t.cz, y:t.maxy, r:1.6}; } }
     if(G.game.kind === 'tower'){ let h = null; G.colliders.forEach(c => { if(c.maxy > e.y + .5 && Math.hypot(c.cx - e.x, c.cz - e.z) < 22 && (!h || c.maxy < h.maxy)) h = c; }); if(h) return {x:h.cx, z:h.cz, y:h.maxy, r:1.2}; }
     // otherwise roam, sometimes near a real player
     const real = Object.keys(G.remotes).map(k => G.remotes[k]).filter(r => !r.isBot && !r.inv); const tgt = (real.length && Math.random() < .5) ? real[Math.floor(Math.random() * real.length)] : G.P; 
@@ -2808,7 +2812,7 @@ const Engine = (function(){
   function swingHit(){
     const P = G.P; if(G.zm){ zmHit(); return; } if(!G.pvp) return;
     const fx = Math.sin(P.face), fz = Math.cos(P.face);
-    if(!G.net) return; Object.keys(G.remotes).forEach(k => { const b = G.remotes[k]; if(b.dead || !b.uid) return; const dx = b.x - P.x, dz = b.z - P.z, d = Math.hypot(dx, dz); if(d < 8 && Math.abs(b.y - P.y) < 5 && (dx * fx + dz * fz) / (d || 1) > .15){ G.net.room.emit('hit', {to:b.uid, d:25, dx:r2(dx / (d || 1)), dz:r2(dz / (d || 1))}).catch(() => {}); sfx.hit(); } });
+    if(!G.net) return; Object.keys(G.remotes).forEach(k => { const b = G.remotes[k]; if(b.dead || !b.uid || (G.team && teamOf(b) === teamOf(P))) return; const dx = b.x - P.x, dz = b.z - P.z, d = Math.hypot(dx, dz); if(d < 8 && Math.abs(b.y - P.y) < 5 && (dx * fx + dz * fz) / (d || 1) > .15){ G.net.room.emit('hit', {to:b.uid, d:25, dx:r2(dx / (d || 1)), dz:r2(dz / (d || 1))}).catch(() => {}); sfx.hit(); } });
   }
   function damage(e, amt, from, dx, dz){
     if(e.dead || e.ff > 0 || e.remote) return;
@@ -2845,7 +2849,7 @@ const Engine = (function(){
   function addRemote(p){
     const pr = p.presence, user = {name:nameOfPeer(p), avatar:pr.av};
     const e = mkEnt(user, pr.x || 0, pr.y || 0, pr.z || 0, true); e.remote = true; e.peer = p.peer; e.uid = p.by; e.tx = e.x; e.ty = e.y; e.tz = e.z; e.swc = pr.sw || 0; e.gid = 0;
-    G.ents.push(e); G.remotes[p.peer] = e; chatMsg('info', user.name + ' joined the server.'); updateBoard(); return e;
+    G.ents.push(e); G.remotes[p.peer] = e; teamMark(e); chatMsg('info', user.name + ' joined the server.'); updateBoard(); return e;
   }
   function removeRemote(k, quiet){
     const e = G.remotes[k]; if(!e) return; if(e.petSp) G.scene.remove(e.petSp); if(e.emoSp) G.scene.remove(e.emoSp); G.scene.remove(e.A.group); if(e.car) G.scene.remove(e.car); const i = G.ents.indexOf(e); if(i >= 0) G.ents.splice(i, 1); delete G.remotes[k]; if(!quiet) chatMsg('info', e.user.name + ' left the server.'); updateBoard();
@@ -2861,6 +2865,8 @@ const Engine = (function(){
     e.stats = Object.assign({stage:0, height:0, coins:0}, pr.st || {}); e.kills = pr.k || 0; e.deaths = pr.dt || 0; e.mu = pr.mu == null ? -1 : pr.mu; if(pr.cr && !e.car){ e.car = mkCar(CAR_COLS[hashStr(String(e.uid || e.user.name)) % 8]); G.scene.add(e.car); } e.cr = !!pr.cr; e.tm = pr.tm == null ? -1 : pr.tm; e.fc = pr.fc || 0;
     const nm = nameOfPeer(p); if(nm !== e.user.name) e.user.name = nm;
   }
+  function teamOf(e){ if(!G.team) return -1; if(e === G.P) return hashStr(String(G.myId || (G.opts.user && G.opts.user.name) || 'me')) % 2; return hashStr(String(e.uid || e.user.name)) % 2; }
+  function teamMark(e){ if(!G.team || e.tmk) return; const t = teamOf(e), m = new THREE.Mesh(new THREE.OctahedronGeometry(.7), new THREE.MeshBasicMaterial({color:t ? 0x3a7be6 : 0xe63a3a})); m.position.y = 6.6; e.A.group.add(m); e.tmk = m; }
   function remoteByUid(u){ for(const k in G.remotes) if(G.remotes[k].uid === u) return G.remotes[k]; return null; }
   function netStart(){
     const N = G.opts.net; if(!N || !N.room) return; G.net = N; G.myId = N.myId; G.swingCount = 0; G.pubT = 0; G.lastPub = '';
@@ -2873,7 +2879,7 @@ const Engine = (function(){
     G.unsubs = [N.room.onPeers(sync), N.room.on('bots', m => { if(!m.isMe) botRecv(m); }), N.room.on('ctf', m => { if(!m.isMe && G.ctf) ctfEvent(m.data || {}); }),
       N.room.on('emo', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const e = G.remotes[m.peer], em = EMO_BY_ID[String((m.data || {}).id)]; if(e && em) showEmo(e, em.e); }),
       N.room.on('chat', m => { if(m.isMe || (N.isBlocked && N.isBlocked(m.by))) return; const d = m.data || {}, t = (typeof cleanText === 'function' ? cleanText : x => x)(String(d.t || '').slice(0, 120)); if(!t) return; const e = G.remotes[m.peer]; const nm = e ? e.user.name : ((N.nameOf && N.nameOf(m.by)) || 'Player'); chatMsg('say', t, nm); if(e) say(e, t); }),
-      N.room.on('hit', m => { const d = m.data || {}; if(m.isMe || d.to !== G.myId || G.P.dead || !G.pvp) return; const from = remoteByUid(m.by); damage(G.P, Math.max(0, Math.min(30, +d.d || 0)), from, +d.dx || 0, +d.dz || 0); }),
+      N.room.on('hit', m => { const d = m.data || {}; if(m.isMe || d.to !== G.myId || G.P.dead || !G.pvp) return; const from = remoteByUid(m.by); if(G.team && from && teamOf(from) === teamOf(G.P)) return; damage(G.P, Math.max(0, Math.min(30, +d.d || 0)), from, +d.dx || 0, +d.dz || 0); }),
       N.room.on('ko', m => { const d = m.data || {}; if(m.isMe || d.k !== G.myId) return; G.P.kills++; G.opts.onReward && G.opts.onReward('tokens', 2); G.opts.onEvent && G.opts.onEvent('ko'); const nm = (m.by && N.nameOf && N.nameOf(m.by)) || 'a player'; toast('Knockout!', 'You knocked out ' + nm + '. +2 tokens'); chatMsg('sys', 'You knocked out ' + nm + '. +2 tokens'); updateBoard(); })];
     sync();
   }
@@ -3167,7 +3173,7 @@ const Engine = (function(){
     G.P = mkEnt({name:opts.user.name, avatar:opts.user.avatar}, sp.x, sp.y, sp.z, false); G.ents.push(G.P); G.P.ff = 2.4; G.P.boost = 0; G.P.hitDone = true; G.P.stats.stage = 0;
     if(G.pads && opts.resume > 0){ const pd = G.pads.find(q => q.n === opts.resume); if(pd){ G.checkpoint = {x:pd.x, y:pd.y + .05, z:pd.z}; G.P.x = pd.x; G.P.y = pd.y + .05; G.P.z = pd.z; G.P.stats.stage = pd.n; G.resumed = pd.n; chatMsg('sys', 'Welcome back! You continue from stage ' + pd.n + '.'); } }
     G.P.face = G.game.kind === 'town' || G.game.kind === 'studio' || G.pvp ? Math.PI : Math.PI;
-    G.yaw = 0; G.bots = []; G.remotes = {}; buildTools(); resize(); updateBoard(); updateHP(); if(G.R) renderTray(); if(game.kind === 'studio'){ root.classList.add('studio'); studioHudEvents(); P_hide(); sUI(); } else root.classList.remove('studio');
+    G.yaw = 0; G.bots = []; G.remotes = {}; G.team = !!game.team; if(G.team){ teamMark(G.P); chatMsg('info', 'You are on the ' + (teamOf(G.P) ? 'BLUE' : 'RED') + ' team. You cannot hurt teammates!'); } buildTools(); resize(); updateBoard(); updateHP(); if(G.R) renderTray(); if(game.kind === 'studio'){ root.classList.add('studio'); studioHudEvents(); P_hide(); sUI(); } else root.classList.remove('studio');
     if(G.bgm < 0 && game.kind !== 'studio' && !game.custom && !(opts.place)) G.bgm = DEFAULT_BGM[game.kind] != null ? DEFAULT_BGM[game.kind] : 5;
     emoPanel(); setPet(G.P, opts.user.petEm); chatMsg('info', 'Welcome to ' + game.name + '!'); if(G.opts.serverName) chatMsg('info', 'You joined ' + G.opts.serverName + '.');
     netStart();
@@ -4428,7 +4434,7 @@ async function playGame(gid, opt){
 
 
 /* ===================== music player (songs by Finobe, played from /music) ===================== */
-const TRACKS = [{f:'crossroads-times', n:'Crossroads Times'}, {f:'noob-alert', n:'Noob Alert'}, {f:'training-day', n:'Training Day'}, {f:'metal-bricks', n:'Metal Bricks'}, {f:'robloxs-last-stand', n:'ROBLOX\u2019s Last Stand'}];
+const TRACKS = [{f:'sunny-plaza', n:'Sunny Plaza'}, {f:'brick-hill-groove', n:'Brick Hill Groove'}, {f:'hero-run', n:'Hero Run'}, {f:'blocky-boss', n:'Blocky Boss'}, {f:'night-lobby', n:'Night Lobby'}];
 const MUS = {a:null, i:0, on:false, vol:.5};
 try{ const v = parseFloat(localStorage.getItem('rbmvol')); if(v >= 0 && v <= 1) MUS.vol = v; const k = parseInt(localStorage.getItem('rbmtrack'), 10); if(k >= 0 && k < TRACKS.length) MUS.i = k; }catch(e){}
 function musInit(){ if(MUS.a) return; MUS.a = new Audio(); MUS.a.preload = 'none'; MUS.a.volume = MUS.vol; MUS.a.addEventListener('ended', () => musNext()); MUS.a.addEventListener('error', () => { MUS.on = false; musUi(); }); }
